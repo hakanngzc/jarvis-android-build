@@ -1,0 +1,47 @@
+name: Diagnose Bare Jarvis Wake
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/diagnose-bare-jarvis.yml'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install audio tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq espeak-ng ffmpeg
+          python -m pip install -q openwakeword onnxruntime soundfile
+      - name: Generate wake samples
+        run: |
+          mkdir -p diag
+          espeak-ng -v tr -s 135 -w diag/jarvis_tr_raw.wav "Jarvis"
+          espeak-ng -v tr -s 135 -w diag/hey_jarvis_tr_raw.wav "Hey Jarvis"
+          espeak-ng -v en-us -s 135 -w diag/jarvis_en_raw.wav "Jarvis"
+          espeak-ng -v en-us -s 135 -w diag/hey_jarvis_en_raw.wav "Hey Jarvis"
+          for f in diag/*_raw.wav; do ffmpeg -y -loglevel error -i "$f" -ar 16000 -ac 1 -sample_fmt s16 "${f/_raw/}"; done
+      - name: Download pinned model
+        run: |
+          wget -q https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/hey_jarvis_v0.1.onnx -O diag/hey_jarvis_v0.1.onnx
+      - name: Score samples with official openWakeWord
+        run: |
+          python - <<'PY'
+          import wave, numpy as np
+          from openwakeword.model import Model
+          files=['diag/jarvis_tr.wav','diag/hey_jarvis_tr.wav','diag/jarvis_en.wav','diag/hey_jarvis_en.wav']
+          for path in files:
+              model=Model(wakeword_models=['diag/hey_jarvis_v0.1.onnx'], inference_framework='onnx')
+              wf=wave.open(path,'rb')
+              audio=np.frombuffer(wf.readframes(wf.getnframes()),dtype=np.int16)
+              pad=(-len(audio))%1280
+              if pad: audio=np.pad(audio,(0,pad))
+              scores=[]
+              for i in range(0,len(audio),1280):
+                  out=model.predict(audio[i:i+1280])
+                  scores.append(float(next(iter(out.values()))))
+              print(path,'max=',max(scores) if scores else 0,'top5=',sorted(scores,reverse=True)[:5])
+          PY
