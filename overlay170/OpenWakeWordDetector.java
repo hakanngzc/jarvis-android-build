@@ -1,0 +1,47 @@
+package com.hakan.jarvis;
+
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import ai.onnxruntime.OnnxTensor;
+import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtSession;
+import ai.onnxruntime.TensorInfo;
+
+/** Java port of the openWakeWord Android inference pipeline. Audio never leaves the phone. */
+public final class OpenWakeWordDetector {
+ public interface Listener{void onDetected(float score);void onError(String message);}
+ private static final String TAG="JarvisWakeDetector";
+ private static final int SAMPLE_RATE=16000,FRAME_SAMPLES=1280,MEL_CONTEXT_SAMPLES=480,MEL_BINS=32,MEL_WINDOW_FRAMES=76,EMBEDDING_DIM=96,FEATURE_WINDOW=16,FEATURE_BUFFER_MAX=120,MEL_BUFFER_MAX=970,SKIP_INITIAL_PREDICTIONS=5,RAW_BUFFER_SECONDS=10;
+ private final Context context;private final float threshold,strongThreshold;private final long debounceMs;private final Handler main=new Handler(Looper.getMainLooper());
+ private OrtEnvironment env;private OrtSession melSession,embeddingSession,wakeSession;private String wakeInputName;private AudioRecord audioRecord;private Thread thread;private volatile boolean running;private Listener listener;private long lastDetection;private int predictionCount,consecutiveHits;
+ private float[] rawBuffer;private int rawWritePos;private long rawTotalWritten;private final ArrayList<float[]> melBuffer=new ArrayList<float[]>(),featureBuffer=new ArrayList<float[]>();
+ public OpenWakeWordDetector(Context c,float threshold,float strongThreshold,long debounceMs){this.context=c.getApplicationContext();this.threshold=threshold;this.strongThreshold=strongThreshold;this.debounceMs=debounceMs;}
+ public synchronized boolean isRunning(){return running;}
+ public synchronized void start(Listener l){if(running)return;listener=l;running=true;thread=new Thread(new Runnable(){public void run(){android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);try{if(melSession==null)initModels();initBuffers();if(!initAudioRecord())throw new IllegalStateException("Mikrofon açılamadı");audioLoop();}catch(final Throwable e){Log.e(TAG,"wake detector failed",e);final Listener cb=listener;if(cb!=null)main.post(new Runnable(){public void run(){cb.onError(e.getMessage()==null?"Wake word motoru durdu":e.getMessage());}});}finally{releaseAudioRecord();running=false;}}},"JarvisWakeWord");thread.start();}
+ public synchronized void stop(){running=false;try{if(audioRecord!=null)audioRecord.stop();}catch(Exception ignored){}Thread t=thread;if(t!=null&&t!=Thread.currentThread())try{t.join(1800);}catch(InterruptedException e){Thread.currentThread().interrupt();}thread=null;releaseAudioRecord();}
+ public synchronized void release(){stop();try{if(wakeSession!=null)wakeSession.close();}catch(Exception ignored){}try{if(embeddingSession!=null)embeddingSession.close();}catch(Exception ignored){}try{if(melSession!=null)melSession.close();}catch(Exception ignored){}try{if(env!=null)env.close();}catch(Exception ignored){}wakeSession=null;embeddingSession=null;melSession=null;env=null;listener=null;}
+ private void initModels()throws Exception{env=OrtEnvironment.getEnvironment();OrtSession.SessionOptions opts=new OrtSession.SessionOptions();opts.setIntraOpNumThreads(1);opts.setInterOpNumThreads(1);melSession=env.createSession(loadAsset("openwakeword/melspectrogram.onnx"),opts);embeddingSession=env.createSession(loadAsset("openwakeword/embedding_model.onnx"),opts);wakeSession=env.createSession(loadAsset("openwakeword/hey_jarvis_v0.1.onnx"),opts);wakeInputName=wakeSession.getInputNames().iterator().next();}
+ private byte[] loadAsset(String path)throws Exception{InputStream in=context.getAssets().open(path);ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[16384];int n;try{while((n=in.read(b))>0)out.write(b,0,n);}finally{in.close();}return out.toByteArray();}
+ private void initBuffers(){rawBuffer=new float[SAMPLE_RATE*RAW_BUFFER_SECONDS];rawWritePos=0;rawTotalWritten=0;melBuffer.clear();featureBuffer.clear();for(int i=0;i<MEL_WINDOW_FRAMES;i++){float[] f=new float[MEL_BINS];for(int j=0;j<MEL_BINS;j++)f[j]=1f;melBuffer.add(f);}for(int i=0;i<FEATURE_WINDOW;i++)featureBuffer.add(new float[EMBEDDING_DIM]);predictionCount=0;consecutiveHits=0;lastDetection=0;}
+ private boolean initAudioRecord(){if(context.checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)return false;int min=AudioRecord.getMinBufferSize(SAMPLE_RATE,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);if(min<=0)return false;try{audioRecord=new AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION,SAMPLE_RATE,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,Math.max(min,FRAME_SAMPLES*4));return audioRecord.getState()==AudioRecord.STATE_INITIALIZED;}catch(Throwable e){return false;}}
+ private synchronized void releaseAudioRecord(){AudioRecord r=audioRecord;audioRecord=null;if(r==null)return;try{r.stop();}catch(Exception ignored){}try{r.release();}catch(Exception ignored){}}
+ private void audioLoop(){AudioRecord r=audioRecord;if(r==null)return;r.startRecording();short[] frame=new short[FRAME_SAMPLES];while(running){int read=r.read(frame,0,FRAME_SAMPLES);if(read!=FRAME_SAMPLES)continue;addRaw(frame);if(rawTotalWritten<FRAME_SAMPLES+MEL_CONTEXT_SAMPLES)continue;List<float[]> newMel=computeMel(getLast(FRAME_SAMPLES+MEL_CONTEXT_SAMPLES));if(newMel==null)continue;melBuffer.addAll(newMel);while(melBuffer.size()>MEL_BUFFER_MAX)melBuffer.remove(0);if(melBuffer.size()>=MEL_WINDOW_FRAMES){int s=melBuffer.size()-MEL_WINDOW_FRAMES;ArrayList<float[]> window=new ArrayList<float[]>(MEL_WINDOW_FRAMES);for(int i=s;i<melBuffer.size();i++)window.add(melBuffer.get(i));float[] emb=computeEmbedding(window);if(emb!=null){featureBuffer.add(emb);while(featureBuffer.size()>FEATURE_BUFFER_MAX)featureBuffer.remove(0);}}if(featureBuffer.size()>=FEATURE_WINDOW){predictionCount++;if(predictionCount<=SKIP_INITIAL_PREDICTIONS)continue;int s=featureBuffer.size()-FEATURE_WINDOW;ArrayList<float[]> fs=new ArrayList<float[]>(FEATURE_WINDOW);for(int i=s;i<featureBuffer.size();i++)fs.add(featureBuffer.get(i));float score=runWake(fs);if(score>=threshold)consecutiveHits++;else consecutiveHits=0;boolean hit=score>=strongThreshold||consecutiveHits>=2;long now=System.currentTimeMillis();if(hit&&now-lastDetection>=debounceMs){lastDetection=now;consecutiveHits=0;final float out=score;final Listener cb=listener;if(cb!=null)main.post(new Runnable(){public void run(){cb.onDetected(out);}});}}}}
+ private void addRaw(short[] frame){for(short s:frame){rawBuffer[rawWritePos]=s;rawWritePos=(rawWritePos+1)%rawBuffer.length;}rawTotalWritten+=frame.length;}
+ private float[] getLast(int n){float[] out=new float[n];int available=(int)Math.min(Math.min((long)n,(long)rawBuffer.length),rawTotalWritten);int p=(rawWritePos-available+rawBuffer.length)%rawBuffer.length;for(int i=0;i<available;i++){out[n-available+i]=rawBuffer[p];p=(p+1)%rawBuffer.length;}return out;}
+ private List<float[]> computeMel(float[] audio){if(env==null||melSession==null)return null;try(OnnxTensor in=OnnxTensor.createTensor(env,FloatBuffer.wrap(audio),new long[]{1,audio.length});OrtSession.Result result=melSession.run(Collections.singletonMap("input",in))){OnnxTensor output=(OnnxTensor)result.get(0);long[] shape=((TensorInfo)output.getInfo()).getShape();FloatBuffer flat=output.getFloatBuffer();int frames=(int)shape[2],bins=(int)shape[3];ArrayList<float[]> all=new ArrayList<float[]>(frames);for(int f=0;f<frames;f++){float[] m=new float[bins];for(int b=0;b<bins;b++)m[b]=flat.get(f*bins+b)/10f+2f;all.add(m);}return all;}catch(Throwable e){Log.e(TAG,"mel",e);return null;}}
+ private float[] computeEmbedding(List<float[]> window){if(env==null||embeddingSession==null)return null;float[] data=new float[MEL_WINDOW_FRAMES*MEL_BINS];for(int i=0;i<MEL_WINDOW_FRAMES;i++)System.arraycopy(window.get(i),0,data,i*MEL_BINS,MEL_BINS);try(OnnxTensor in=OnnxTensor.createTensor(env,FloatBuffer.wrap(data),new long[]{1,MEL_WINDOW_FRAMES,MEL_BINS,1});OrtSession.Result result=embeddingSession.run(Collections.singletonMap("input_1",in))){FloatBuffer f=((OnnxTensor)result.get(0)).getFloatBuffer();float[] out=new float[EMBEDDING_DIM];for(int i=0;i<out.length;i++)out[i]=f.get(i);return out;}catch(Throwable e){Log.e(TAG,"embedding",e);return null;}}
+ private float runWake(List<float[]> features){if(env==null||wakeSession==null||wakeInputName==null)return 0f;float[] data=new float[FEATURE_WINDOW*EMBEDDING_DIM];for(int i=0;i<FEATURE_WINDOW;i++)System.arraycopy(features.get(i),0,data,i*EMBEDDING_DIM,EMBEDDING_DIM);try(OnnxTensor in=OnnxTensor.createTensor(env,FloatBuffer.wrap(data),new long[]{1,FEATURE_WINDOW,EMBEDDING_DIM});OrtSession.Result result=wakeSession.run(Collections.singletonMap(wakeInputName,in))){return ((OnnxTensor)result.get(0)).getFloatBuffer().get(0);}catch(Throwable e){Log.e(TAG,"wake",e);return 0f;}}
+}
