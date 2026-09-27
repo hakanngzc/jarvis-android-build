@@ -110,7 +110,7 @@ jobs:
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
           java -cp work/qa UnderstandingTest | tee work/understanding-test.txt
           java -cp work/qa WakeWordTest | tee work/wake-parser-test.txt
-          java -cp work/qa CommandChainTest | tee work/chain-test.txt
+          java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
           grep -q "FAIL 0" work/chain-test.txt
 
       - name: Extract exact 1.5.7 baseline DEX
