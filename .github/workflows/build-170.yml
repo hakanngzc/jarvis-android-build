@@ -49,7 +49,7 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
           cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          grep -q "versionCode 85" "$PROJECT_DIR/app/build.gradle"
+          grep -q "versionCode 86" "$PROJECT_DIR/app/build.gradle"
           grep -q "versionName '1.7.0'" "$PROJECT_DIR/app/build.gradle"
           grep -Fq 'android:foregroundServiceType="microphone|mediaPlayback"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           grep -q 'FOREGROUND_SERVICE_MICROPHONE' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
@@ -140,19 +140,19 @@ jobs:
           cp work/ort/jni/arm64-v8a/*.so work/apklibs/lib/arm64-v8a/
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk
 
       - name: APK structural QA
         run: |
-          "$BT/aapt" dump badging work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
-          grep -q "package: name='com.hakan.jarvis' versionCode='85' versionName='1.7.0'" work/badging.txt
+          "$BT/aapt" dump badging work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          grep -q "package: name='com.hakan.jarvis' versionCode='86' versionName='1.7.0'" work/badging.txt
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
-          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
-          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk | grep -q 'classes.dex'
-          ! unzip -l work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk | grep -q 'classes2.dex'
+          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
+          unzip -l work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk | grep -q 'classes.dex'
+          ! unzip -l work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk | grep -q 'classes2.dex'
           strings work/dex/classes.dex | grep -q 'WakeWordService'
           strings work/dex/classes.dex | grep -q 'OpenWakeWordDetector'
           strings work/dex/classes.dex | grep -q 'WakeWordGate'
@@ -163,14 +163,14 @@ jobs:
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk artifact/
+          cp work/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          sha256sum artifact/JARVIS_1.7.0_HEY_JARVIS_UNSIGNED.apk > artifact/SHA256.txt
+          sha256sum artifact/JARVIS_1.7.0_HEY_JARVIS_SCREENOFF_FIX_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-1.7.0-hey-jarvis
+          name: JARVIS-1.7.0-hey-jarvis-screenoff-fix
           path: artifact/
           if-no-files-found: error
