@@ -6,6 +6,7 @@ on:
     paths:
       - 'JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip'
       - 'JARVIS_v1.5.7_STABLE_VOICE_READY.apk'
+      - 'patches/1.7.0/**'
       - '.github/workflows/build-android.yml'
 
 jobs:
@@ -29,20 +30,19 @@ jobs:
             SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"
           fi
           test -x "$SDKMANAGER"
-          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
           echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar" >> "$GITHUB_ENV"
           echo "BT=$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_ENV"
 
-      - name: Verify required inputs
+      - name: Verify production baseline
         run: |
           test -f JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip
           test -f JARVIS_v1.5.7_STABLE_VOICE_READY.apk
           keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
           grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
 
-      - name: Unpack source
+      - name: Unpack 1.6.4.17 source
         run: |
           rm -rf work
           mkdir -p work/src
@@ -52,8 +52,22 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           grep -q "applicationId 'com.hakan.jarvis'" "$PROJECT_DIR/app/build.gradle"
           grep -q "versionCode 82" "$PROJECT_DIR/app/build.gradle"
-          grep -q "versionName '1.6.4.17-context-chain-src1'" "$PROJECT_DIR/app/build.gradle"
-          grep -q "compileSdk 35" "$PROJECT_DIR/app/build.gradle"
+
+      - name: Apply JARVIS 1.7.0 wake-word patch
+        run: |
+          cp patches/1.7.0/app/src/main/java/com/hakan/jarvis/*.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
+          python patches/1.7.0/apply_patch.py "$PROJECT_DIR"
+          grep -q "versionCode 83" "$PROJECT_DIR/app/build.gradle"
+          grep -q "versionName '1.7.0-wakeword1'" "$PROJECT_DIR/app/build.gradle"
+          grep -q 'android:versionCode="83"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          grep -q 'WakeWordService' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          grep -q 'FOREGROUND_SERVICE_MICROPHONE' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+
+      - name: Wake signal regression
+        run: |
+          mkdir -p work/wake-test
+          javac -source 8 -target 8 -Xlint:none -d work/wake-test             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/WakeSignal.java"             patches/1.7.0/qa/WakeSignalTest.java
+          java -cp work/wake-test WakeSignalTest
 
       - name: Prepare compile-only MainActivity stub
         run: |
@@ -67,26 +81,28 @@ jobs:
           }
           JAVA
 
-      - name: Compile Java against real Android API
+      - name: Compile Java against Android API 35
         run: |
           mkdir -p work/classes
           LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar"
           find "$PROJECT_DIR/app/src/main/java" -type f -name '*.java' | sort > work/sources.txt
           javac -encoding UTF-8 -source 8 -target 8 -Xlint:none             -cp "$ANDROID_JAR:$LIBCP"             -d work/classes             work/stub/com/hakan/jarvis/MainActivity.java             @work/sources.txt
-          test -f work/classes/com/hakan/jarvis/MainActivity.class
-          rm work/classes/com/hakan/jarvis/MainActivity.class
           test -f work/classes/com/hakan/jarvis/HybridActivity.class
+          test -f work/classes/com/hakan/jarvis/WakeWordService.class
+          test -f work/classes/com/hakan/jarvis/WakeWordEnrollment.class
+          test -f work/classes/com/hakan/jarvis/WakeSignal.class
+          rm work/classes/com/hakan/jarvis/MainActivity.class
           if find work/classes -type f -name 'MainActivity*.class' | grep -q .; then
             echo "Compile stub leaked into output"
             exit 1
           fi
 
-      - name: Extract exact 1.5.7 baseline DEX
+      - name: Extract exact 1.5.7 legacy engine DEX
         run: |
           unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
           test -s work/baseline.dex
 
-      - name: D8 merge legacy engine and new classes
+      - name: D8 merge legacy engine and 1.7.0 classes
         run: |
           mkdir -p work/dex
           mapfile -t CLASS_FILES < <(find work/classes -type f -name '*.class' | sort)
@@ -94,37 +110,44 @@ jobs:
           test -s work/dex/classes.dex
           COUNT="$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)"
           test "$COUNT" -eq 1
+          grep -a -q 'WakeWordService' work/dex/classes.dex
+          grep -a -q 'WakeWordEnrollment' work/dex/classes.dex
+          grep -a -q 'WakeSignal' work/dex/classes.dex
+          grep -a -q 'CommandChain' work/dex/classes.dex
 
-      - name: Package APK
+      - name: Package JARVIS 1.7.0 APK
         run: |
           cp "$PROJECT_DIR/app/src/main/AndroidManifest.xml" work/AndroidManifest.xml
-          sed -i 's/android:versionCode="[0-9]*"/android:versionCode="82"/' work/AndroidManifest.xml
-          sed -i 's/android:versionName="[^"]*"/android:versionName="1.6.4.17-context-chain-src1"/' work/AndroidManifest.xml
           "$BT/aapt" package -f             -M work/AndroidManifest.xml             -I "$ANDROID_JAR"             -A "$PROJECT_DIR/app/src/main/assets"             -F work/unsigned.apk
           (cd work/dex && zip -q ../unsigned.apk classes.dex)
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.6.4.17_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_1.6.4.17_UNSIGNED.apk
-          "$BT/aapt" dump badging work/JARVIS_1.6.4.17_UNSIGNED.apk > work/badging.txt
-          grep -q "package: name='com.hakan.jarvis' versionCode='82'" work/badging.txt
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.7.0_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_1.7.0_UNSIGNED.apk
+          "$BT/aapt" dump badging work/JARVIS_1.7.0_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_1.7.0_UNSIGNED.apk AndroidManifest.xml > work/manifest-tree.txt
+          grep -q "package: name='com.hakan.jarvis' versionCode='83' versionName='1.7.0-wakeword1'" work/badging.txt
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
-          unzip -l work/JARVIS_1.6.4.17_UNSIGNED.apk | grep -q 'classes.dex'
-          if unzip -l work/JARVIS_1.6.4.17_UNSIGNED.apk | grep -q 'classes2.dex'; then
+          grep -q 'WakeWordService' work/manifest-tree.txt
+          grep -q 'WakeWordBootReceiver' work/manifest-tree.txt
+          unzip -t work/JARVIS_1.7.0_UNSIGNED.apk
+          unzip -l work/JARVIS_1.7.0_UNSIGNED.apk | grep -q 'classes.dex'
+          if unzip -l work/JARVIS_1.7.0_UNSIGNED.apk | grep -q 'classes2.dex'; then
             echo "Unexpected multidex output"
             exit 1
           fi
 
-      - name: Collect unsigned APK and local signing tool
+      - name: Collect unsigned APK and signing tool
         run: |
           mkdir -p artifact
-          cp work/JARVIS_1.6.4.17_UNSIGNED.apk artifact/
+          cp work/JARVIS_1.7.0_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/apksigner.jar
           cp work/badging.txt artifact/
+          cp work/manifest-tree.txt artifact/
           cp base-cert.txt artifact/base-cert.txt
-          sha256sum artifact/JARVIS_1.6.4.17_UNSIGNED.apk > artifact/SHA256.txt
+          sha256sum artifact/JARVIS_1.7.0_UNSIGNED.apk > artifact/SHA256.txt
 
-      - name: Upload build artifact
+      - name: Upload 1.7.0 build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-1.6.4.17-d8-build
+          name: JARVIS-1.7.0-wakeword-build
           path: artifact/
           if-no-files-found: error
