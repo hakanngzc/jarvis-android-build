@@ -48,10 +48,10 @@ jobs:
           test -n "$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
-          cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          grep -q "versionCode 83" "$PROJECT_DIR/app/build.gradle"
-          grep -q "versionName '1.7.0-wake1'" "$PROJECT_DIR/app/build.gradle"
-          grep -q 'android:foregroundServiceType="microphone"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
+          grep -q "versionCode 84" "$PROJECT_DIR/app/build.gradle"
+          grep -q "versionName '1.7.0'" "$PROJECT_DIR/app/build.gradle"
+          grep -Fq 'android:foregroundServiceType="microphone|mediaPlayback"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           grep -q 'FOREGROUND_SERVICE_MICROPHONE' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
       - name: Download pinned offline wake models
@@ -96,7 +96,7 @@ jobs:
           javac -encoding UTF-8 -source 8 -target 8 -Xlint:none             -cp "$ANDROID_JAR:$LIBCP"             -d work/classes             work/stub/com/hakan/jarvis/MainActivity.java             @work/sources.txt
           test -f work/classes/com/hakan/jarvis/HybridActivity.class
           test -f work/classes/com/hakan/jarvis/WakeWordService.class
-          test -f work/classes/com/hakan/jarvis/OpenWakeWordDetector.class
+          test -f work/classes/com/hakan/jarvis/OpenWakeWordDetector.class\n          test -f work/classes/com/hakan/jarvis/WakeWordGate.class
           rm work/classes/com/hakan/jarvis/MainActivity.class
           if find work/classes -type f -name 'MainActivity*.class' | grep -q .; then
             echo "Compile stub leaked into output"; exit 1
@@ -111,7 +111,7 @@ jobs:
           java -cp work/qa UnderstandingTest | tee work/understanding-test.txt
           java -cp work/qa WakeWordTest | tee work/wake-parser-test.txt
           java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
-          grep -q "FAIL 0" work/chain-test.txt
+          grep -q "FAIL 0" work/chain-test.txt\n          rm -rf work/wakeqa && mkdir -p work/wakeqa\n          javac -encoding UTF-8 -d work/wakeqa overlay170/WakeWordGate.java overlay170/WakeWordGateTest.java\n          java -cp work/wakeqa WakeWordGateTest | tee work/wake-gate-test.txt\n          grep -q "FAIL 0" work/wake-gate-test.txt
 
       - name: Extract exact 1.5.7 baseline DEX
         run: |
@@ -135,21 +135,21 @@ jobs:
           cp work/ort/jni/arm64-v8a/*.so work/apklibs/lib/arm64-v8a/
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk
 
       - name: APK structural QA
         run: |
-          "$BT/aapt" dump badging work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
-          grep -q "package: name='com.hakan.jarvis' versionCode='83' versionName='1.7.0-wake1'" work/badging.txt
+          "$BT/aapt" dump badging work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          grep -q "package: name='com.hakan.jarvis' versionCode='84' versionName='1.7.0'" work/badging.txt
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
-          unzip -l work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -l work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
-          unzip -l work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk | grep -q 'classes.dex'
-          ! unzip -l work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk | grep -q 'classes2.dex'
+          unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
+          unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'classes.dex'
+          ! unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'classes2.dex'
           strings work/dex/classes.dex | grep -q 'WakeWordService'
-          strings work/dex/classes.dex | grep -q 'OpenWakeWordDetector'
+          strings work/dex/classes.dex | grep -q 'OpenWakeWordDetector'\n          strings work/dex/classes.dex | grep -q 'WakeWordGate'
           strings work/dex/classes.dex | grep -q 'hey_jarvis_v0.1.onnx'
           strings work/dex/classes.dex | grep -q 'CommandChain'
           ! strings work/dex/classes.dex | grep -q 'android/speech/tts/TextToSpeech'
@@ -157,10 +157,10 @@ jobs:
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk artifact/
+          cp work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          sha256sum artifact/JARVIS_1.7.0_WAKEWORD_UNSIGNED.apk > artifact/SHA256.txt
+          sha256sum artifact/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

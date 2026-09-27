@@ -28,10 +28,10 @@ marker='    private Button button(String title,View.OnClickListener action){Butt
 insert='''    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);handleWakeIntent(intent);}
     private void handleWakeIntent(final Intent intent){
         if(intent==null||!intent.getBooleanExtra(WakeWordService.EXTRA_WAKE,false)||voice==null)return;
-        intent.removeExtra(WakeWordService.EXTRA_WAKE);WakeWordService.pause(this);
+        boolean acked=intent.getBooleanExtra(WakeWordService.EXTRA_WAKE_ACKED,false);intent.removeExtra(WakeWordService.EXTRA_WAKE);intent.removeExtra(WakeWordService.EXTRA_WAKE_ACKED);WakeWordService.pause(this);
         try{if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(true);setTurnScreenOn(true);}else getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED|WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);}catch(Exception ignored){}
         recognitionStatus.setText("WAKE WORD ALGILANDI · komut dinleme hazırlanıyor");heard.setText("Duyduğum: Jarvis");
-        handler.postDelayed(new Runnable(){public void run(){if(dead)return;voice.beginTurn();say("","wake",new Runnable(){public void run(){if(!dead)beginListening();}});}},180);
+        handler.postDelayed(new Runnable(){public void run(){if(dead)return;if(acked)beginListening();else{voice.beginTurn();say("","wake",new Runnable(){public void run(){if(!dead)beginListening();}});}}},180);
     }
 '''
 if marker not in s: raise SystemExit('button marker missing')
@@ -44,9 +44,9 @@ new='prefs.edit().putString("city",c.length()==0?"Kahramanmaraş":c).putBoolean(
 if old not in s: raise SystemExit('settings marker missing')
 s=s.replace(old,new,1);h.write_text(s,encoding='utf-8')
 m=base/'app/src/main/AndroidManifest.xml';x=m.read_text(encoding='utf-8')
-x=x.replace('android:versionCode="81" android:versionName="1.6.4.16-hybrid-safe01"','android:versionCode="83" android:versionName="1.7.0-wake1"')
+x=x.replace('android:versionCode="81" android:versionName="1.6.4.16-hybrid-safe01"','android:versionCode="84" android:versionName="1.7.0"')
 if 'android.permission.FOREGROUND_SERVICE_MICROPHONE' not in x:x=x.replace('<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />','<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />')
 x=x.replace('<activity android:name="com.hakan.jarvis.HybridActivity" android:exported="true" android:windowSoftInputMode="adjustResize">','<activity android:name="com.hakan.jarvis.HybridActivity" android:exported="true" android:launchMode="singleTop" android:showWhenLocked="true" android:turnScreenOn="true" android:windowSoftInputMode="adjustResize">')
-if 'android:name=".WakeWordService"' not in x:x=x.replace('<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />','<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    <service android:name=".WakeWordService" android:exported="false" android:foregroundServiceType="microphone" />\n    <receiver android:name=".WakeBootReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver>')
+if 'android:name=".WakeWordService"' not in x:x=x.replace('<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />','<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    <service android:name=".WakeWordService" android:exported="false" android:foregroundServiceType="microphone|mediaPlayback" />\n    <receiver android:name=".WakeBootReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver>')
 m.write_text(x,encoding='utf-8')
-b=base/'app/build.gradle';g=b.read_text(encoding='utf-8').replace('versionCode 82','versionCode 83').replace("versionName '1.6.4.17-context-chain-src1'","versionName '1.7.0-wake1'");b.write_text(g,encoding='utf-8')
+b=base/'app/build.gradle';g=b.read_text(encoding='utf-8').replace('versionCode 82','versionCode 84').replace("versionName '1.6.4.17-context-chain-src1'","versionName '1.7.0'");b.write_text(g,encoding='utf-8')
