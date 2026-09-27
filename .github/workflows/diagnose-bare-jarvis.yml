@@ -15,7 +15,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq espeak-ng ffmpeg
-          python -m pip install -q openwakeword onnxruntime soundfile
+          python -m pip install -q 'git+https://github.com/dscripka/openWakeWord.git' onnxruntime soundfile
       - name: Generate wake samples
         run: |
           mkdir -p diag
@@ -31,7 +31,7 @@ jobs:
         run: |
           python - <<'PY'
           import wave, numpy as np
-          from openwakeword.model import Model
+          from openwakeword.model import Model\n          import inspect\n          print('MODEL_SIG', inspect.signature(Model.__init__))
           files=['diag/jarvis_tr.wav','diag/hey_jarvis_tr.wav','diag/jarvis_en.wav','diag/hey_jarvis_en.wav']
           for path in files:
               model=Model(wakeword_models=['diag/hey_jarvis_v0.1.onnx'], inference_framework='onnx')
