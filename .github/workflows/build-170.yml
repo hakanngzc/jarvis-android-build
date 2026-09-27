@@ -96,7 +96,8 @@ jobs:
           javac -encoding UTF-8 -source 8 -target 8 -Xlint:none             -cp "$ANDROID_JAR:$LIBCP"             -d work/classes             work/stub/com/hakan/jarvis/MainActivity.java             @work/sources.txt
           test -f work/classes/com/hakan/jarvis/HybridActivity.class
           test -f work/classes/com/hakan/jarvis/WakeWordService.class
-          test -f work/classes/com/hakan/jarvis/OpenWakeWordDetector.class\n          test -f work/classes/com/hakan/jarvis/WakeWordGate.class
+          test -f work/classes/com/hakan/jarvis/OpenWakeWordDetector.class
+          test -f work/classes/com/hakan/jarvis/WakeWordGate.class
           rm work/classes/com/hakan/jarvis/MainActivity.class
           if find work/classes -type f -name 'MainActivity*.class' | grep -q .; then
             echo "Compile stub leaked into output"; exit 1
@@ -111,7 +112,11 @@ jobs:
           java -cp work/qa UnderstandingTest | tee work/understanding-test.txt
           java -cp work/qa WakeWordTest | tee work/wake-parser-test.txt
           java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
-          grep -q "FAIL 0" work/chain-test.txt\n          rm -rf work/wakeqa && mkdir -p work/wakeqa\n          javac -encoding UTF-8 -d work/wakeqa overlay170/WakeWordGate.java overlay170/WakeWordGateTest.java\n          java -cp work/wakeqa WakeWordGateTest | tee work/wake-gate-test.txt\n          grep -q "FAIL 0" work/wake-gate-test.txt
+          grep -q "FAIL 0" work/chain-test.txt
+          rm -rf work/wakeqa && mkdir -p work/wakeqa
+          javac -encoding UTF-8 -d work/wakeqa overlay170/WakeWordGate.java overlay170/WakeWordGateTest.java
+          java -cp work/wakeqa WakeWordGateTest | tee work/wake-gate-test.txt
+          grep -q "FAIL 0" work/wake-gate-test.txt
 
       - name: Extract exact 1.5.7 baseline DEX
         run: |
@@ -149,7 +154,8 @@ jobs:
           unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'classes.dex'
           ! unzip -l work/JARVIS_1.7.0_SCREENOFF_TUNED_UNSIGNED.apk | grep -q 'classes2.dex'
           strings work/dex/classes.dex | grep -q 'WakeWordService'
-          strings work/dex/classes.dex | grep -q 'OpenWakeWordDetector'\n          strings work/dex/classes.dex | grep -q 'WakeWordGate'
+          strings work/dex/classes.dex | grep -q 'OpenWakeWordDetector'
+          strings work/dex/classes.dex | grep -q 'WakeWordGate'
           strings work/dex/classes.dex | grep -q 'hey_jarvis_v0.1.onnx'
           strings work/dex/classes.dex | grep -q 'CommandChain'
           ! strings work/dex/classes.dex | grep -q 'android/speech/tts/TextToSpeech'
