@@ -76,22 +76,22 @@ public final class AppActions {
 
     static Result openSpecial(Activity a,String n){
         try{
-            if(eqAny(n,"ayarlar","ayar","telefon ayarlari","telefon ayarlari uygulamasi")){
+            if(eqAny(n,"ayarlar","ayarlari","ayar","telefon ayarlari","telefon ayarlari uygulamasi")){
                 a.startActivity(new Intent(Settings.ACTION_SETTINGS));
                 return new Result(true,false,"Ayarlar","android.settings","Sistem ayarları açıldı.");
             }
-            if(eqAny(n,"kamera","fotograf makinesi")){
+            if(eqAny(n,"kamera","kamerayi","fotograf makinesi")){
                 Intent i=new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
                 a.startActivity(i);
                 return new Result(true,false,"Kamera","","Kamera açıldı.");
             }
-            if(eqAny(n,"galeri","fotograflar","fotograflarim")){
+            if(eqAny(n,"galeri","galeriyi","fotograflar","fotograflarim")){
                 Intent i=new Intent(Intent.ACTION_VIEW,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 i.setType("image/*");
                 a.startActivity(i);
                 return new Result(true,false,"Galeri","","Galeri açıldı.");
             }
-            if(eqAny(n,"rehber","kisiler","kontaktlar")){
+            if(eqAny(n,"rehber","rehberi","kisiler","kontaktlar")){
                 Intent i=new Intent(Intent.ACTION_VIEW,ContactsContract.Contacts.CONTENT_URI);
                 a.startActivity(i);
                 return new Result(true,false,"Kişiler","","Kişiler açıldı.");
