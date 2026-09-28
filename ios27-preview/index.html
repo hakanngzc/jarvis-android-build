@@ -47,7 +47,7 @@ body{touch-action:pan-y}
   position:absolute;z-index:29;top:max(9px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
   width:86px;height:25px;border-radius:18px;background:#050505;box-shadow:0 1px 0 rgba(255,255,255,.05)
 }
-.workspace{position:absolute;inset:0;display:flex;z-index:2;transition:transform .30s cubic-bezier(.2,.72,.2,1);will-change:transform;backface-visibility:hidden;transform:translate3d(0,0,0)}
+.workspace{position:absolute;inset:0;display:flex;z-index:2;transition:transform .24s cubic-bezier(.22,.78,.22,1);will-change:transform;backface-visibility:hidden;transform:translate3d(0,0,0)}
 .page{min-width:100%;height:100%;padding:54px 16px 150px;overflow:hidden;contain:layout paint style;touch-action:none}
 .page:last-child{touch-action:pan-y}
 .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 4px 14px}
@@ -274,6 +274,68 @@ body{touch-action:pan-y}
 .phone.low-power .overlay,.phone.low-power .widget-gallery,.phone.low-power .folder-overlay{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .phone.low-power .control,.phone.low-power .folder-card,.phone.low-power .widget-sheet{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 @media(max-width:390px){:root{--icon-size:59px}.page{padding-left:13px;padding-right:13px}.hero-grid{gap:10px}.widget{min-height:136px}.dock .icon{width:59px;height:59px}.apps{gap:13px 7px}}
+
+/* ULTRA MOBILE PERFORMANCE LAYER */
+.phone.ultra-perf *{
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+.phone.ultra-perf .wallpaper{filter:none!important}
+.phone.ultra-perf .widget:before{mix-blend-mode:normal!important;opacity:.45}
+.phone.ultra-perf .widget,
+.phone.ultra-perf .cat,
+.phone.ultra-perf .custom-widget{
+  background:linear-gradient(145deg,rgba(255,255,255,.20),rgba(255,255,255,.085) 52%,rgba(255,255,255,.12))!important;
+  box-shadow:0 7px 18px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.20)!important;
+}
+.phone.ultra-perf .dock{
+  background:linear-gradient(145deg,rgba(235,243,255,.25),rgba(145,164,194,.16))!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.28)!important;
+}
+.phone.ultra-perf .search-pill,
+.phone.ultra-perf .library-search,
+.phone.ultra-perf .customizer,
+.phone.ultra-perf .toast,
+.phone.ultra-perf .edit-btn,
+.phone.ultra-perf .save-chip{
+  background:rgba(42,49,61,.72)!important;
+}
+.phone.ultra-perf .overlay,
+.phone.ultra-perf .widget-gallery,
+.phone.ultra-perf .folder-overlay{
+  background:rgba(12,17,25,.88)!important;
+}
+.phone.ultra-perf .widget-sheet,
+.phone.ultra-perf .folder-card,
+.phone.ultra-perf .control{
+  background:linear-gradient(145deg,rgba(52,61,76,.96),rgba(25,31,41,.96))!important;
+  box-shadow:0 14px 32px rgba(0,0,0,.25)!important;
+}
+.phone.ultra-perf .icon{
+  box-shadow:0 4px 10px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.24)!important;
+  transition:transform .13s ease!important;
+}
+.phone.ultra-perf .icon:after{opacity:.55}
+.phone.ultra-perf .label,
+.phone.ultra-perf .status,
+.phone.ultra-perf .photo:after{text-shadow:0 1px 2px rgba(0,0,0,.52)!important}
+.phone.ultra-perf .glass-sheen{display:none!important}
+.phone.ultra-perf .eq i{animation:none!important;height:12px!important}
+.phone.ultra-perf .jiggle .icon{animation:none!important;transform:scale(.975)!important}
+.phone.ultra-perf .drag-ghost{filter:none!important}
+.phone.ultra-perf .page{content-visibility:auto;contain-intrinsic-size:100vw 100vh}
+.phone.ultra-perf .clockface{box-shadow:none!important}
+.phone.ultra-perf .ring{transform:translateZ(0)}
+.phone.ultra-perf.swiping .widget,
+.phone.ultra-perf.swiping .cat,
+.phone.ultra-perf.swiping .custom-widget,
+.phone.ultra-perf.swiping .icon{
+  box-shadow:none!important;
+}
+.phone.ultra-perf.swiping .widget:before,
+.phone.ultra-perf.swiping .icon:after{display:none!important}
+.phone.ultra-perf.swiping .label{text-shadow:none!important}
+
 </style>
 </head>
 <body>
@@ -437,6 +499,7 @@ const days=document.getElementById("days");for(let i=1;i<=30;i++){const d=docume
 
 let page=0,startX=0,startY=0,dx=0,dy=0,longTimer=null,jiggle=false;
 const phone=document.getElementById("phone"),ws=document.getElementById("workspace"),dotEls=[...document.querySelectorAll(".dot")];
+phone.classList.add("ultra-perf");
 let navRAF=0,pendingTransform=null;
 function paintWorkspace(value){
   pendingTransform=value;
@@ -445,7 +508,7 @@ function paintWorkspace(value){
 }
 function go(n){
   page=Math.max(0,Math.min(2,n));
-  ws.style.transition="transform .30s cubic-bezier(.2,.72,.2,1)";
+  ws.style.transition="transform .24s cubic-bezier(.22,.78,.22,1)";
   paintWorkspace("translate3d("+(-page*100)+"%,0,0)");
   dotEls.forEach((d,i)=>d.classList.toggle("active",i===page));
   document.getElementById("searchPill").style.display=page===2?"none":"flex";
@@ -478,7 +541,7 @@ phone.addEventListener("pointermove",e=>{
   if(ccGesture)return;
   if(!navTracking)return;
   if(!navHorizontal&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.10){
-    navHorizontal=true;phone.classList.add("swiping");
+    navHorizontal=true;phone.classList.add("swiping");ws.style.pointerEvents="none";
     try{phone.setPointerCapture?.(e.pointerId);captured=true}catch(_){}
   }
   if(navHorizontal){
@@ -502,7 +565,7 @@ function finishNav(e,cancel=false){
   }else if(navTracking){
     go(navStartPage)
   }
-  phone.classList.remove("swiping");
+  phone.classList.remove("swiping");ws.style.pointerEvents="";
   if(captured){try{phone.releasePointerCapture?.(e.pointerId)}catch(_){}}
   navPointer=null;navTracking=false;navHorizontal=false;ccGesture=false;captured=false
 }
@@ -569,8 +632,6 @@ document.addEventListener("click",e=>{
   if(ie.classList.contains("show")&&!e.target.closest(".island")&&!e.target.closest("#islandExpanded"))ie.classList.remove("show");
 });
 
-const hw=(navigator.hardwareConcurrency||8),mem=(navigator.deviceMemory||8);
-if(hw<=4||mem<=4)phone.classList.add("low-power");
 const appByName=Object.fromEntries(apps.map(a=>[a[0],a]));
 function widgetMarkup(type){
   if(type==="weather")return '<button class="remove-widget">−</button><div style="font-size:11px;font-weight:700;opacity:.72">Onikişubat</div><div style="font-size:38px;font-weight:300;margin-top:9px">20°</div><div style="font-size:11px">Bulutlu · Y:25° D:17°</div>';
@@ -581,6 +642,7 @@ function widgetMarkup(type){
 }
 function addCustomWidget(type,save=true){
   const zone=document.getElementById("customZone");
+  if(save&&zone.children.length>=6){toast("En fazla 6 widget");return;}
   const w=document.createElement("div");w.className="custom-widget"+(type==="music"?" wide":"");w.dataset.widget=type;w.innerHTML=widgetMarkup(type);
   w.querySelector(".remove-widget").onclick=e=>{e.stopPropagation();w.remove();saveLayout()};
   zone.appendChild(w);
@@ -724,7 +786,8 @@ document.addEventListener("click",e=>{
   }
 },true);
 
-setInterval(()=>{const d=new Date();document.getElementById("clock").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")},1000);
+function updateClock(){const d=new Date();document.getElementById("clock").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
+updateClock();setInterval(updateClock,30000);
 </script>
 </body>
 </html>
