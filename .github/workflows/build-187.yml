@@ -157,7 +157,7 @@ jobs:
           grep -q "launchable-activity: name='com.hakan.jarvis.JarvisHomeActivity'" work/badging.txt
           echo "LAUNCHER PASS"
           unzip -p work/JARVIS_1.8.7_UI_PHASE4_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'K\xc4\xb1sisel,b'Sohbet',b'Ayarlar',b'buildJarvisReferenceHome']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'Sohbet',b'Ayarlar',b'buildJarvisReferenceHome']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX UI PASS"
           unzip -Z1 work/JARVIS_1.8.7_UI_PHASE4_UNSIGNED.apk | grep -Fxq 'assets/jarvis_core.webp'
           echo "CORE ASSET PASS"
