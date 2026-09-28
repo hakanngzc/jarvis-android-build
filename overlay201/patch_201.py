@@ -46,12 +46,10 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
  if action not in s: raise SystemExit(name+': action marker missing')
  s=s.replace(action,actionnew,1)
 
- old='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
-            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• Wikimedia tabanlı Türkçe Wikipedia arama ve özet kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);'''
+ old='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",'''
  new='''        View n201=jarvisReleaseCard("JARVIS 2.0.1","ONLINE FOLLOW-UP CONTEXT",
-            "• Online bilgi cevabının konusu 3 dakika boyunca kısa bağlam olarak tutulur.\n• 'Biraz daha anlat', 'devam et', 'peki ne zaman?', 'nerede?', 'neden?' ve 'nasıl?' gibi takip soruları aynı konuya bağlanır.\n• Yeni cihaz komutu başladığında eski online konu bağlamı temizlenir.\n• Takip soruları yine mevcut güvenli Wikipedia + cache altyapısını kullanır.\n• Offline komut motoru ve 1.9.9 Contextual Commands önceliği korunur.",true);
-        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
-            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• Wikimedia tabanlı Türkçe Wikipedia arama ve özet kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",false);'''
+            "• Online bilgi cevabının konusu 3 dakika boyunca kısa bağlam olarak tutulur.\\n• 'Biraz daha anlat', 'devam et', 'peki ne zaman?', 'nerede?', 'neden?' ve 'nasıl?' gibi takip soruları aynı konuya bağlanır.\\n• Yeni cihaz komutu başladığında eski online konu bağlamı temizlenir.\\n• Takip soruları yine mevcut güvenli Wikipedia + cache altyapısını kullanır.\\n• Offline komut motoru ve 1.9.9 Contextual Commands önceliği korunur.",true);
+        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",'''
  if old not in s: raise SystemExit(name+': release 200 marker missing')
  s=s.replace(old,new,1)
  s=s.replace('View[] cards={n200,n199,n198,n197,n196,n195,n164};','View[] cards={n201,n200,n199,n198,n197,n196,n195,n164};',1)
