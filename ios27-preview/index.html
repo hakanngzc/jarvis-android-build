@@ -738,6 +738,89 @@ body{touch-action:pan-y}
   .phone.icons-large{--icon-size:64px}
 }
 
+
+/* WEATHER DETAIL + INTERACTIVE CONTROL CENTER + LOCK PREVIEW */
+.weather-detail{
+  position:absolute;z-index:68;inset:0;
+  padding:55px 12px 14px;
+  background:linear-gradient(180deg,rgba(31,76,121,.97),rgba(11,27,48,.99));
+  opacity:0;pointer-events:none;
+  transition:opacity .18s;
+  overflow:auto;
+}
+.weather-detail.show{opacity:1;pointer-events:auto}
+.weather-topbar{display:flex;align-items:center;justify-content:space-between}
+.weather-close,.lock-close{
+  width:34px;height:34px;border:0;border-radius:50%;
+  color:#fff;background:rgba(255,255,255,.12);font-size:18px;
+}
+.weather-hero{text-align:center;padding:12px 0 18px}
+.weather-city{font-size:18px;font-weight:700}
+.weather-temp{font-size:74px;font-weight:200;letter-spacing:-5px;line-height:1.08}
+.weather-cond{font-size:15px;opacity:.82}
+.weather-range{font-size:12px;opacity:.62;margin-top:4px}
+.forecast-card{
+  border-radius:26px;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.13);
+  margin-top:10px;padding:12px;
+}
+.forecast-title{font-size:11px;font-weight:750;opacity:.58;margin-bottom:10px}
+.hourly{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.hourly::-webkit-scrollbar{display:none}
+.hour-chip{min-width:62px;text-align:center;padding:9px 6px;border-radius:18px;background:rgba(255,255,255,.08)}
+.hour-chip b{display:block;font-size:11px}.hour-chip span{display:block;font-size:20px;margin:7px 0}.hour-chip em{font-size:12px;font-style:normal}
+.day-row{height:44px;display:grid;grid-template-columns:1fr 34px 45px 45px;align-items:center;border-top:1px solid rgba(255,255,255,.08);font-size:12px}
+.day-row:first-of-type{border-top:0}
+.day-row .lo{opacity:.55}
+.weather-widget-hit{cursor:pointer}
+.screen-dimmer{
+  position:absolute;z-index:40;inset:0;
+  background:#000;opacity:0;pointer-events:none;
+  transition:opacity .10s;
+}
+.control .toggle{cursor:pointer;user-select:none;transition:transform .12s,background .12s}
+.control .toggle:active{transform:scale(.92)}
+.control .toggle.off{background:rgba(255,255,255,.12)!important}
+.control .toggle.on{background:rgba(50,139,255,.88)!important}
+.cc-label{font-size:9px;opacity:.55;margin-top:5px;text-align:center}
+.toggle-wrap{display:flex;flex-direction:column;align-items:center}
+.brightness-range{
+  width:100%;margin-top:13px;accent-color:#fff;
+}
+.music-control{
+  width:100%;margin-top:10px;height:31px;border:0;border-radius:15px;
+  background:rgba(255,255,255,.10);color:#fff;font-size:12px;
+}
+.lock-preview{
+  position:absolute;z-index:80;inset:0;
+  background:
+    radial-gradient(circle at 55% 20%,rgba(135,116,255,.88),transparent 26%),
+    radial-gradient(circle at 30% 68%,rgba(61,152,220,.58),transparent 32%),
+    linear-gradient(160deg,#171727,#071018 72%);
+  opacity:0;pointer-events:none;
+  transition:opacity .20s;
+  overflow:hidden;
+}
+.lock-preview.show{opacity:1;pointer-events:auto}
+.lock-top{position:absolute;top:max(13px,env(safe-area-inset-top));left:15px;right:15px;display:flex;justify-content:flex-end}
+.lock-time{text-align:center;margin-top:76px;font-size:76px;font-weight:250;letter-spacing:-5px;line-height:.95}
+.lock-date{text-align:center;font-size:15px;margin-top:9px;opacity:.82}
+.lock-notifications{position:absolute;left:13px;right:13px;top:255px;display:flex;flex-direction:column;gap:8px}
+.lock-note{
+  display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:21px;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.13);
+}
+.lock-note .icon{width:39px;height:39px;border-radius:11px;font-size:17px;box-shadow:none!important}
+.lock-note b{font-size:12px}.lock-note small{display:block;font-size:10px;opacity:.58;margin-top:2px}
+.lock-bottom{position:absolute;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));text-align:center}
+.lock-hint{font-size:11px;opacity:.60;margin-bottom:15px}
+.lock-actions{display:flex;justify-content:space-between;padding:0 28px}
+.lock-action{width:48px;height:48px;border-radius:50%;border:0;background:rgba(25,30,40,.56);color:#fff;font-size:18px}
+.lock-homebar{width:118px;height:5px;border-radius:3px;background:#fff;margin:17px auto 0}
+.setting-launch{
+  height:30px;border:0;border-radius:15px;padding:0 11px;background:rgba(255,255,255,.12);color:#fff;font-size:10px;
+}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -832,7 +915,7 @@ body{touch-action:pan-y}
 
     <section class="page">
       <div class="hero-grid" style="grid-template-columns:1.25fr .75fr">
-        <div class="widget" style="padding:18px">
+        <div class="widget weather-widget-hit" id="weatherWidget" style="padding:18px">
           <div class="weather-sky"><span class="weather-cloud c1"></span><span class="weather-cloud c2"></span></div>
           <div style="position:relative;font-size:13px;font-weight:700;opacity:.82">Onikişubat</div>
           <div style="font-size:48px;font-weight:300;letter-spacing:-2px;margin-top:7px">20°</div>
@@ -888,6 +971,7 @@ body{touch-action:pan-y}
           <div class="setting-row"><div class="setting-copy"><b>Uygulama Etiketleri</b><small>İkon isimlerini göster</small></div><button class="switch on" id="labelSwitch"><span></span></button></div>
           <div class="setting-row"><div class="setting-copy"><b>Bildirim Rozetleri</b><small>Kırmızı sayaçları göster</small></div><button class="switch on" id="badgeSwitch"><span></span></button></div>
           <div class="setting-row"><div class="setting-copy"><b>Ara Düğmesi</b><small>Dock üstündeki hızlı arama</small></div><button class="switch on" id="searchSwitch"><span></span></button></div>
+          <div class="setting-row"><div class="setting-copy"><b>Kilit Ekranı Önizleme</b><small>Launcher tasarımını kilit ekranında gör</small></div><button class="setting-launch" id="openLockPreview">Aç</button></div>
           <div class="setting-row"><div class="setting-copy"><b>İkon Boyutu</b><small>Ana ekran yoğunluğu</small></div><div class="size-picker"><button class="size-btn" data-size="small">Küçük</button><button class="size-btn active" data-size="normal">Normal</button><button class="size-btn" data-size="large">Büyük</button></div></div>
         </div>
       </div>
@@ -976,10 +1060,22 @@ body{touch-action:pan-y}
   <div class="control" id="controlCenter">
     <div class="control-grid">
       <div class="ccard">
-        <div class="toggle-row"><div class="toggle on">⌁</div><div class="toggle on">◉</div><div class="toggle">✈</div><div class="toggle">◔</div></div>
+        <div class="toggle-row">
+          <div class="toggle-wrap"><div class="toggle on" data-cc="wifi">⌁</div><div class="cc-label">Wi-Fi</div></div>
+          <div class="toggle-wrap"><div class="toggle on" data-cc="mobile">◉</div><div class="cc-label">Mobil</div></div>
+          <div class="toggle-wrap"><div class="toggle off" data-cc="airplane">✈</div><div class="cc-label">Uçak</div></div>
+          <div class="toggle-wrap"><div class="toggle off" data-cc="focus">◔</div><div class="cc-label">Odak</div></div>
+        </div>
       </div>
-      <div class="ccard"><div style="font-size:11px;opacity:.68">Parlaklık</div><div class="slider"><span></span></div></div>
-      <div class="ccard big"><div style="font-size:11px;opacity:.68">Şimdi Çalıyor</div><div style="font-size:15px;font-weight:700;margin-top:7px">Müzik · Duraklatıldı</div></div>
+      <div class="ccard">
+        <div style="font-size:11px;opacity:.68">Parlaklık <span id="brightnessValue">72%</span></div>
+        <input class="brightness-range" id="brightnessRange" type="range" min="10" max="100" value="72">
+      </div>
+      <div class="ccard big">
+        <div style="font-size:11px;opacity:.68">Şimdi Çalıyor</div>
+        <div id="ccMusicText" style="font-size:15px;font-weight:700;margin-top:7px">Müzik · Duraklatıldı</div>
+        <button class="music-control" id="ccMusicToggle">▶ Oynat</button>
+      </div>
     </div>
   </div>
 
@@ -987,6 +1083,52 @@ body{touch-action:pan-y}
     <div class="album">♪</div>
     <div><div style="font-size:11px;opacity:.65">Şimdi Çalıyor</div><div style="font-size:13px;font-weight:700">Müzik</div></div>
     <div class="eq"><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="screen-dimmer" id="screenDimmer"></div>
+
+  <div class="weather-detail" id="weatherDetail">
+    <div class="weather-topbar"><span></span><button class="weather-close" id="closeWeather">×</button></div>
+    <div class="weather-hero">
+      <div class="weather-city">Onikişubat</div>
+      <div class="weather-temp">20°</div>
+      <div class="weather-cond">Bulutlu</div>
+      <div class="weather-range">Yüksek 25° · Düşük 17°</div>
+    </div>
+    <div class="forecast-card">
+      <div class="forecast-title">SAATLİK TAHMİN</div>
+      <div class="hourly">
+        <div class="hour-chip"><b>Şimdi</b><span>☁</span><em>20°</em></div>
+        <div class="hour-chip"><b>20:00</b><span>☁</span><em>19°</em></div>
+        <div class="hour-chip"><b>21:00</b><span>☁</span><em>18°</em></div>
+        <div class="hour-chip"><b>22:00</b><span>☾</span><em>17°</em></div>
+        <div class="hour-chip"><b>23:00</b><span>☾</span><em>17°</em></div>
+        <div class="hour-chip"><b>00:00</b><span>☾</span><em>16°</em></div>
+      </div>
+    </div>
+    <div class="forecast-card">
+      <div class="forecast-title">5 GÜNLÜK TAHMİN</div>
+      <div class="day-row"><b>Bugün</b><span>☁</span><span class="lo">17°</span><span>25°</span></div>
+      <div class="day-row"><b>Pzt</b><span>☀</span><span class="lo">16°</span><span>27°</span></div>
+      <div class="day-row"><b>Sal</b><span>☀</span><span class="lo">17°</span><span>28°</span></div>
+      <div class="day-row"><b>Çar</b><span>☁</span><span class="lo">18°</span><span>26°</span></div>
+      <div class="day-row"><b>Per</b><span>☂</span><span class="lo">15°</span><span>22°</span></div>
+    </div>
+  </div>
+
+  <div class="lock-preview" id="lockPreview">
+    <div class="lock-top"><button class="lock-close" id="closeLockPreview">×</button></div>
+    <div class="lock-time" id="lockTime">19:05</div>
+    <div class="lock-date" id="lockDate">28 Eylül Pazartesi</div>
+    <div class="lock-notifications">
+      <div class="lock-note"><div class="icon c-green">◉</div><div><b>WhatsApp</b><small>3 yeni mesaj</small></div></div>
+      <div class="lock-note"><div class="icon c-purple">◎</div><div><b>Instagram</b><small>2 yeni bildirim</small></div></div>
+    </div>
+    <div class="lock-bottom">
+      <div class="lock-hint">Kilidi açmak için yukarı kaydır</div>
+      <div class="lock-actions"><button class="lock-action">⌁</button><button class="lock-action">◉</button></div>
+      <div class="lock-homebar"></div>
+    </div>
   </div>
 
   <div class="overlay" id="spotlight">
@@ -1071,7 +1213,7 @@ function go(n){
 }
 let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.settings-overlay.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.settings-overlay.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
   jiggle=true;navTracking=false;phone.classList.add("editing");
@@ -1194,7 +1336,7 @@ document.getElementById("quickHide").onclick=()=>{if(quickApp){const name=quickA
 
 document.addEventListener("click",e=>{
  const m=e.target.closest(".mode"); if(m){document.querySelectorAll(".mode").forEach(x=>x.classList.remove("active"));m.classList.add("active");phone.classList.remove("clear-mode","tint-mode");if(m.dataset.mode==="clear")phone.classList.add("clear-mode");if(m.dataset.mode==="tint")phone.classList.add("tint-mode");return}
- const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}if(app.dataset.name==="Ayarlar"){openSettings();return}toast(app.dataset.name+" açılıyor")}
+ const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}if(app.dataset.name==="Ayarlar"){openSettings();return}if(app.dataset.name==="Hava"){openWeather();return}toast(app.dataset.name+" açılıyor")}
 });
 function endEdit(){if(!jiggle)return;jiggle=false;phone.classList.remove("editing");document.querySelectorAll(".workspace>.page").forEach((p,i)=>{if(i<2)p.classList.remove("jiggle")});document.getElementById("customZone").classList.remove("jiggle-zone");document.getElementById("customizer").classList.remove("show");document.getElementById("editTop").classList.remove("show");saveLayout();toast("Bitti")}
 document.addEventListener("dblclick",endEdit);
@@ -1202,8 +1344,62 @@ document.getElementById("doneEdit").onclick=endEdit;
 
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1200)}
 
+function openWeather(){document.getElementById("weatherDetail").classList.add("show")}
+function closeWeather(){document.getElementById("weatherDetail").classList.remove("show")}
+document.getElementById("weatherWidget").onclick=()=>{if(!jiggle)openWeather()};
+document.getElementById("closeWeather").onclick=closeWeather;
+document.getElementById("weatherDetail").addEventListener("click",e=>{if(e.target.id==="weatherDetail")closeWeather()});
+
+let ccState={wifi:true,mobile:true,airplane:false,focus:false};
+let ccMusicPlaying=false;
+function syncCC(){
+  document.querySelectorAll("[data-cc]").forEach(el=>{
+    const on=!!ccState[el.dataset.cc];el.classList.toggle("on",on);el.classList.toggle("off",!on)
+  })
+}
+document.querySelectorAll("[data-cc]").forEach(el=>el.onclick=e=>{
+  e.stopPropagation();const key=el.dataset.cc;ccState[key]=!ccState[key];
+  if(key==="airplane"&&ccState.airplane){ccState.wifi=false;ccState.mobile=false}
+  if((key==="wifi"||key==="mobile")&&ccState[key])ccState.airplane=false;
+  syncCC();toast((key==="wifi"?"Wi-Fi":key==="mobile"?"Mobil veri":key==="airplane"?"Uçak modu":"Odak")+" "+(ccState[key]?"açık":"kapalı"))
+});
+const brightnessRange=document.getElementById("brightnessRange"),dimmer=document.getElementById("screenDimmer");
+function setBrightness(v,save=true){
+  v=Math.max(10,Math.min(100,Number(v)||72));
+  document.getElementById("brightnessValue").textContent=v+"%";
+  brightnessRange.value=v;
+  dimmer.style.opacity=((100-v)/100*.58).toFixed(2);
+  launcherPrefs.brightness=v;
+  if(save)saveLayout()
+}
+brightnessRange.oninput=e=>setBrightness(e.target.value,false);
+brightnessRange.onchange=e=>setBrightness(e.target.value,true);
+document.getElementById("ccMusicToggle").onclick=e=>{
+  e.stopPropagation();ccMusicPlaying=!ccMusicPlaying;
+  document.getElementById("ccMusicText").textContent=ccMusicPlaying?"Müzik · Çalıyor":"Müzik · Duraklatıldı";
+  document.getElementById("ccMusicToggle").textContent=ccMusicPlaying?"Ⅱ Duraklat":"▶ Oynat";
+};
+
+function openLockPreview(){
+  closeSettings();
+  updateLockClock();
+  document.getElementById("lockPreview").classList.add("show")
+}
+function closeLockPreview(){document.getElementById("lockPreview").classList.remove("show")}
+document.getElementById("openLockPreview").onclick=openLockPreview;
+document.getElementById("closeLockPreview").onclick=closeLockPreview;
+let lockStartY=0;
+document.getElementById("lockPreview").addEventListener("pointerdown",e=>{lockStartY=e.clientY});
+document.getElementById("lockPreview").addEventListener("pointerup",e=>{if(lockStartY-e.clientY>70)closeLockPreview();lockStartY=0});
+function updateLockClock(){
+  const d=new Date();
+  document.getElementById("lockTime").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  const days=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"],months=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  document.getElementById("lockDate").textContent=d.getDate()+" "+months[d.getMonth()]+" "+days[d.getDay()]
+}
+
 let hiddenApps=[];
-let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal"};
+let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72};
 function applyLauncherPrefs(){
   phone.classList.toggle("dark-ui",launcherPrefs.dark);
   phone.classList.toggle("hide-labels",!launcherPrefs.labels);
@@ -1216,6 +1412,7 @@ function applyLauncherPrefs(){
   document.getElementById("badgeSwitch").classList.toggle("on",launcherPrefs.badges);
   document.getElementById("searchSwitch").classList.toggle("on",launcherPrefs.search);
   document.querySelectorAll(".size-btn").forEach(b=>b.classList.toggle("active",b.dataset.size===launcherPrefs.size));
+  if(document.getElementById("brightnessRange"))setBrightness(launcherPrefs.brightness||72,false);
 }
 function renderHiddenApps(){
   const root=document.getElementById("hiddenList");root.innerHTML="";
@@ -1363,11 +1560,11 @@ function saveLayout(){
     hidden:hiddenApps,
     prefs:launcherPrefs
   };
-  try{localStorage.setItem("glassHomeLayoutV8",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV9",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -1386,7 +1583,7 @@ function restoreLayout(){
   document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===(d.mode||"normal")));
   setWallpaper(d.wallpaper||"aurora",false);
   hiddenApps=Array.isArray(d.hidden)?d.hidden:[];
-  launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal"},d.prefs||{});
+  launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72},d.prefs||{});
   applyLauncherPrefs();renderHiddenApps();renderLibrary();
 }
 restoreLayout();applyLauncherPrefs();renderHiddenApps();renderLibrary();
