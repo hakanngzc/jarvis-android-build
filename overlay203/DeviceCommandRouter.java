@@ -38,13 +38,13 @@ public final class DeviceCommandRouter {
     }
 
     static boolean matchesBluetooth(String n,String verb){
-        return n.matches("^(?:lutfen )?(?:bluetooth|blutut|blu tot|bluetoothu|bluetooth i|bluetooth yi|blututu|blututu) "
+        return n.matches("^(?:lutfen )?(?:bluetooth|blutut|blu tot|bluetoothu|bluetooth u|bluetooth i|bluetooth yi|blututu) "
                 +verb+"(?:ar misin|er misin|abilir misin|abilir misiniz|iver|iver misin)?$")
             || n.matches("^(?:lutfen )?"+verb+" (?:bluetooth|blutut|bluetoothu|blututu)$");
     }
 
     static boolean matchesWifi(String n,String verb){
-        return n.matches("^(?:lutfen )?(?:wifi|wi fi|wifiyi|wifi yi|kablosuz agi|kablosuz ag) "
+        return n.matches("^(?:lutfen )?(?:wifi|wi fi|wi fi yi|wifiyi|wifi yi|kablosuz agi|kablosuz ag) "
                 +verb+"(?:ar misin|er misin|abilir misin|abilir misiniz|iver|iver misin)?$")
             || n.matches("^(?:lutfen )?"+verb+" (?:wifi|wi fi|wifiyi|kablosuz agi|kablosuz ag)$");
     }
