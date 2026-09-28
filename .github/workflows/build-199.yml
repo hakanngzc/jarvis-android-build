@@ -170,7 +170,7 @@ jobs:
           echo "PACKAGE / VERSION / LAUNCHER PASS"
 
           unzip -p work/JARVIS_1.9.9_CONTEXTUAL_COMMANDS_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'RELEASE_NOTES_198',b'ContextCommandResolver',b'jarvisLastActionCommand',b'jarvisContextResolution',b'jarvisShowReleaseNotes',b'JARVIS 1.9.9',b'ConversationRouter',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'RELEASE_NOTES_198',b'ContextCommandResolver',b'jarvisLastActionCommand',b'resolvedCommand',b'jarvisShowReleaseNotes',b'JARVIS 1.9.9',b'ConversationRouter',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX CONTEXTUAL COMMANDS PASS"
 
           unzip -Z1 work/JARVIS_1.9.9_CONTEXTUAL_COMMANDS_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
