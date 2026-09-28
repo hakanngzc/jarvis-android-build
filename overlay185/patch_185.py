@@ -57,6 +57,9 @@ if anchor not in s:
     raise SystemExit('phase2 anchor missing')
 s=s.replace(anchor,core_code+anchor,1)
 
+# Persist the themed HybridActivity source before compiling/cloning it.
+h.write_text(s,encoding='utf-8')
+
 # Preserve the phone-confirmed 1.7.6 media-safe wake behavior exactly at source level.
 o=java/'OpenWakeWordDetector.java';x=o.read_text(encoding='utf-8')
 old='try{if(melSession==null)initModels();initBuffers();if(!initAudioRecord())throw new IllegalStateException("Mikrofon açılamadı");audioLoop();}'
