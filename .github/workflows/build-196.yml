@@ -157,7 +157,7 @@ jobs:
           echo "PACKAGE / VERSION / LAUNCHER PASS"
 
           unzip -p work/JARVIS_1.9.6_CONVERSATION_CORE_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONVERSATION_CORE_V1',b'ConversationRouter',b'jarvisTryDailyConversation',b'Buradayim efendim.',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONVERSATION_CORE_V1',b'ConversationRouter',b'jarvisTryDailyConversation',b'wake_exact',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX CONVERSATION CORE PASS"
 
           unzip -Z1 work/JARVIS_1.9.6_CONVERSATION_CORE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
