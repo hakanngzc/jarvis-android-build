@@ -95,4 +95,85 @@ g=re.sub(r'versionCode\s+\d+','versionCode 107',g,count=1)
 g=re.sub(r"versionName\s+'[^']+'","versionName '1.8.5'",g,count=1)
 b.write_text(g,encoding='utf-8')
 
-print('JARVIS 1.8.5 UI PHASE 2 patch applied')
+
+# Safe visible UI wrapper. HybridActivity remains untouched at runtime; this subclass injects the visual core after super.onCreate().
+home=java/'JarvisHomeActivity.java'
+home.write_text(r'''package com.hakan.jarvis;
+
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+public class JarvisHomeActivity extends HybridActivity {
+    @Override protected void onCreate(Bundle state){
+        super.onCreate(state);
+        try{
+            getWindow().setStatusBarColor(0xff020913);
+            getWindow().setNavigationBarColor(0xff020913);
+            ViewGroup content=(ViewGroup)findViewById(android.R.id.content);
+            if(content==null||content.getChildCount()==0)return;
+            View first=content.getChildAt(0);
+            LinearLayout root=null;
+            if(first instanceof ScrollView){
+                ScrollView sv=(ScrollView)first;
+                sv.setBackgroundColor(0xff020913);
+                if(sv.getChildCount()>0&&sv.getChildAt(0) instanceof LinearLayout)root=(LinearLayout)sv.getChildAt(0);
+            }else if(first instanceof LinearLayout)root=(LinearLayout)first;
+            if(root==null)return;
+            root.setBackgroundColor(0xff020913);
+            int titleIndex=-1;
+            for(int i=0;i<root.getChildCount();i++){
+                View v=root.getChildAt(i);
+                if(v instanceof TextView){
+                    TextView t=(TextView)v;
+                    String tx=t.getText()==null?"":t.getText().toString();
+                    if(tx.contains("JARVIS")||tx.contains("v1.5.7")){
+                        t.setText("J A R V I S");
+                        t.setTextColor(0xffe7f7ff);
+                        t.setTextSize(30);
+                        t.setGravity(Gravity.CENTER);
+                        if(android.os.Build.VERSION.SDK_INT>=21)t.setLetterSpacing(0.16f);
+                        titleIndex=i;
+                        break;
+                    }
+                }
+            }
+            java.io.InputStream in=getAssets().open("jarvis_core.webp");
+            android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);
+            in.close();
+            if(bm==null)return;
+            ImageView core=new ImageView(this);
+            core.setTag("jarvis_main_core");
+            core.setImageBitmap(bm);
+            core.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            core.setAdjustViewBounds(true);
+            int size=(int)(260*getResources().getDisplayMetrics().density+0.5f);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(size,size);
+            lp.gravity=Gravity.CENTER_HORIZONTAL;
+            lp.topMargin=(int)(10*getResources().getDisplayMetrics().density+0.5f);
+            lp.bottomMargin=(int)(14*getResources().getDisplayMetrics().density+0.5f);
+            int at=titleIndex>=0?Math.min(titleIndex+1,root.getChildCount()):0;
+            root.addView(core,at,lp);
+        }catch(Throwable ignored){}
+    }
+}
+''',encoding='utf-8')
+
+# Route every wake/direct handoff to the visible home wrapper.
+ws=java/'WakeWordService.java'
+wx=ws.read_text(encoding='utf-8').replace('new Intent(this,HybridActivity.class)','new Intent(this,JarvisHomeActivity.class)')
+ws.write_text(wx,encoding='utf-8')
+
+# Launcher now points at JarvisHomeActivity. The stable HybridActivity remains the superclass/engine.
+m=base/'app/src/main/AndroidManifest.xml'
+mx=m.read_text(encoding='utf-8')
+mx=mx.replace('android:name="com.hakan.jarvis.HybridActivity"','android:name="com.hakan.jarvis.JarvisHomeActivity"',1)
+m.write_text(mx,encoding='utf-8')
+
+print('JARVIS 1.8.5 UI PHASE 2 wrapper applied')
+
