@@ -159,7 +159,7 @@ jobs:
           grep -q "launchable-activity: name='com.hakan.jarvis.JarvisHomeActivity'" work/badging.txt
           echo "LAUNCHER PASS"
           unzip -p work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'JarvisAtomCoreView',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'Sohbet',b'Ayarlar',b'buildJarvisReferenceHome',b'Dinliyorum...',b'jarvis_chat_history',b'Sohbet Ge\xc3\xa7mi\xc5\x9fi',b'Ge\xc3\xa7mi\xc5\x9fi Temizle',b'jarvisQueueHistory']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'JarvisAtomCoreView',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'Sohbet',b'Ayarlar',b'buildJarvisReferenceHome',b'Dinliyorum...',b'jarvis_chat_history',b'jarvisQueueHistory',b'jarvisShowChatHistory',b'jarvisCommitHistory']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX UI PASS"
           unzip -Z1 work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk | grep -Fxq 'assets/jarvis_core.webp'
           echo "CORE ASSET PASS"
