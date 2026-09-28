@@ -118,14 +118,14 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
 '''
     s=s.replace(anchor,n201+anchor,1)
 
-    # Demote 2.0.0 current badge only inside its card, independent of note wording.
-    n200_start=s.find('        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",')
-    n199_start=s.find('        View n199=jarvisReleaseCard("JARVIS 1.9.9"',n200_start)
-    if n200_start<0 or n199_start<0: raise SystemExit(name+': release 200 block missing')
-    n200_block=s[n200_start:n199_start]
-    if ',true);' not in n200_block: raise SystemExit(name+': release 200 current flag missing')
-    n200_block=n200_block.rsplit(',true);',1)[0]+',false);'+n200_block.rsplit(',true);',1)[1]
-    s=s[:n200_start]+n200_block+s[n199_start:]
+    # Demote only the 2.0.0 card without depending on exact note wording.
+    card_start=s.find('        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",')
+    if card_start<0: raise SystemExit(name+': release 200 card missing')
+    card_end=s.find(');',card_start)
+    if card_end<0: raise SystemExit(name+': release 200 card end missing')
+    block=s[card_start:card_end+2]
+    if not block.endswith('true);'): raise SystemExit(name+': release 200 current badge missing')
+    s=s[:card_start]+block[:-6]+'false);'+s[card_end+2:]
 
     cards='View[] cards={n200,n199,n198,n197,n196,n195,n164};'
     if cards not in s: raise SystemExit(name+': release cards marker missing')
