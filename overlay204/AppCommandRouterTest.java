@@ -18,7 +18,7 @@ public final class AppCommandRouterTest {
         expect("Instagram'ı aç","",0,"OPEN","instagram");
         expect("WhatsApp aç","",0,"OPEN","whatsapp");
         expect("Hey Jarvis kamerayı aç","",0,"OPEN","kamera");
-        expect("ayarları aç","",0,"OPEN","ayarlari");
+        expect("ayarları aç","",0,"OPEN","ayarlar");
         expect("uygulama Telegram aç","",0,"OPEN","telegram");
         expect("başlat Chrome","",0,"OPEN","chrome");
         expect("Instagram'ı kapat","",0,"CLOSE","instagram");
