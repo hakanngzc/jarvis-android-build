@@ -36,5 +36,11 @@ jobs:
       - name: Print media engine references
         run: |
           grep -RniE 'spotify|youtube|music|muzik|sarki|şark|media|play|pause|next|previous|ACTION_MEDIA|KEYCODE_MEDIA|deeplink|intent://' "$PROJECT_DIR/app/src/main/java" | head -n 500 || true
+          echo "--- DISPATCH SEGMENT ---"
+          sed -n '1180,1325p' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
+          echo "--- PHONE ACTIONS ---"
+          cat "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneActions.java"
+          echo "--- COMMAND LANGUAGE ---"
+          cat "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"
           echo "--- FILES ---"
           find "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis" -maxdepth 1 -type f -printf '%f\n' | sort
