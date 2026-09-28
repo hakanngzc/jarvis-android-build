@@ -56,9 +56,9 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
 
     s=s.replace('private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_2021";',
                 'private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_2022";',1)
-    s=s.replace('JARVIS 2.0.2.1  •  MEDIA HOTFIX','JARVIS 2.0.2.2  •  MEDIASESSION CONTROL',1)
-    s=s.replace('JARVIS 2.0.2.1  •  build 125','JARVIS 2.0.2.2  •  build 126',1)
-    s=s.replace('JARVIS  •  ELITE INTERFACE  •  2.0.2.1','JARVIS  •  ELITE INTERFACE  •  2.0.2.2',1)
+    s=s.replace('JARVIS 2.0.2.1  •  MEDIA HOTFIX','JARVIS 2.0.2.3  •  EXACT SONG RESOLVER',1)
+    s=s.replace('JARVIS 2.0.2.1  •  build 125','JARVIS 2.0.2.3  •  build 127',1)
+    s=s.replace('JARVIS  •  ELITE INTERFACE  •  2.0.2.1','JARVIS  •  ELITE INTERFACE  •  2.0.2.3',1)
     p.write_text(s,encoding='utf-8')
 
 m=base/'app/src/main/AndroidManifest.xml'
@@ -76,12 +76,12 @@ service='''        <service
 if 'android:name=".JarvisMediaListener"' not in x:
     if '</application>' not in x: raise SystemExit('manifest application marker missing')
     x=x.replace('</application>',service+'    </application>',1)
-x=re.sub(r'android:versionCode="\d+" android:versionName="[^"]+"','android:versionCode="126" android:versionName="2.0.2.2"',x,count=1)
+x=re.sub(r'android:versionCode="\d+" android:versionName="[^"]+"','android:versionCode="127" android:versionName="2.0.2.3"',x,count=1)
 m.write_text(x,encoding='utf-8')
 
 b=base/'app/build.gradle'
 g=b.read_text(encoding='utf-8')
-g=re.sub(r'versionCode\s+\d+','versionCode 126',g,count=1)
-g=re.sub(r"versionName\s+'[^']+'","versionName '2.0.2.2'",g,count=1)
+g=re.sub(r'versionCode\s+\d+','versionCode 127',g,count=1)
+g=re.sub(r"versionName\s+'[^']+'","versionName '2.0.2.3'",g,count=1)
 b.write_text(g,encoding='utf-8')
 print('JARVIS 2.0.2.2 direct MediaSession control patch applied')
