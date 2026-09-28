@@ -20,11 +20,20 @@ public final class SpotifyOAuthManager {
 
     private SpotifyOAuthManager(){}
 
+    public static boolean hasAnyToken(Context c){
+        SharedPreferences p=c.getSharedPreferences(PREF,Context.MODE_PRIVATE);
+        return p.getString("access_token","").length()>20 || p.getString("refresh_token","").length()>10;
+    }
+
     public static boolean hasAccessToken(Context c){
         SharedPreferences p=c.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         String token=p.getString("access_token","");
         long exp=p.getLong("expires_at",0L);
         return token.length()>20 && exp>System.currentTimeMillis()+60000L;
+    }
+
+    public static void invalidateAccessToken(Context c){
+        c.getSharedPreferences(PREF,Context.MODE_PRIVATE).edit().putLong("expires_at",0L).apply();
     }
 
     public static String accessToken(Context c){
@@ -35,6 +44,7 @@ public final class SpotifyOAuthManager {
         if(c==null||!"spotify".equals(c.provider))return false;
         if(!("PLAY".equals(c.action)||"PAUSE".equals(c.action)||"RESUME".equals(c.action)||"NEXT".equals(c.action)||"PREVIOUS".equals(c.action)))return false;
 
+        if(!"PLAY".equals(c.action) && !hasAnyToken(a))return false;
         rememberPending(a,c);
         new Thread(new Runnable(){public void run(){
             try{
@@ -68,7 +78,7 @@ public final class SpotifyOAuthManager {
                 .putString("state",state)
                 .apply();
 
-            startCallbackServer(a.getApplicationContext());
+            startCallbackServer(a);
 
             Uri u=Uri.parse("https://accounts.spotify.com/authorize").buildUpon()
                 .appendQueryParameter("client_id",CLIENT_ID)
@@ -85,7 +95,8 @@ public final class SpotifyOAuthManager {
         }
     }
 
-    static synchronized void startCallbackServer(final Context c){
+    static synchronized void startCallbackServer(final Activity a){
+        final Context c=a;
         if(callbackRunning)return;
         callbackRunning=true;
         new Thread(new Runnable(){public void run(){
@@ -108,7 +119,10 @@ public final class SpotifyOAuthManager {
                 if(ok){
                     MediaActions.oauthStatus("Spotify hesabı bağlandı.");
                     MediaCommandRouter.Command pending=readPending(c);
-                    if(pending!=null)SpotifyWebApi.executeFromContext(c,pending);
+                    if(pending!=null){
+                        try{SpotifyWebApi.execute(a,pending);}
+                        catch(Exception e){a.runOnUiThread(new Runnable(){public void run(){MediaActions.executeLegacy(a,pending);}});}
+                    }
                 }else{
                     MediaActions.oauthStatus("Spotify yetkilendirmesi tamamlanamadı.");
                 }
