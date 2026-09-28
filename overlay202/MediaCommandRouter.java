@@ -36,7 +36,8 @@ public final class MediaCommandRouter {
         if(provider.length()==0&&recent)provider=lastProvider;
 
         if(isPause(n,provider.length()>0)){
-            if(provider.length()==0)return null;
+            if(provider.length()==0)
+                return new Command("PAUSE","active_media","","","","Oynatmayı durduruyorum efendim.");
             return new Command("PAUSE",provider,"","","",providerName(provider)+" oynatmasını durduruyorum efendim.");
         }
         if(isResume(n)&&recent){
@@ -163,7 +164,8 @@ public final class MediaCommandRouter {
     static String providerName(String p){
         if("youtube_music".equals(p))return "YouTube Music";
         if("youtube".equals(p))return "YouTube";
-        return "Spotify";
+        if("spotify".equals(p))return "Spotify";
+        return "Medya";
     }
 
     static String stripWakeRaw(String raw){
