@@ -280,7 +280,7 @@ reference_home=r'''    private int jarvisDp(int v){return (int)(v*getResources()
     }
     private void jarvisHaptic(View v){
         if(v!=null&&jarvisUiBool("haptic",true))
-            jarvisHaptic(v);
+            v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
     }
     private void jarvisApplyUiPrefs(){
         if(jarvisAtomCore!=null)jarvisAtomCore.setVisibility(jarvisUiBool("atom_animation",true)?View.VISIBLE:View.GONE);
@@ -339,15 +339,15 @@ reference_home=r'''    private int jarvisDp(int v){return (int)(v*getResources()
             if(action==1){
                 getSharedPreferences("jarvis_chat_history",MODE_PRIVATE).edit().remove("items").apply();
                 jarvisLastHistoryKey="";
-                android.widget.Toast.makeText(JarvisHomeActivity.this,"Sohbet geçmişi temizlendi",android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(HybridActivity.this,"Sohbet geçmişi temizlendi",android.widget.Toast.LENGTH_SHORT).show();
             }else if(action==2){
                 getSharedPreferences("jarvis_write_panel",MODE_PRIVATE).edit().remove("draft").apply();
-                android.widget.Toast.makeText(JarvisHomeActivity.this,"Yazı taslağı temizlendi",android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(HybridActivity.this,"Yazı taslağı temizlendi",android.widget.Toast.LENGTH_SHORT).show();
             }else if(action==3){
                 if(android.os.Build.VERSION.SDK_INT>=23&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
                     requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},7103);
                 }else{
-                    android.widget.Toast.makeText(JarvisHomeActivity.this,"Mikrofon izni aktif",android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(HybridActivity.this,"Mikrofon izni aktif",android.widget.Toast.LENGTH_SHORT).show();
                 }
             }
         }});
