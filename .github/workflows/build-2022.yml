@@ -1,5 +1,5 @@
-name: Build JARVIS 2.0.2.2 Direct MediaSession Control
-# direct-mediasession-control-v1-final
+name: Build JARVIS 2.0.2.3 Exact Song Resolver
+# exact-song-resolver-v1
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
           keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
           grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
 
-      - name: Prepare JARVIS 2.0.2.2 source
+      - name: Prepare JARVIS 2.0.2.3 source
         run: |
           rm -rf work
           mkdir -p work/src
@@ -73,6 +73,8 @@ jobs:
           cp overlay2022/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
           cp overlay2022/JarvisMediaListener.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisMediaListener.java"
           python overlay2022/patch_2022.py "$PROJECT_DIR"
+          cp overlay2023/ExactSongResolver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"
+          cp overlay2023/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
 
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
@@ -103,7 +105,7 @@ jobs:
           import json, urllib.parse, urllib.request
 
           def get(url):
-              req=urllib.request.Request(url,headers={"User-Agent":"JarvisAndroid/2.0.2.2 QA"})
+              req=urllib.request.Request(url,headers={"User-Agent":"JarvisAndroid/2.0.2.3 QA"})
               with urllib.request.urlopen(req,timeout=12) as r:
                   assert r.status==200
                   raw=r.read(350000).decode("utf-8")
@@ -115,6 +117,23 @@ jobs:
               assert pages and isinstance(pages[0],dict)
               assert pages[0].get("title")
           print("ONLINE ENDPOINT SMOKE PASS")
+          PY
+
+      - name: MusicBrainz exact song smoke test
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          q=urllib.parse.quote("Müslüm Gürses Nilüfer")
+          req=urllib.request.Request(
+              "https://musicbrainz.org/ws/2/recording/?query="+q+"&limit=5&fmt=json",
+              headers={"User-Agent":"JARVIS-Android/2.0.2.3 QA (personal non-commercial assistant)","Accept":"application/json"}
+          )
+          with urllib.request.urlopen(req,timeout=12) as r:
+              assert r.status==200
+              j=json.loads(r.read(400000).decode("utf-8"))
+          rec=j.get("recordings") or []
+          assert rec and any("Nilüfer".lower() in (x.get("title") or "").lower() for x in rec)
+          print("MUSICBRAINZ EXACT SONG SMOKE PASS")
           PY
 
       - name: Prepare compile-only MainActivity stub
@@ -129,7 +148,7 @@ jobs:
           }
           JAVA
 
-      - name: Compile JARVIS 2.0.2.2 overlay
+      - name: Compile JARVIS 2.0.2.3 overlay
         run: |
           mkdir -p work/classes
           LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar:work/ort/classes.jar"
@@ -144,6 +163,7 @@ jobs:
           test -f work/classes/com/hakan/jarvis/OnlineConversationContext.class
           test -f work/classes/com/hakan/jarvis/MediaCommandRouter.class
           test -f work/classes/com/hakan/jarvis/MediaActions.class
+          test -f work/classes/com/hakan/jarvis/ExactSongResolver.class
           test -f work/classes/com/hakan/jarvis/JarvisMediaListener.class
           test -f work/classes/com/hakan/jarvis/JarvisAtomCoreView.class
           test -f work/classes/com/hakan/jarvis/JarvisEliteBackdropView.class
@@ -154,7 +174,7 @@ jobs:
       - name: Run regression and conversation tests
         run: |
           rm -rf work/qa && mkdir -p work/qa
-          javac -encoding UTF-8 -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay202/MediaCommandRouterTest.java
+          javac -encoding UTF-8 -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay202/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java
 
           java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
@@ -168,6 +188,7 @@ jobs:
           java -cp work/qa com.hakan.jarvis.OnlineQueryRouterTest | tee work/online-query-test.txt
           java -cp work/qa com.hakan.jarvis.OnlineConversationContextTest | tee work/online-context-test.txt
           java -cp work/qa com.hakan.jarvis.MediaCommandRouterTest | tee work/media-entity-test.txt
+          java -cp "$ANDROID_JAR:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
 
           grep -q "FAIL 0" work/chain-test.txt
           grep -q "FAIL 0" work/conversation-test.txt
@@ -177,8 +198,9 @@ jobs:
           grep -q "FAIL 0" work/online-query-test.txt
           grep -q "FAIL 0" work/online-context-test.txt
           grep -q "FAIL 0" work/media-entity-test.txt
+          grep -q "FAIL 0" work/exact-song-test.txt
 
-      - name: Merge legacy engine with 2.0.2.2 classes
+      - name: Merge legacy engine with 2.0.2.3 classes
         run: |
           unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
           mkdir -p work/dex
@@ -187,7 +209,7 @@ jobs:
           test -s work/dex/classes.dex
           test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
 
-      - name: Package JARVIS 2.0.2.2 APK
+      - name: Package JARVIS 2.0.2.3 APK
         run: |
           "$BT/aapt" package -f             -M "$PROJECT_DIR/app/src/main/AndroidManifest.xml"             -I "$ANDROID_JAR"             -S "$PROJECT_DIR/app/src/main/res"             -A "$PROJECT_DIR/app/src/main/assets"             -F work/unsigned.apk
           (cd work/dex && zip -q ../unsigned.apk classes.dex)
@@ -197,45 +219,45 @@ jobs:
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
 
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk
 
       - name: Structural QA
         run: |
-          unzip -t work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk >/dev/null
-          "$BT/aapt" dump badging work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          unzip -t work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk >/dev/null
+          "$BT/aapt" dump badging work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
           cat work/badging.txt
 
           grep -q "package: name='com.hakan.jarvis'" work/badging.txt
-          grep -q "versionCode='126'" work/badging.txt
-          grep -q "versionName='2.0.2.2'" work/badging.txt
+          grep -q "versionCode='127'" work/badging.txt
+          grep -q "versionName='2.0.2.3'" work/badging.txt
           grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
           grep -q "JarvisMediaListener" work/manifest.txt
           grep -q "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" work/manifest.txt
           echo "PACKAGE / VERSION / LAUNCHER / MEDIA LISTENER PASS"
 
-          unzip -p work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_2022',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V4',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V2_SESSION_CONTROL',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.2.2',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
-          echo "DEX MEDIASESSION CONTROL PASS"
+          unzip -p work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk classes.dex > work/final.dex
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_2023',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V4',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V3_EXACT_PLAY',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.2.3',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX EXACT SONG RESOLVER PASS"
 
-          unzip -Z1 work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -Z1 work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
-          test "$(unzip -Z1 work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          unzip -Z1 work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -Z1 work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          test "$(unzip -Z1 work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
           echo "WAKE / ONNX / SINGLE DEX PASS"
 
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk artifact/
+          cp work/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt artifact/
-          sha256sum artifact/JARVIS_2.0.2.2_MEDIASESSION_CONTROL_UNSIGNED.apk > artifact/SHA256.txt
+          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt artifact/
+          sha256sum artifact/JARVIS_2.0.2.3_EXACT_SONG_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-2.0.2.2-mediasession-control
+          name: JARVIS-2.0.2.3-exact-song
           path: artifact/
           if-no-files-found: error
