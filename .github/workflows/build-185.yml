@@ -161,7 +161,14 @@ jobs:
           }
           JAVA
           javac -cp "$CP" work/FilterDex.java
-          find work/classes -type f -name '*.class' | sort | sed "s#^work/classes/#L#;s#\.class$#;#" > work/remove-descriptors.txt
+          python - <<'PY'
+from pathlib import Path
+items=[]
+for p in sorted(Path('work/classes').rglob('*.class')):
+    rel=p.relative_to('work/classes').as_posix()
+    items.append('L'+rel[:-6]+';')
+Path('work/remove-descriptors.txt').write_text('\n'.join(items)+'\n')
+PY
           grep -q '^Lcom/hakan/jarvis/HybridActivity;' work/remove-descriptors.txt
           java -cp "$CP:work" FilterDex work/baseline.dex work/remove-descriptors.txt work/filtered-baseline.dex
           mkdir -p work/dex
