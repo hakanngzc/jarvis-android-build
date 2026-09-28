@@ -118,11 +118,14 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
 '''
     s=s.replace(anchor,n201+anchor,1)
 
-    # Demote 2.0.0 current badge only inside its card.
-    old_end=r'''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);'''
-    new_end=r'''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",false);'''
-    if old_end not in s: raise SystemExit(name+': release 200 badge marker missing')
-    s=s.replace(old_end,new_end,1)
+    # Demote 2.0.0 current badge only inside its card, independent of note wording.
+    n200_start=s.find('        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",')
+    n199_start=s.find('        View n199=jarvisReleaseCard("JARVIS 1.9.9"',n200_start)
+    if n200_start<0 or n199_start<0: raise SystemExit(name+': release 200 block missing')
+    n200_block=s[n200_start:n199_start]
+    if ',true);' not in n200_block: raise SystemExit(name+': release 200 current flag missing')
+    n200_block=n200_block.rsplit(',true);',1)[0]+',false);'+n200_block.rsplit(',true);',1)[1]
+    s=s[:n200_start]+n200_block+s[n199_start:]
 
     cards='View[] cards={n200,n199,n198,n197,n196,n195,n164};'
     if cards not in s: raise SystemExit(name+': release cards marker missing')
