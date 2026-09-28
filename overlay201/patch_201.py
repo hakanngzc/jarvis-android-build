@@ -102,8 +102,8 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     clear_new='engine.clearCache();if(onlineIntelligence!=null)onlineIntelligence.clearCache();onlineIntelligenceLastAnswer=null;onlineIntelligenceLastAnswerAt=0L;handler.post'
     if clear in s:s=s.replace(clear,clear_new,1)
 
-    settings='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Anahtarsız bilgi fallback'i  •  DDG + Türkçe Wikipedia","◎"));'''
-    settings_new='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Natural Query V2  •  DDG + Türkçe Wikipedia","◎"));'''
+    settings='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Anahtarsız bilgi fallback'i  •  Wikimedia + Türkçe Wikipedia","◎"));'''
+    settings_new='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Natural Query V2  •  Wikimedia + Türkçe Wikipedia","◎"));'''
     if settings not in s: raise SystemExit(name+': online settings marker missing')
     s=s.replace(settings,settings_new,1)
 
