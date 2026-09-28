@@ -146,6 +146,11 @@ jobs:
               print("MUSICBRAINZ ENDPOINT DEGRADED - runtime fallback will be used")
           PY
 
+      - name: Download JSON test runtime
+        run: |
+          wget -q https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar -O work/json.jar
+          test -s work/json.jar
+
       - name: Prepare compile-only MainActivity stub
         run: |
           mkdir -p work/stub/com/hakan/jarvis
@@ -184,7 +189,7 @@ jobs:
       - name: Run regression and conversation tests
         run: |
           rm -rf work/qa && mkdir -p work/qa
-          javac -encoding UTF-8 -cp "$ANDROID_JAR" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay202/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java
+          javac -encoding UTF-8 -cp "$ANDROID_JAR:work/json.jar" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay202/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java
 
           java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
@@ -198,7 +203,7 @@ jobs:
           java -cp work/qa com.hakan.jarvis.OnlineQueryRouterTest | tee work/online-query-test.txt
           java -cp work/qa com.hakan.jarvis.OnlineConversationContextTest | tee work/online-context-test.txt
           java -cp work/qa com.hakan.jarvis.MediaCommandRouterTest | tee work/media-entity-test.txt
-          java -cp "$ANDROID_JAR:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
+          java -cp "work/json.jar:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
 
           grep -q "FAIL 0" work/chain-test.txt
           grep -q "FAIL 0" work/conversation-test.txt
