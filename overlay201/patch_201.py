@@ -119,8 +119,8 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     s=s.replace(anchor,n201+anchor,1)
 
     # Demote 2.0.0 current badge only inside its card.
-    old_end='''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);'''
-    new_end='''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",false);'''
+    old_end=r'''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);'''
+    new_end=r'''            "• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",false);'''
     if old_end not in s: raise SystemExit(name+': release 200 badge marker missing')
     s=s.replace(old_end,new_end,1)
 
