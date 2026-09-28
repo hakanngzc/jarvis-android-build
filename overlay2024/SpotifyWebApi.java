@@ -144,9 +144,8 @@ public final class SpotifyWebApi {
         h.disconnect();
         if(code==expected)return out;
         if(code==401){
-            if(SpotifyOAuthManager.ensureFreshToken(c)){
-                throw new HttpStatusException(code,out);
-            }
+            SpotifyOAuthManager.invalidateAccessToken(c);
+            if(SpotifyOAuthManager.ensureFreshToken(c))throw new RetryableAuthException();
         }
         throw new HttpStatusException(code,out);
     }
@@ -156,6 +155,7 @@ public final class SpotifyWebApi {
         Track(String a,String t,String u,String i,int s){artist=a;title=t;uri=u;id=i;score=s;}
     }
 
+    public static final class RetryableAuthException extends IOException{}
     public static final class HttpStatusException extends IOException{
         public final int code;public final String body;
         HttpStatusException(int c,String b){super("Spotify HTTP "+c);code=c;body=b;}
