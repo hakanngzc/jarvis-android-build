@@ -30,7 +30,8 @@ public final class MediaCommandRouter {
         String n=normalize(original);
         if(n.length()==0)return null;
 
-        String provider=provider(n);
+        String explicitProvider=provider(n);
+        String provider=explicitProvider;
         boolean recent=lastProvider!=null&&lastProvider.length()>0&&ageMs>=0&&ageMs<=CONTEXT_WINDOW_MS;
         if(provider.length()==0&&recent)provider=lastProvider;
 
@@ -48,7 +49,7 @@ public final class MediaCommandRouter {
             return new Command("PREVIOUS",lastProvider,"","","","Önceki parçaya dönüyorum efendim.");
         }
 
-        if(provider.length()==0 && !looksMusicVerb(n))return null;
+        if(explicitProvider.length()==0 && !looksMusicVerb(n))return null;
         if(provider.length()==0)provider=recent?lastProvider:"spotify";
 
         if(isProviderOpenOnly(n,provider)){
@@ -113,9 +114,9 @@ public final class MediaCommandRouter {
     static String extractQuery(String raw,String provider){
         String s=stripWakeRaw(raw).trim();
         s=s.replaceFirst("(?iu)^lütfen\\s+","");
-        s=s.replaceAll("(?iu)\\bspotify(?:['’]?(?:da|de|dan|den|yi|i))?\\b"," ");
-        s=s.replaceAll("(?iu)\\byoutube\\s*music(?:['’]?(?:da|de|dan|den|yi|i))?\\b"," ");
-        s=s.replaceAll("(?iu)\\byoutube(?:['’]?(?:da|de|dan|den|yi|u|i))?\\b"," ");
+        s=s.replaceAll("(?iu)\\bspotify(?:['’]?(?:da|de|dan|den|tan|ten|yi|i))?\\b"," ");
+        s=s.replaceAll("(?iu)\\byoutube\\s*music(?:['’]?(?:da|de|dan|den|tan|ten|yi|i))?\\b"," ");
+        s=s.replaceAll("(?iu)\\byoutube(?:['’]?(?:da|de|dan|den|tan|ten|yi|u|i))?\\b"," ");
         s=s.replaceAll("(?iu)\\b(?:ac|aç|cal|çal|oynat|ara|bul)\\b"," ");
         s=s.replaceAll("(?iu)\\b(?:sarkiyi|şarkıyı|sarkisini|şarkısını|sarki|şarkı|muzigi|müziği)\\b"," ");
         s=s.replaceAll("(?iu)\\b(?:bana|benim icin|benim için|lutfen|lütfen)\\b"," ");
