@@ -60,6 +60,7 @@ public final class ConversationRouter {
         String q = stripLeadingWake(n);
         if (q.length() == 0) return null;
 
+        // Exact conversation-memory clears must be resolved before the action shield.
         // Mature action commands always stay with the legacy command engine.
         if (looksLikeAction(q)) return null;
 
