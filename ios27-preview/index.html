@@ -923,6 +923,137 @@ body{touch-action:pan-y}
 }
 .maint-btn.danger{color:#ff746d}
 
+
+/* IOS 27 NOTIFICATION FIDELITY PASS */
+.notification-center{
+  padding:0!important;
+  background:
+    radial-gradient(circle at 55% 18%,rgba(116,105,255,.72),transparent 27%),
+    radial-gradient(circle at 26% 72%,rgba(49,123,185,.48),transparent 34%),
+    linear-gradient(160deg,#151627,#071019 74%)!important;
+  overflow:hidden!important;
+}
+.nc-scroll{
+  height:100%;overflow:auto;padding:56px 11px 24px;
+  scrollbar-width:none;overscroll-behavior:contain;
+}
+.nc-scroll::-webkit-scrollbar{display:none}
+.nc-lock-head{text-align:center;padding-top:5px;margin-bottom:22px}
+.nc-time{font-size:66px;font-weight:250;letter-spacing:-4px;line-height:.98}
+.nc-date{font-size:14px;margin-top:8px;opacity:.82}
+.nc-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:0 5px 9px;
+}
+.nc-toolbar-title{font-size:13px;font-weight:700;opacity:.78}
+.nc-clear-circle{
+  width:29px;height:29px;border:0;border-radius:50%;
+  background:rgba(30,35,46,.46);color:#fff;font-size:16px;
+}
+.nc-list{display:flex;flex-direction:column;gap:8px}
+.nc-group{position:relative;margin-bottom:2px}
+.nc-stack-back{
+  position:absolute;left:7px;right:7px;height:100%;border-radius:23px;
+  background:rgba(248,249,252,.16);border:1px solid rgba(255,255,255,.11);
+}
+.nc-stack-back.b1{top:5px;transform:scale(.985);opacity:.64}
+.nc-stack-back.b2{top:10px;transform:scale(.965);opacity:.35}
+.nc-note-wrap{
+  position:relative;overflow:hidden;border-radius:23px;
+  touch-action:pan-y;isolation:isolate;
+}
+.nc-actions-behind{
+  position:absolute;z-index:0;inset:0 0 0 auto;width:122px;
+  display:flex;align-items:stretch;justify-content:flex-end;
+  overflow:hidden;border-radius:23px;
+}
+.nc-swipe-action{
+  width:61px;border:0;color:#fff;font-size:10px;font-weight:650;
+}
+.nc-swipe-action.options{background:#8e8e93}
+.nc-swipe-action.clear{background:#ff453a}
+.nc-note{
+  position:relative;z-index:1;
+  display:block!important;
+  min-height:79px;padding:10px 12px 11px!important;
+  border-radius:23px!important;
+  background:linear-gradient(145deg,rgba(242,246,252,.82),rgba(214,222,234,.68))!important;
+  border:1px solid rgba(255,255,255,.38)!important;
+  color:#15181d!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.15)!important;
+  transform:translate3d(0,0,0);transition:transform .18s cubic-bezier(.2,.75,.2,1);
+}
+.phone.dark-ui .nc-note{
+  background:linear-gradient(145deg,rgba(52,60,74,.92),rgba(31,37,48,.88))!important;
+  color:#fff!important;border-color:rgba(255,255,255,.13)!important;
+}
+.nc-note-top{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.nc-note-top .icon{
+  width:22px!important;height:22px!important;border-radius:6px!important;
+  font-size:10px!important;box-shadow:none!important;
+}
+.nc-app{font-size:10px;font-weight:700;opacity:.78;flex:1}
+.nc-when{font-size:9px;opacity:.47}
+.nc-note-title{font-size:13px;font-weight:720;line-height:1.25}
+.nc-note-body{font-size:11px;line-height:1.3;opacity:.72;margin-top:2px}
+.nc-note-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:20px;height:20px;border-radius:10px;
+  background:rgba(90,100,116,.15);font-size:10px;font-weight:750;margin-left:5px;
+}
+.nc-count-mode{
+  position:absolute;left:50%;bottom:max(22px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  height:33px;padding:0 14px;border-radius:17px;
+  display:flex;align-items:center;gap:6px;
+  background:rgba(30,35,45,.55);border:1px solid rgba(255,255,255,.11);
+  font-size:11px;font-weight:700;
+}
+.nc-empty{text-align:center;padding:60px 20px;font-size:12px;opacity:.55}
+.nc-close-float{
+  position:absolute;z-index:3;right:12px;top:max(13px,env(safe-area-inset-top));
+  width:31px;height:31px;border:0;border-radius:50%;
+  background:rgba(25,30,40,.52);color:#fff;font-size:17px;
+}
+.notif-style-picker{display:flex;gap:5px}
+.notif-style-btn{
+  height:28px;padding:0 8px;border:0;border-radius:14px;
+  background:rgba(255,255,255,.09);color:#fff;font-size:9px;
+}
+.notif-style-btn.active{background:rgba(255,255,255,.24)}
+.notif-options-sheet{
+  position:absolute;z-index:85;inset:0;
+  display:flex;align-items:flex-end;padding:0 10px max(10px,env(safe-area-inset-bottom));
+  background:rgba(5,8,13,.28);opacity:0;pointer-events:none;transition:opacity .16s;
+}
+.notif-options-sheet.show{opacity:1;pointer-events:auto}
+.notif-options-panel{width:100%;transform:translateY(12px);transition:transform .16s}
+.notif-options-sheet.show .notif-options-panel{transform:translateY(0)}
+.notif-options-card,.notif-options-cancel{
+  background:rgba(37,44,56,.98);border:1px solid rgba(255,255,255,.10);overflow:hidden;
+}
+.notif-options-card{border-radius:22px;margin-bottom:8px}
+.notif-options-title{padding:13px 15px;text-align:center;font-size:11px;opacity:.56}
+.notif-options-action{
+  width:100%;height:51px;border:0;border-top:1px solid rgba(255,255,255,.07);
+  background:transparent;color:#fff;font-size:15px;
+}
+.notif-options-cancel{
+  width:100%;height:52px;border-radius:18px;color:#fff;font-size:15px;font-weight:700;
+}
+.lock-notifications{top:250px!important;gap:7px!important}
+.lock-preview .nc-note{
+  color:#15181d!important;
+  min-height:74px;padding:9px 11px 10px!important;
+}
+.lock-preview .nc-note-wrap{border-radius:22px}
+.lock-preview .nc-group{margin-bottom:0}
+.lock-count-pill{
+  margin:0 auto;width:max-content;height:32px;padding:0 13px;border-radius:16px;
+  display:flex;align-items:center;background:rgba(30,35,46,.50);
+  border:1px solid rgba(255,255,255,.11);font-size:11px;font-weight:700;
+}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -1063,8 +1194,25 @@ body{touch-action:pan-y}
   <div class="save-chip" id="saveChip">Düzen kaydedildi</div>
 
   <div class="notification-center" id="notificationCenter">
-    <div class="nc-head"><h2>Bildirimler</h2><div class="nc-actions"><button class="nc-btn" id="clearNotifications">Temizle</button><button class="nc-btn" id="closeNotifications">×</button></div></div>
-    <div class="nc-list" id="notificationList"></div>
+    <button class="nc-close-float" id="closeNotifications">×</button>
+    <div class="nc-scroll">
+      <div class="nc-lock-head"><div class="nc-time" id="ncTime">20:34</div><div class="nc-date" id="ncDate">28 Eylül Pazartesi</div></div>
+      <div class="nc-toolbar"><div class="nc-toolbar-title">Bildirim Merkezi</div><button class="nc-clear-circle" id="clearNotifications">×</button></div>
+      <div class="nc-list" id="notificationList"></div>
+    </div>
+    <div class="nc-count-mode" id="ncCountMode" style="display:none"><span>●</span><span id="ncCountText">4 Bildirim</span></div>
+  </div>
+
+  <div class="notif-options-sheet" id="notifOptionsSheet">
+    <div class="notif-options-panel">
+      <div class="notif-options-card">
+        <div class="notif-options-title" id="notifOptionsTitle">Bildirim Seçenekleri</div>
+        <button class="notif-options-action" data-notif-option="hour">1 Saat Sessize Al</button>
+        <button class="notif-options-action" data-notif-option="today">Bugün Sessize Al</button>
+        <button class="notif-options-action" data-notif-option="settings">Ayarları Görüntüle</button>
+      </div>
+      <button class="notif-options-cancel" id="cancelNotifOptions">İptal</button>
+    </div>
   </div>
 
   <div class="az-overlay" id="azOverlay">
@@ -1085,6 +1233,7 @@ body{touch-action:pan-y}
           <div class="setting-row"><div class="setting-copy"><b>Karanlık Mod</b><small>Daha koyu cam yüzeyler</small></div><button class="switch" id="darkSwitch"><span></span></button></div>
           <div class="setting-row"><div class="setting-copy"><b>Uygulama Etiketleri</b><small>İkon isimlerini göster</small></div><button class="switch on" id="labelSwitch"><span></span></button></div>
           <div class="setting-row"><div class="setting-copy"><b>Bildirim Rozetleri</b><small>Kırmızı sayaçları göster</small></div><button class="switch on" id="badgeSwitch"><span></span></button></div>
+          <div class="setting-row"><div class="setting-copy"><b>Bildirim Görünümü</b><small>Kilit ekranı ve Bildirim Merkezi</small></div><div class="notif-style-picker"><button class="notif-style-btn" data-notif-style="count">Sayı</button><button class="notif-style-btn active" data-notif-style="stack">Gruplama</button><button class="notif-style-btn" data-notif-style="list">Liste</button></div></div>
           <div class="setting-row"><div class="setting-copy"><b>Ara Düğmesi</b><small>Dock üstündeki hızlı arama</small></div><button class="switch on" id="searchSwitch"><span></span></button></div>
           <div class="setting-row"><div class="setting-copy"><b>Kilit Ekranı Önizleme</b><small>Launcher tasarımını kilit ekranında gör</small></div><button class="setting-launch" id="openLockPreview">Aç</button></div>
           <div class="setting-row"><div class="setting-copy"><b>İkon Boyutu</b><small>Ana ekran yoğunluğu</small></div><div class="size-picker"><button class="size-btn" data-size="small">Küçük</button><button class="size-btn active" data-size="normal">Normal</button><button class="size-btn" data-size="large">Büyük</button></div></div>
@@ -1256,10 +1405,7 @@ body{touch-action:pan-y}
     <div class="lock-top"><button class="lock-close" id="closeLockPreview">×</button></div>
     <div class="lock-time" id="lockTime">19:05</div>
     <div class="lock-date" id="lockDate">28 Eylül Pazartesi</div>
-    <div class="lock-notifications">
-      <div class="lock-note"><div class="icon c-green">◉</div><div><b>WhatsApp</b><small>3 yeni mesaj</small></div></div>
-      <div class="lock-note"><div class="icon c-purple">◎</div><div><b>Instagram</b><small>2 yeni bildirim</small></div></div>
-    </div>
+    <div class="lock-notifications" id="lockNotifications"></div>
     <div class="lock-bottom">
       <div class="lock-hint">Kilidi açmak için yukarı kaydır</div>
       <div class="lock-actions"><button class="lock-action">⌁</button><button class="lock-action">◉</button></div>
@@ -1292,7 +1438,7 @@ let notificationItems=[
   {app:"Mail",text:"4 okunmamış e-posta",time:"24 dk"},
   {app:"Mesajlar",text:"5 yeni mesaj",time:"32 dk"}
 ];
-let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72};
+let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72,notifStyle:"stack"};
 let recentApps=[];
 let dockApps=["Telefon","Mesajlar","Kamera","Chrome"];
 function tile(a,mini=false){
@@ -1366,7 +1512,7 @@ function go(n){
 }
 let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,notifGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.notification-center.show,.az-overlay.show,.settings-overlay.show,.dock-chooser.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.notification-center.show,.notif-options-sheet.show,.az-overlay.show,.settings-overlay.show,.dock-chooser.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
   jiggle=true;navTracking=false;phone.classList.add("editing");
@@ -1483,20 +1629,76 @@ function renderResults(q){
   }
 }
 
+let activeNotifIndex=null;
+function updateNotificationClock(){
+  const d=new Date(),days=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"],months=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  const time=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"),date=d.getDate()+" "+months[d.getMonth()]+" "+days[d.getDay()];
+  const t=document.getElementById("ncTime"),dt=document.getElementById("ncDate");if(t)t.textContent=time;if(dt)dt.textContent=date
+}
+function notifCard(n,idx,compact=false){
+  const a=apps.find(x=>x[0]===n.app)||["Uygulama","•","c-gray"];
+  const wrap=document.createElement("div");wrap.className="nc-note-wrap";wrap.dataset.index=idx;
+  wrap.innerHTML='<div class="nc-actions-behind"><button class="nc-swipe-action options">Seçenekler</button><button class="nc-swipe-action clear">Sil</button></div>'+
+    '<div class="nc-note"><div class="nc-note-top"><div class="icon '+a[2]+'">'+a[1]+'</div><div class="nc-app">'+n.app+'</div><div class="nc-when">'+n.time+'</div></div>'+
+    '<div class="nc-note-title">'+n.text+'</div><div class="nc-note-body">'+(n.body||notificationBody(n.app))+'</div></div>';
+  const note=wrap.querySelector(".nc-note");
+  let sx=0,dxn=0,dragging=false;
+  wrap.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;sx=e.clientX;dxn=0;dragging=true});
+  wrap.addEventListener("pointermove",e=>{if(!dragging)return;dxn=e.clientX-sx;if(dxn<0&&Math.abs(dxn)>8){note.style.transition="none";note.style.transform="translate3d("+Math.max(-122,dxn)+"px,0,0)"}});
+  wrap.addEventListener("pointerup",e=>{if(!dragging)return;dragging=false;note.style.transition="";if(dxn<-42)note.style.transform="translate3d(-122px,0,0)";else{note.style.transform="translate3d(0,0,0)";if(Math.abs(dxn)<8&&!e.target.closest("button")){closeNotificationCenter();openNamedApp(n.app)}}});
+  wrap.querySelector(".clear").onclick=e=>{e.stopPropagation();notificationItems.splice(idx,1);renderNotificationCenter();renderLockNotifications();saveLayout()};
+  wrap.querySelector(".options").onclick=e=>{e.stopPropagation();activeNotifIndex=idx;document.getElementById("notifOptionsTitle").textContent=n.app;document.getElementById("notifOptionsSheet").classList.add("show")};
+  return wrap
+}
+function notificationBody(app){
+  const map={WhatsApp:"Mesajlarını görmek için dokun.",Instagram:"Yeni hareketleri görüntüle.",Mail:"Gelen kutunda yeni iletiler var.",Mesajlar:"Yeni mesajları görüntüle."};
+  return map[app]||"Bildirimi görüntülemek için dokun."
+}
 function renderNotificationCenter(){
-  const root=document.getElementById("notificationList");root.innerHTML="";
-  if(!notificationItems.length){root.innerHTML='<div class="nc-empty">Yeni bildirim yok</div>';return}
-  notificationItems.forEach((n,idx)=>{
-    const a=apps.find(x=>x[0]===n.app)||["Uygulama","•","c-gray"];
-    const row=document.createElement("div");row.className="nc-note";row.dataset.index=idx;
-    row.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><div class="nc-note-copy"><b>'+n.app+'</b><span>'+n.text+'</span><small>'+n.time+'</small></div>';
-    row.onclick=()=>{closeNotificationCenter();openNamedApp(n.app)};root.appendChild(row)
-  })
+  updateNotificationClock();
+  const root=document.getElementById("notificationList"),count=document.getElementById("ncCountMode");root.innerHTML="";
+  const style=launcherPrefs.notifStyle||"stack";
+  count.style.display=style==="count"&&notificationItems.length?"flex":"none";
+  document.getElementById("ncCountText").textContent=notificationItems.length+" Bildirim";
+  if(!notificationItems.length){root.innerHTML='<div class="nc-empty">Daha eski bildirim yok</div>';return}
+  if(style==="count")return;
+  if(style==="stack"){
+    const groups={};
+    notificationItems.forEach((n,i)=>{(groups[n.app]||(groups[n.app]=[])).push([n,i])});
+    Object.values(groups).forEach(items=>{
+      const group=document.createElement("div");group.className="nc-group";
+      if(items.length>1){group.innerHTML='<div class="nc-stack-back b2"></div><div class="nc-stack-back b1"></div>'}
+      const card=notifCard(items[0][0],items[0][1]);
+      if(items.length>1){const badge=document.createElement("span");badge.className="nc-note-count";badge.textContent=items.length;card.querySelector(".nc-app").appendChild(badge)}
+      group.appendChild(card);root.appendChild(group)
+    })
+  }else notificationItems.forEach((n,i)=>root.appendChild(notifCard(n,i)))
+}
+function renderLockNotifications(){
+  const root=document.getElementById("lockNotifications");if(!root)return;root.innerHTML="";
+  const style=launcherPrefs.notifStyle||"stack";
+  if(!notificationItems.length)return;
+  if(style==="count"){root.innerHTML='<div class="lock-count-pill">'+notificationItems.length+' Bildirim</div>';return}
+  if(style==="stack"){
+    const first=notificationItems[0],group=document.createElement("div");group.className="nc-group";
+    if(notificationItems.length>1)group.innerHTML='<div class="nc-stack-back b2"></div><div class="nc-stack-back b1"></div>';
+    const c=notifCard(first,0,true);if(notificationItems.length>1){const badge=document.createElement("span");badge.className="nc-note-count";badge.textContent=notificationItems.length;c.querySelector(".nc-app").appendChild(badge)}
+    group.appendChild(c);root.appendChild(group)
+  }else notificationItems.slice(0,3).forEach((n,i)=>root.appendChild(notifCard(n,i,true)))
 }
 function openNotificationCenter(){renderNotificationCenter();document.getElementById("notificationCenter").classList.add("show")}
 function closeNotificationCenter(){document.getElementById("notificationCenter").classList.remove("show")}
 document.getElementById("closeNotifications").onclick=closeNotificationCenter;
-document.getElementById("clearNotifications").onclick=()=>{notificationItems=[];renderNotificationCenter();saveLayout();toast("Bildirimler temizlendi")};
+document.getElementById("clearNotifications").onclick=()=>{notificationItems=[];renderNotificationCenter();renderLockNotifications();saveLayout();toast("Bildirimler temizlendi")};
+document.getElementById("cancelNotifOptions").onclick=()=>document.getElementById("notifOptionsSheet").classList.remove("show");
+document.getElementById("notifOptionsSheet").addEventListener("click",e=>{if(e.target.id==="notifOptionsSheet")e.currentTarget.classList.remove("show")});
+document.querySelectorAll("[data-notif-option]").forEach(b=>b.onclick=()=>{
+  const action=b.dataset.notifOption,n=notificationItems[activeNotifIndex];
+  document.getElementById("notifOptionsSheet").classList.remove("show");
+  if(!n)return;
+  if(action==="settings"){openSettings();toast(n.app+" bildirim ayarları")}
+  else toast(action==="hour"?"1 saat sessize alındı":"Bugün sessize alındı")
+});
 
 function renderAZ(q=""){
   const root=document.getElementById("azList");root.innerHTML="";
@@ -1527,7 +1729,7 @@ document.getElementById("resetHome").onclick=e=>{
     clearTimeout(resetArmTimer);resetArmTimer=setTimeout(()=>{b.dataset.armed="0";b.textContent="Sıfırla"},3000);return
   }
   try{
-    ["glassHomeLayoutV11","glassHomeLayoutV10","glassHomeLayoutV9","glassHomeLayoutV8","glassHomeLayoutV7","glassHomeLayoutV6","glassHomeLayoutV5","glassHomeLayoutV4","glassHomeLayoutV3"].forEach(k=>localStorage.removeItem(k))
+    ["glassHomeLayoutV12","glassHomeLayoutV11","glassHomeLayoutV10","glassHomeLayoutV9","glassHomeLayoutV8","glassHomeLayoutV7","glassHomeLayoutV6","glassHomeLayoutV5","glassHomeLayoutV4","glassHomeLayoutV3"].forEach(k=>localStorage.removeItem(k))
   }catch(_){}
   location.reload()
 };
@@ -1619,7 +1821,7 @@ document.getElementById("ccMusicToggle").onclick=e=>{
 
 function openLockPreview(){
   closeSettings();
-  updateLockClock();
+  updateLockClock();renderLockNotifications();
   document.getElementById("lockPreview").classList.add("show")
 }
 function closeLockPreview(){document.getElementById("lockPreview").classList.remove("show")}
@@ -1647,6 +1849,7 @@ function applyLauncherPrefs(){
   document.getElementById("badgeSwitch").classList.toggle("on",launcherPrefs.badges);
   document.getElementById("searchSwitch").classList.toggle("on",launcherPrefs.search);
   document.querySelectorAll(".size-btn").forEach(b=>b.classList.toggle("active",b.dataset.size===launcherPrefs.size));
+  document.querySelectorAll(".notif-style-btn").forEach(b=>b.classList.toggle("active",b.dataset.notifStyle===(launcherPrefs.notifStyle||"stack")));
   if(document.getElementById("brightnessRange"))setBrightness(launcherPrefs.brightness||72,false);
 }
 function renderHiddenApps(){
@@ -1700,6 +1903,7 @@ document.getElementById("launcherSettings").addEventListener("click",e=>{if(e.ta
   document.getElementById(id).onclick=()=>{launcherPrefs[key]=!launcherPrefs[key];applyLauncherPrefs();saveLayout()}
 });
 document.querySelectorAll(".size-btn").forEach(b=>b.onclick=()=>{launcherPrefs.size=b.dataset.size;applyLauncherPrefs();saveLayout()});
+document.querySelectorAll(".notif-style-btn").forEach(b=>b.onclick=()=>{launcherPrefs.notifStyle=b.dataset.notifStyle;applyLauncherPrefs();renderNotificationCenter();renderLockNotifications();saveLayout()});
 
 document.getElementById("addWidget").onclick=()=>document.getElementById("widgetGallery").classList.add("show");
 const wallpaperEl=document.querySelector(".wallpaper");
@@ -1829,11 +2033,11 @@ function saveLayout(){
     recents:recentApps,
     notifications:notificationItems
   };
-  try{localStorage.setItem("glassHomeLayoutV11",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV12",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV11")||localStorage.getItem("glassHomeLayoutV10")||localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV12")||localStorage.getItem("glassHomeLayoutV11")||localStorage.getItem("glassHomeLayoutV10")||localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -1852,7 +2056,7 @@ function restoreLayout(){
   document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===(d.mode||"normal")));
   setWallpaper(d.wallpaper||"aurora",false);
   hiddenApps=Array.isArray(d.hidden)?d.hidden:[];
-  launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72},d.prefs||{});
+  launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72,notifStyle:"stack"},d.prefs||{});
   dockApps=Array.isArray(d.dock)&&d.dock.length===4?d.dock:dockApps;
   recentApps=Array.isArray(d.recents)?d.recents:[];
   notificationItems=Array.isArray(d.notifications)?d.notifications:notificationItems;
