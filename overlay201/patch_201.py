@@ -29,14 +29,10 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
  if dispatch not in s: raise SystemExit(name+': dispatch marker missing')
  s=s.replace(dispatch,newdispatch,1)
 
- success='''                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);
-
-                    String date='''
- successnew='''                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);
+ success='''                    if(answer!=null)answer.setText(a.title+"\\n\\n"+a.text);'''
+ successnew='''                    if(answer!=null)answer.setText(a.title+"\\n\\n"+a.text);
                     onlineConversationTopic=OnlineConversationContext.topicFromAnswer(a.title,query);
-                    onlineConversationTopicAt=android.os.SystemClock.elapsedRealtime();
-
-                    String date='''
+                    onlineConversationTopicAt=android.os.SystemClock.elapsedRealtime();'''
  if success not in s: raise SystemExit(name+': online success marker missing')
  s=s.replace(success,successnew,1)
 
