@@ -56,6 +56,12 @@ public final class OnlineQueryRouterTest {
         query("Hey Jarvis neden gökyüzü mavi?", "neden gökyüzü mavi?");
         query("Lütfen DNA nedir?", "DNA nedir?");
 
+        query("Kara delik nasıl oluşur?", "Kara delik nasıl oluşur?");
+        String terms1=OnlineQueryRouter.searchTerms("Kara delik nasıl oluşur?");
+        if("Kara delik oluşur".equals(terms1))pass++;else{fail++;System.out.println("FAIL searchTerms 1 got="+terms1);}
+        String terms2=OnlineQueryRouter.searchTerms("Türkiye'nin başkenti neresi?");
+        if(terms2.toLowerCase().contains("başkenti"))pass++;else{fail++;System.out.println("FAIL searchTerms 2 got="+terms2);}
+
         System.out.println("OnlineQueryRouter: PASS "+pass+" / FAIL "+fail);
         if (fail != 0) System.exit(1);
     }
