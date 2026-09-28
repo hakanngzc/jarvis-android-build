@@ -91,7 +91,7 @@ public final class OnlineIntelligenceEngine {
 
         Exception lastError = null;
         try {
-            Answer a = duckDuckGo(query, now);
+            Answer a = wikipedia(query, now);
             if (a != null) {
                 try { save(query, a); } catch (Exception ignored) {}
                 return a;
@@ -100,14 +100,17 @@ public final class OnlineIntelligenceEngine {
             lastError = e;
         }
 
-        try {
-            Answer a = wikipedia(query, now);
-            if (a != null) {
-                try { save(query, a); } catch (Exception ignored) {}
-                return a;
+        String simplified = OnlineQueryRouter.searchTerms(query);
+        if (!simplified.equalsIgnoreCase(query)) {
+            try {
+                Answer a = wikipedia(simplified, now);
+                if (a != null) {
+                    try { save(query, a); } catch (Exception ignored) {}
+                    return a;
+                }
+            } catch (Exception e) {
+                lastError = e;
             }
-        } catch (Exception e) {
-            lastError = e;
         }
 
         Answer cached = cached(query, now);
@@ -131,34 +134,6 @@ public final class OnlineIntelligenceEngine {
         if (title.length() == 0 || body.toLowerCase(new Locale("tr","TR")).startsWith(title.toLowerCase(new Locale("tr","TR"))))
             return body;
         return title + ". " + body;
-    }
-
-    private Answer duckDuckGo(String query, long now) throws Exception {
-        String url = "https://api.duckduckgo.com/?q=" + enc(query)
-                + "&format=json&no_html=1&no_redirect=1&skip_disambig=1&kl=tr-tr";
-        JSONObject j = new JSONObject(transport.get(url));
-
-        String direct = clean(j.optString("Answer"));
-        String abstractText = clean(j.optString("AbstractText"));
-        String definition = clean(j.optString("Definition"));
-
-        String body = "";
-        if (direct.length() > 0) body = direct;
-        else if (abstractText.length() >= 40) body = abstractText;
-        else if (definition.length() >= 40) body = definition;
-        if (body.length() == 0) return null;
-
-        String title = clean(j.optString("Heading"));
-        if (title.length() == 0) title = "Çevrimiçi bilgi";
-
-        String sourceName = clean(j.optString("AbstractSource"));
-        if (sourceName.length() == 0) sourceName = "DuckDuckGo Instant Answer";
-
-        String sourceUrl = clean(j.optString("AbstractURL"));
-        if (sourceUrl.length() == 0) sourceUrl = clean(j.optString("DefinitionURL"));
-        if (sourceUrl.length() == 0) sourceUrl = "https://duckduckgo.com/?q=" + enc(query);
-
-        return new Answer(title, body, "DuckDuckGo · " + sourceName, sourceUrl, now);
     }
 
     private Answer wikipedia(String query, long now) throws Exception {
@@ -274,7 +249,7 @@ public final class OnlineIntelligenceEngine {
             String host = url.getHost();
 
             if (!"https".equals(url.getProtocol())
-                    || !Arrays.asList("api.duckduckgo.com", "tr.wikipedia.org").contains(host))
+                    || !"tr.wikipedia.org".equals(host))
                 throw new IOException("Untrusted endpoint");
 
             HttpURLConnection c = (HttpURLConnection) url.openConnection();
