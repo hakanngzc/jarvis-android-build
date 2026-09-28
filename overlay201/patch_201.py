@@ -21,7 +21,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
  newdispatch='''    private void dispatch(String raw){
         String jarvisOriginalRaw=raw;
         long onlineTopicAge=onlineConversationTopicAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-onlineConversationTopicAt);
-        String onlineExpanded=OnlineConversationContext.expand(raw,onlineConversationTopic,onlineTopicAge);
+        String onlineExpanded=OnlineConversationContext.resolve(raw,onlineConversationTopic,onlineTopicAge);
         if(onlineExpanded!=null){
             jarvisRequestOnlineIntelligence(onlineExpanded);
             return;
@@ -31,7 +31,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
 
  success='''                    if(answer!=null)answer.setText(a.title+"\\n\\n"+a.text);'''
  successnew='''                    if(answer!=null)answer.setText(a.title+"\\n\\n"+a.text);
-                    onlineConversationTopic=OnlineConversationContext.topicFromAnswer(a.title,query);
+                    onlineConversationTopic=OnlineConversationContext.topicFromAnswer(query,a.title);
                     onlineConversationTopicAt=android.os.SystemClock.elapsedRealtime();'''
  if success not in s: raise SystemExit(name+': online success marker missing')
  s=s.replace(success,successnew,1)
