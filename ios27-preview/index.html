@@ -1201,6 +1201,8 @@ const apps=[
 ["Clash Royale","♜","c-blue"],["Oyun Merkezi","★","c-purple"],["Hesap Mak.","＋","c-gray"],["Kısayollar","◇","c-purple"]
 ];
 const notificationCounts={"Mesajlar":5,"WhatsApp":3,"Instagram":2,"Mail":4};
+let hiddenApps=[];
+let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72};
 let recentApps=[];
 let dockApps=["Telefon","Mesajlar","Kamera","Chrome"];
 function tile(a,mini=false){
@@ -1491,8 +1493,6 @@ function updateLockClock(){
   document.getElementById("lockDate").textContent=d.getDate()+" "+months[d.getMonth()]+" "+days[d.getDay()]
 }
 
-let hiddenApps=[];
-let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72};
 function applyLauncherPrefs(){
   phone.classList.toggle("dark-ui",launcherPrefs.dark);
   phone.classList.toggle("hide-labels",!launcherPrefs.labels);
