@@ -13,7 +13,7 @@ public final class OnlineConversationContextTest{
   e("biraz daha anlat","Kara delik",5000,"Kara delik hakkında biraz daha anlat");
   e("devam et","Kuantum mekaniği",5000,"Kuantum mekaniği hakkında biraz daha anlat");
   e("neden peki","Gökyüzü",5000,"Gökyüzü neden");
-  e("peki nasıl oluşur","Kara delik",5000,"Kara delik nasıl olusur");
+  e("peki nasıl oluşur","Kara delik",5000,"Kara delik nasil olusur");
   e("ne zaman kuruldu","Roma İmparatorluğu",5000,"Roma İmparatorluğu ne zaman kuruldu");
   e("bu ne demek","Fotosentez",5000,"Fotosentez ne demek");
 
