@@ -130,7 +130,7 @@ reference_home=r'''    private int jarvisDp(int v){return (int)(v*getResources()
             if(action==1){
                 String cmd=jarvisOverlayCommandLine==null?"":jarvisOverlayCommandLine.getText().toString();
                 String ans=jarvisOverlayAnswerLine==null?"":jarvisOverlayAnswerLine.getText().toString();
-                new AlertDialog.Builder(JarvisHomeActivity.this).setTitle("Sohbet").setMessage(cmd+"\n\n"+ans).setPositiveButton("Kapat",null).show();
+                new AlertDialog.Builder(HybridActivity.this).setTitle("Sohbet").setMessage(cmd+"\n\n"+ans).setPositiveButton("Kapat",null).show();
             }else if(action==2)showInput();else if(action==3)showSettings();
         }});
         return t;
