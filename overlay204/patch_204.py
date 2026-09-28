@@ -91,18 +91,28 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     if marker not in s: raise SystemExit(name+': app dispatch insertion marker missing')
     s=s.replace(marker,insert,1)
 
-    known='''        PhoneCommand pc=PhoneCommand.parse(top);boolean known=pc!=null||HybridEngine.route(CommandLanguage.canonical(top),prefs.getString("city","Kahramanmaraş"))!=null||CommandLanguage.isWake(top)||pendingAlarm.length()>0||pendingConfirmation!=null;'''
-    known_new='''        PhoneCommand pc=PhoneCommand.parse(top);
-        long mediaKnownAge=jarvisMediaAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-jarvisMediaAt);
-        long appKnownAge=jarvisLastAppAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-jarvisLastAppAt);
-        boolean known=pc!=null
-            ||DeviceCommandRouter.parse(top)!=null
-            ||MediaCommandRouter.parse(top,jarvisMediaProvider,mediaKnownAge)!=null
-            ||AppCommandRouter.parse(top,jarvisLastAppTarget,appKnownAge)!=null
-            ||HybridEngine.route(CommandLanguage.canonical(top),prefs.getString("city","Kahramanmaraş"))!=null
-            ||CommandLanguage.isWake(top)||pendingAlarm.length()>0||pendingConfirmation!=null;'''
-    if known not in s: raise SystemExit(name+': speech known marker missing')
-    s=s.replace(known,known_new,1)
+    lines=s.splitlines()
+    known_i=-1
+    for i,line in enumerate(lines):
+        if 'PhoneCommand pc=PhoneCommand.parse(top);boolean known=' in line:
+            known_i=i
+            break
+    if known_i<0:
+        raise SystemExit(name+': speech known marker missing')
+    indent=lines[known_i][:len(lines[known_i])-len(lines[known_i].lstrip())]
+    known_lines=[
+        indent+'PhoneCommand pc=PhoneCommand.parse(top);',
+        indent+'long mediaKnownAge=jarvisMediaAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-jarvisMediaAt);',
+        indent+'long appKnownAge=jarvisLastAppAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-jarvisLastAppAt);',
+        indent+'boolean known=pc!=null',
+        indent+'    ||DeviceCommandRouter.parse(top)!=null',
+        indent+'    ||MediaCommandRouter.parse(top,jarvisMediaProvider,mediaKnownAge)!=null',
+        indent+'    ||AppCommandRouter.parse(top,jarvisLastAppTarget,appKnownAge)!=null',
+        indent+'    ||HybridEngine.route(CommandLanguage.canonical(top),prefs.getString("city","Kahramanmaraş"))!=null',
+        indent+'    ||CommandLanguage.isWake(top)||pendingAlarm.length()>0||pendingConfirmation!=null;'
+    ]
+    lines=lines[:known_i]+known_lines+lines[known_i+1:]
+    s='\\n'.join(lines)+'\\n'
 
     release='''        View n203=jarvisReleaseCard("JARVIS 2.0.3","DEVICE CONTROL ENGINE",'''
     newrelease='''        View n204=jarvisReleaseCard("JARVIS 2.0.4","APP CONTROL + NATURAL MEDIA",
