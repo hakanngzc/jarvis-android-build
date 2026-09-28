@@ -226,12 +226,12 @@ reference_home=r'''    private int jarvisDp(int v){return (int)(v*getResources()
     }
 
 '''
+set_old='    private void setText(int id,String text){View v=findViewById(id);if(v instanceof TextView)((TextView)v).setText(text);}'
 if set_old not in s:
     raise SystemExit('reference home insertion marker missing')
 s=s.replace(set_old,reference_home+set_old,1)
 
 
-set_old='    private void setText(int id,String text){View v=findViewById(id);if(v instanceof TextView)((TextView)v).setText(text);}'
 set_new='    private void setText(int id,String text){View v=findViewById(id);if(v instanceof TextView)((TextView)v).setText(text);if(id==2001){String q=(text==null||text.trim().length()==0?"—":text.replace("\\n"," ").trim());if(jarvisCommandLine!=null)jarvisCommandLine.setText("Komut: "+q);if(jarvisOverlayCommandLine!=null)jarvisOverlayCommandLine.setText("Komut: "+q);}}'
 if set_old not in s:
     raise SystemExit('phase3 setText marker missing')
