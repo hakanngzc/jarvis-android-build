@@ -52,15 +52,14 @@ public final class OnlineQueryRouter {
     }
 
     static boolean looksLikeDeviceAction(String n) {
-        String[] tokens = {
-                "fener", "alarm", "spotify", "youtube", "uygulama",
-                " ac", "ac ", "kapat", "baslat", "calistir", "ara ", "mesaj",
-                "gonder", "sesi ", "ses ", "yukselt", "kis", "azalt",
-                "wifi", "bluetooth", "muzik", "sarki", "oynat", "duraklat",
-                "durdur", "telefonu ", "ekran", "not al"
+        String[] nouns = {
+                "fener", "alarm", "spotify", "youtube", "uygulama", "mesaj",
+                "sesi", "wifi", "bluetooth", "muzik", "sarki", "telefonu",
+                "ekran", "not al"
         };
-        for (String t : tokens) if (n.contains(t)) return true;
-        return false;
+        for (String t : nouns) if (n.contains(t)) return true;
+
+        return n.matches(".*\\b(?:ac|kapat|baslat|calistir|ara|gonder|yukselt|kis|azalt|oynat|duraklat|durdur)\\b.*");
     }
 
     static boolean looksRealtimeUnsupported(String n) {
