@@ -1,0 +1,189 @@
+name: Build JARVIS 1.9.0 UI Phase 6A
+# ui-phase6a-run-marker
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'overlay190/**'
+      - '.github/workflows/build-190.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Locate Android tools
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar" >> "$GITHUB_ENV"
+          echo "BT=$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_ENV"
+
+      - name: Verify production baseline
+        run: |
+          test -f JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip
+          test -f JARVIS_v1.5.7_STABLE_VOICE_READY.apk
+          keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
+          grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
+
+      - name: Prepare JARVIS 1.9.0 source
+        run: |
+          rm -rf work
+          mkdir -p work/src
+          unzip -q JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip -d work/src
+          PROJECT_DIR="$(find work/src -maxdepth 3 -type f -name settings.gradle -printf '%h\n' | head -n1)"
+          test -n "$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          python overlay170/patch_170.py "$PROJECT_DIR"
+          cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
+          cp overlay188/JarvisAtomCoreView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisAtomCoreView.java"
+          python overlay190/patch_190.py "$PROJECT_DIR"
+          mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
+          base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
+          cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
+          test -s "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
+
+      - name: Download pinned offline wake models
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/assets/openwakeword"
+          BASE=https://github.com/dscripka/openWakeWord/releases/download/v0.5.1
+          wget -q "$BASE/melspectrogram.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/melspectrogram.onnx"
+          wget -q "$BASE/embedding_model.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/embedding_model.onnx"
+          wget -q "$BASE/hey_jarvis_v0.1.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/hey_jarvis_v0.1.onnx"
+          test -s "$PROJECT_DIR/app/src/main/assets/openwakeword/hey_jarvis_v0.1.onnx"
+          sha256sum "$PROJECT_DIR"/app/src/main/assets/openwakeword/*.onnx | tee work/wake-model-sha256.txt
+
+      - name: Download ONNX Runtime Android 1.17.1
+        run: |
+          wget -q https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.1/onnxruntime-android-1.17.1.aar -O work/onnxruntime.aar
+          mkdir -p work/ort
+          unzip -q work/onnxruntime.aar -d work/ort
+          test -s work/ort/classes.jar
+          test -s work/ort/jni/arm64-v8a/libonnxruntime.so
+
+      - name: Prepare compile-only MainActivity stub
+        run: |
+          mkdir -p work/stub/com/hakan/jarvis
+          cat > work/stub/com/hakan/jarvis/MainActivity.java <<'JAVA'
+          package com.hakan.jarvis;
+          public class MainActivity extends android.app.Activity implements android.view.View.OnClickListener {
+              protected void updateHybridStatus(){}
+              protected boolean isOnline(){return false;}
+              public void onClick(android.view.View v){}
+          }
+          JAVA
+
+      - name: Compile JARVIS 1.9.0 overlay
+        run: |
+          mkdir -p work/classes
+          LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar:work/ort/classes.jar"
+          find "$PROJECT_DIR/app/src/main/java" -type f -name '*.java' | sort > work/sources.txt
+          javac -encoding UTF-8 -source 8 -target 8 -Xlint:none \
+            -cp "$ANDROID_JAR:$LIBCP" \
+            -d work/classes \
+            work/stub/com/hakan/jarvis/MainActivity.java \
+            @work/sources.txt
+          test -f work/classes/com/hakan/jarvis/HybridActivity.class
+          test -f work/classes/com/hakan/jarvis/WakeWordService.class
+          test -f work/classes/com/hakan/jarvis/OpenWakeWordDetector.class
+          test -f work/classes/com/hakan/jarvis/JarvisHomeActivity.class
+          test -f work/classes/com/hakan/jarvis/JarvisAtomCoreView.class
+          rm work/classes/com/hakan/jarvis/MainActivity.class
+          if find work/classes -type f -name 'MainActivity*.class' | grep -q .; then echo "Compile stub leaked"; exit 1; fi
+
+      - name: Run regression tests
+        run: |
+          rm -rf work/qa && mkdir -p work/qa
+          javac -encoding UTF-8 -d work/qa \
+            "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java" \
+            "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java" \
+            "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java" \
+            "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java" \
+            "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java" \
+            "$PROJECT_DIR/qa/AlarmPlanTest.java" \
+            "$PROJECT_DIR/qa/PhoneCommandTest.java" \
+            "$PROJECT_DIR/qa/UnderstandingTest.java" \
+            "$PROJECT_DIR/qa/WakeWordTest.java" \
+            "$PROJECT_DIR/qa/CommandChainTest.java"
+          java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
+          java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
+          java -cp work/qa UnderstandingTest | tee work/understanding-test.txt
+          java -cp work/qa WakeWordTest | tee work/wake-parser-test.txt
+          java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
+          grep -q "FAIL 0" work/chain-test.txt
+
+      - name: Merge legacy engine with unique UI classes
+        run: |
+          unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
+          mkdir -p work/dex
+          mapfile -t CLASS_FILES < <(find work/classes -type f -name '*.class' | sort)
+          "$BT/d8" --release --min-api 23 --lib "$ANDROID_JAR"             --output work/dex             work/baseline.dex             "${CLASS_FILES[@]}"             "$PROJECT_DIR/app/libs/okhttp-3.12.13.jar"             "$PROJECT_DIR/app/libs/okio-1.17.5.jar"             work/ort/classes.jar
+          test -s work/dex/classes.dex
+          test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
+
+      - name: Package JARVIS 1.9.0 APK
+        run: |
+          "$BT/aapt" package -f \
+            -M "$PROJECT_DIR/app/src/main/AndroidManifest.xml" \
+            -I "$ANDROID_JAR" \
+            -S "$PROJECT_DIR/app/src/main/res" \
+            -A "$PROJECT_DIR/app/src/main/assets" \
+            -F work/unsigned.apk
+          (cd work/dex && zip -q ../unsigned.apk classes.dex)
+          mkdir -p work/apklibs/lib/arm64-v8a work/apklibs/lib/armeabi-v7a
+          cp work/ort/jni/arm64-v8a/*.so work/apklibs/lib/arm64-v8a/
+          if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
+          (cd work/apklibs && zip -qr ../unsigned.apk lib)
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk
+
+      - name: Structural QA
+        run: |
+          unzip -t work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk >/dev/null
+          "$BT/aapt" dump badging work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          cat work/badging.txt
+          grep -q "package: name='com.hakan.jarvis'" work/badging.txt
+          grep -q "versionCode='112'" work/badging.txt
+          grep -q "versionName='1.9.0'" work/badging.txt
+          echo "PACKAGE VERSION PASS"
+          grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
+          echo "LAUNCHER PASS"
+          unzip -p work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk classes.dex > work/final.dex
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'JarvisAtomCoreView',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'buildJarvisReferenceHome',b'Dinliyorum...',b'jarvis_chat_history',b'jarvisQueueHistory',b'jarvisShowChatHistory',b'jarvisCommitHistory',b'J A R V I S  P A N E L',b'jarvisMenuScrim',b'jarvisMenuScrim']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX UI PASS"
+          unzip -Z1 work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk | grep -Fxq 'assets/jarvis_core.webp'
+          echo "CORE ASSET PASS"
+          unzip -Z1 work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          echo "WAKE MODEL PASS"
+          unzip -Z1 work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          echo "ONNX LIB PASS"
+          test "$(unzip -Z1 work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          echo "SINGLE DEX PASS"
+
+      - name: Collect artifact
+        run: |
+          mkdir -p artifact
+          cp work/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk artifact/
+          cp "$BT/lib/apksigner.jar" artifact/
+          cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
+          sha256sum artifact/JARVIS_1.9.0_UI_PHASE6A_UNSIGNED.apk > artifact/SHA256.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-1.9.0-ui-phase6a
+          path: artifact/
+          if-no-files-found: error
