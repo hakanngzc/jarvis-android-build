@@ -68,9 +68,9 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     if method_marker not in s: raise SystemExit(name+': online request method marker missing')
     s=s.replace(method_marker,follow_method+method_marker,1)
 
-    success='''                    if(cancel!=null)cancel.setVisibility(View.GONE);
+    success=r'''                    if(cancel!=null)cancel.setVisibility(View.GONE);
                     if(answer!=null)answer.setText(a.title+"\n\n"+a.text);'''
-    success_new='''                    if(cancel!=null)cancel.setVisibility(View.GONE);
+    success_new=r'''                    if(cancel!=null)cancel.setVisibility(View.GONE);
                     onlineIntelligenceLastAnswer=a;
                     onlineIntelligenceLastAnswerAt=android.os.SystemClock.elapsedRealtime();
                     if(answer!=null)answer.setText(a.title+"\n\n"+a.text);'''
@@ -113,7 +113,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     anchor='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
 '''
     if anchor not in s: raise SystemExit(name+': release 200 anchor missing')
-    n201='''        View n201=jarvisReleaseCard("JARVIS 2.0.1","NATURAL ONLINE FOLLOW-UP",
+    n201=r'''        View n201=jarvisReleaseCard("JARVIS 2.0.1","NATURAL ONLINE FOLLOW-UP",
             "• Doğal bilgi soru kalıpları genişletildi: 'bana anlat', 'açıkla', 'ne işe yarar', 'neden önemli' ve karşılaştırma soruları.\n• Son çevrimiçi yanıt 3 dakika boyunca konuşma bağlamında tutulur.\n• 'biraz daha anlat', 'kısaca söyle', 'tekrar söyle' takip komutları eklendi.\n• 'kaynağın ne?' sorusuna kaynak adıyla yanıt verilir.\n• 'kaynağı aç' komutu önce sesli geri dönüş yapıp ardından güvenli HTTPS kaynağını açar.\n• Online takip cümleleri yeni arama sanılmaz; mevcut yanıt bağlamından çözülür.",true);
 '''
     s=s.replace(anchor,n201+anchor,1)
