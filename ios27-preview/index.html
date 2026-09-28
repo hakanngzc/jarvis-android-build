@@ -118,7 +118,7 @@ body{touch-action:none}
   height:45px;border-radius:22px;background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(20px);
   display:flex;align-items:center;padding:0 14px;margin:0 3px 16px;font-size:14px
 }
-.lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;height:calc(100% - 78px);overflow:auto;padding:0 3px 20px}
+.lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;height:calc(100% - 78px);overflow:auto;padding:0 3px 20px;touch-action:pan-y;overscroll-behavior:contain}
 .cat{
   min-height:154px;border-radius:28px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.20);
   backdrop-filter:blur(26px) saturate(1.45);-webkit-backdrop-filter:blur(26px) saturate(1.45);padding:11px;box-shadow:0 10px 28px rgba(0,0,0,.16)
@@ -247,6 +247,11 @@ body{touch-action:none}
 }
 .jiggle-zone .remove-widget{display:block}
 .dragging-app{opacity:.18!important}
+.dragging-widget{opacity:.18!important}
+.drop-target .icon{transform:scale(1.10);box-shadow:0 0 0 3px rgba(255,255,255,.34),0 12px 30px rgba(0,0,0,.28)}
+.folder-icon{background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.20);backdrop-filter:blur(16px);display:grid!important;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;padding:8px}
+.folder-mini{display:grid;place-items:center;border-radius:7px;background:rgba(255,255,255,.13);font-size:13px;line-height:1}
+.custom-widget.drag-over{outline:2px solid rgba(255,255,255,.34);transform:scale(1.015)}
 .drag-ghost{
   position:fixed;z-index:80;pointer-events:none;transform:translate(-50%,-50%) scale(1.08);filter:drop-shadow(0 14px 18px rgba(0,0,0,.35))
 }
@@ -398,6 +403,12 @@ function tile(a,mini=false){
   el.innerHTML='<div class="icon '+a[2]+'"><span class="remove-badge">−</span>'+a[1]+'</div>'+(mini?'':'<div class="label">'+a[0]+'</div>');
   return el;
 }
+function folderTile(data){
+  const el=document.createElement("div");el.className="app folder-app";el.dataset.name=data.name||"Klasör";el.dataset.folder=JSON.stringify(data);
+  const members=(data.members||[]).slice(0,4).map(n=>appByName?.[n]||apps.find(a=>a[0]===n)).filter(Boolean);
+  el.innerHTML='<div class="icon folder-icon"><span class="remove-badge">−</span>'+members.map(a=>'<span class="folder-mini">'+a[1]+'</span>').join("")+'</div><div class="label">'+(data.name||"Klasör")+'</div>';
+  return el;
+}
 function fill(id,arr){const root=document.getElementById(id);arr.forEach(a=>root.appendChild(tile(a)))}
 fill("apps1",apps.slice(4,12)); fill("apps2",apps.slice(12,20));
 [apps[0],apps[1],apps[2],apps[3]].forEach(a=>document.getElementById("dock").appendChild(tile(a,true)));
@@ -415,10 +426,52 @@ const days=document.getElementById("days");for(let i=1;i<=30;i++){const d=docume
 
 let page=0,startX=0,startY=0,dx=0,dy=0,longTimer=null,jiggle=false;
 const phone=document.getElementById("phone"),ws=document.getElementById("workspace"),dotEls=[...document.querySelectorAll(".dot")];
-function go(n){page=Math.max(0,Math.min(2,n));ws.style.transform="translateX("+(-page*100)+"%)";dotEls.forEach((d,i)=>d.classList.toggle("active",i===page));document.getElementById("searchPill").style.display=page===2?"none":"flex";document.getElementById("dock").style.opacity=page===2?".25":"1"}
-phone.addEventListener("pointerdown",e=>{startX=e.clientX;startY=e.clientY;dx=dy=0;longTimer=setTimeout(()=>{jiggle=true;document.getElementById("homePage").classList.add("jiggle");document.getElementById("customZone").classList.add("jiggle-zone");document.getElementById("customizer").classList.add("show");document.getElementById("editTop").classList.add("show");toast("Ana Ekranı Özelleştir")},520)});
-phone.addEventListener("pointermove",e=>{dx=e.clientX-startX;dy=e.clientY-startY;if(Math.abs(dx)>8||Math.abs(dy)>8)clearTimeout(longTimer)});
-phone.addEventListener("pointerup",()=>{clearTimeout(longTimer);if(Math.abs(dx)>58&&Math.abs(dx)>Math.abs(dy)){go(page+(dx<0?1:-1));return}if(dy>80&&Math.abs(dy)>Math.abs(dx)){openSearch()}});
+function go(n){page=Math.max(0,Math.min(2,n));ws.style.transition="transform .34s cubic-bezier(.2,.72,.2,1)";ws.style.transform="translate3d("+(-page*100)+"%,0,0)";dotEls.forEach((d,i)=>d.classList.toggle("active",i===page));document.getElementById("searchPill").style.display=page===2?"none":"flex";document.getElementById("dock").style.opacity=page===2?".25":"1"}
+let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0;
+function navBlockedTarget(t){
+  return !!t.closest("input,button,.overlay.show,.widget-gallery.show,.folder-overlay.show,.control.show,.island-expanded.show");
+}
+phone.addEventListener("pointerdown",e=>{
+  startX=e.clientX;startY=e.clientY;dx=dy=0;navStartPage=page;navPointer=e.pointerId;navTracking=!jiggle&&!navBlockedTarget(e.target);navHorizontal=false;
+  if(navTracking)phone.setPointerCapture?.(e.pointerId);
+  longTimer=setTimeout(()=>{
+    if(!navTracking||Math.abs(dx)>8||Math.abs(dy)>8)return;
+    jiggle=true;navTracking=false;
+    document.getElementById("homePage").classList.add("jiggle");
+    document.getElementById("customZone").classList.add("jiggle-zone");
+    document.getElementById("customizer").classList.add("show");
+    document.getElementById("editTop").classList.add("show");
+    toast("Ana Ekranı Özelleştir")
+  },520)
+});
+phone.addEventListener("pointermove",e=>{
+  if(e.pointerId!==navPointer)return;
+  dx=e.clientX-startX;dy=e.clientY-startY;
+  if(Math.abs(dx)>8||Math.abs(dy)>8)clearTimeout(longTimer);
+  if(!navTracking)return;
+  if(!navHorizontal&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.08)navHorizontal=true;
+  if(navHorizontal){
+    e.preventDefault();
+    let live=dx;
+    if((navStartPage===0&&dx>0)||(navStartPage===2&&dx<0))live*=.28;
+    ws.style.transition="none";
+    ws.style.transform="translate3d("+(-navStartPage*phone.clientWidth+live)+"px,0,0)"
+  }
+});
+function finishNav(e,cancel=false){
+  if(e.pointerId!==navPointer)return;
+  clearTimeout(longTimer);
+  if(navTracking&&navHorizontal){
+    const threshold=Math.min(54,phone.clientWidth*.14);
+    if(!cancel&&Math.abs(dx)>threshold)go(navStartPage+(dx<0?1:-1)); else go(navStartPage);
+  }else if(navTracking&&!cancel&&dy>85&&Math.abs(dy)>Math.abs(dx)*1.15&&page!==2){
+    openSearch()
+  }else if(navTracking){go(navStartPage)}
+  try{phone.releasePointerCapture?.(e.pointerId)}catch(_){}
+  navPointer=null;navTracking=false;navHorizontal=false
+}
+phone.addEventListener("pointerup",e=>finishNav(e,false));
+phone.addEventListener("pointercancel",e=>finishNav(e,true));
 
 document.getElementById("searchPill").onclick=openSearch;
 document.getElementById("closeSearch").onclick=closeSearch;
@@ -429,7 +482,7 @@ function renderResults(q){const out=document.getElementById("results");out.inner
 
 document.addEventListener("click",e=>{
  const m=e.target.closest(".mode"); if(m){document.querySelectorAll(".mode").forEach(x=>x.classList.remove("active"));m.classList.add("active");phone.classList.remove("clear-mode","tint-mode");if(m.dataset.mode==="clear")phone.classList.add("clear-mode");if(m.dataset.mode==="tint")phone.classList.add("tint-mode");return}
- const app=e.target.closest(".app"); if(app&&!jiggle)toast(app.dataset.name+" açılıyor")
+ const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}toast(app.dataset.name+" açılıyor")}
 });
 function endEdit(){if(!jiggle)return;jiggle=false;document.getElementById("homePage").classList.remove("jiggle");document.getElementById("customZone").classList.remove("jiggle-zone");document.getElementById("customizer").classList.remove("show");document.getElementById("editTop").classList.remove("show");saveLayout();toast("Bitti")}
 document.addEventListener("dblclick",endEdit);
@@ -454,6 +507,14 @@ document.querySelectorAll(".cat").forEach(card=>card.addEventListener("click",()
   document.getElementById("folderOverlay").classList.add("show");
 }));
 document.getElementById("folderOverlay").addEventListener("click",e=>{if(e.target.id==="folderOverlay")e.currentTarget.classList.remove("show")});
+function openHomeFolder(app){
+  let data=null;try{data=JSON.parse(app.dataset.folder||"null")}catch(_){}
+  if(!data)return;
+  const fg=document.getElementById("folderGrid");fg.innerHTML="";
+  document.getElementById("folderTitle").textContent=data.name||"Klasör";
+  (data.members||[]).forEach(n=>{const a=apps.find(x=>x[0]===n);if(a)fg.appendChild(tile(a))});
+  document.getElementById("folderOverlay").classList.add("show")
+}
 
 const libInput=document.getElementById("libraryInput");
 libInput.addEventListener("pointerdown",e=>e.stopPropagation());
@@ -507,21 +568,27 @@ document.querySelectorAll(".wopt").forEach(b=>b.addEventListener("click",()=>{
 
 function saveLayout(){
   const data={
-    a1:[...document.querySelectorAll("#apps1>.app")].map(x=>x.dataset.name),
-    a2:[...document.querySelectorAll("#apps2>.app")].map(x=>x.dataset.name),
+    a1:[...document.querySelectorAll("#apps1>.app")].map(x=>x.dataset.folder?JSON.parse(x.dataset.folder):x.dataset.name),
+    a2:[...document.querySelectorAll("#apps2>.app")].map(x=>x.dataset.folder?JSON.parse(x.dataset.folder):x.dataset.name),
     widgets:[...document.querySelectorAll("#customZone>.custom-widget")].map(x=>x.dataset.widget),
     mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal"
   };
-  try{localStorage.setItem("glassHomeLayoutV3",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV4",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");chip.classList.add("show");setTimeout(()=>chip.classList.remove("show"),800)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
-  [["apps1",d.a1],["apps2",d.a2]].forEach(([id,names])=>{
-    if(!Array.isArray(names))return;
+  [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
+    if(!Array.isArray(items))return;
     const root=document.getElementById(id),current=[...root.children],map=Object.fromEntries(current.map(x=>[x.dataset.name,x]));
-    names.forEach(n=>{if(map[n])root.appendChild(map[n])});
+    items.forEach(item=>{
+      if(typeof item==="string"){if(map[item])root.appendChild(map[item]);return}
+      if(item&&Array.isArray(item.members)){
+        item.members.forEach(n=>map[n]?.remove());
+        root.appendChild(folderTile(item))
+      }
+    });
   });
   if(Array.isArray(d.widgets))d.widgets.forEach(t=>addCustomWidget(t,false));
   if(d.mode==="clear")phone.classList.add("clear-mode");
@@ -532,39 +599,93 @@ restoreLayout();
 
 document.querySelectorAll(".mode").forEach(m=>m.addEventListener("click",()=>setTimeout(saveLayout,0)));
 
-let dragged=null,ghost=null,dragGrid=null;
+let dragged=null,ghost=null,dragGrid=null,hoverTarget=null,hoverTimer=null;
+function clearHover(){
+  if(hoverTimer)clearTimeout(hoverTimer);hoverTimer=null;
+  hoverTarget?.classList.remove("drop-target");hoverTarget=null
+}
 function beginAppDrag(app,e,grid){
-  dragged=app;dragGrid=grid;app.classList.add("dragging-app");grid.classList.add("drag-active");
+  dragged=app;dragGrid=grid;clearHover();app.classList.add("dragging-app");grid.classList.add("drag-active");
   ghost=app.cloneNode(true);ghost.classList.add("drag-ghost");ghost.classList.remove("dragging-app");document.body.appendChild(ghost);
-  moveGhost(e.clientX,e.clientY);
-  app.setPointerCapture?.(e.pointerId);
+  moveGhost(e.clientX,e.clientY);app.setPointerCapture?.(e.pointerId)
 }
 function moveGhost(x,y){if(ghost){ghost.style.left=x+"px";ghost.style.top=y+"px"}}
+function makeFolderWith(target){
+  if(!dragged||!target||dragged===target||dragged.dataset.folder)return false;
+  const draggedName=dragged.dataset.name;
+  if(target.dataset.folder){
+    let data;try{data=JSON.parse(target.dataset.folder)}catch(_){return false}
+    if(!data.members.includes(draggedName))data.members.push(draggedName);
+    const replacement=folderTile(data);target.replaceWith(replacement);dragged.remove();dragged=replacement;
+    toast("Klasöre eklendi");return true
+  }
+  const data={name:"Klasör",members:[target.dataset.name,draggedName]};
+  const folder=folderTile(data);dragGrid.insertBefore(folder,target);target.remove();dragged.remove();dragged=folder;
+  toast("Klasör oluşturuldu");return true
+}
 function finishAppDrag(){
+  clearHover();
   if(!dragged)return;
-  dragged.classList.remove("dragging-app");dragGrid?.classList.remove("drag-active");ghost?.remove();
+  if(dragged.isConnected)dragged.classList.remove("dragging-app");
+  dragGrid?.classList.remove("drag-active");ghost?.remove();
   dragged=ghost=dragGrid=null;saveLayout()
 }
 ["apps1","apps2"].forEach(id=>{
   const grid=document.getElementById(id);
   grid.addEventListener("pointerdown",e=>{
     if(!jiggle)return;
-    const app=e.target.closest(".app");if(!app)return;
+    const app=e.target.closest(".app");if(!app||e.target.closest(".remove-badge"))return;
     e.stopPropagation();e.preventDefault();beginAppDrag(app,e,grid)
   });
   grid.addEventListener("pointermove",e=>{
     if(!dragged||dragGrid!==grid)return;
     e.stopPropagation();e.preventDefault();moveGhost(e.clientX,e.clientY);
     const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest(".app");
-    if(hit&&hit!==dragged&&hit.parentElement===grid){
-      const r=hit.getBoundingClientRect();
-      const after=(e.clientY>r.top+r.height/2)||(Math.abs(e.clientY-(r.top+r.height/2))<r.height*.25&&e.clientX>r.left+r.width/2);
-      grid.insertBefore(dragged,after?hit.nextSibling:hit)
+    if(!hit||hit===dragged||hit.parentElement!==grid){clearHover();return}
+    const r=hit.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    const central=Math.abs(e.clientX-cx)<r.width*.28&&Math.abs(e.clientY-cy)<r.height*.32;
+    if(central&&!dragged.dataset.folder){
+      if(hoverTarget!==hit){
+        clearHover();hoverTarget=hit;hit.classList.add("drop-target");
+        hoverTimer=setTimeout(()=>{if(hoverTarget===hit&&makeFolderWith(hit)){clearHover();finishAppDrag()}},520)
+      }
+      return
     }
+    clearHover();
+    const after=(e.clientY>r.top+r.height/2)||(Math.abs(e.clientY-(r.top+r.height/2))<r.height*.25&&e.clientX>r.left+r.width/2);
+    grid.insertBefore(dragged,after?hit.nextSibling:hit)
   });
   grid.addEventListener("pointerup",e=>{if(dragged){e.stopPropagation();finishAppDrag()}});
-  grid.addEventListener("pointercancel",finishAppDrag);
+  grid.addEventListener("pointercancel",finishAppDrag)
 });
+
+let draggedWidget=null,widgetGhost=null;
+const customZone=document.getElementById("customZone");
+customZone.addEventListener("pointerdown",e=>{
+  if(!jiggle||e.target.closest(".remove-widget"))return;
+  const w=e.target.closest(".custom-widget");if(!w)return;
+  e.stopPropagation();e.preventDefault();draggedWidget=w;w.classList.add("dragging-widget");
+  widgetGhost=w.cloneNode(true);widgetGhost.classList.add("drag-ghost");widgetGhost.classList.remove("dragging-widget");
+  widgetGhost.style.width=w.getBoundingClientRect().width+"px";document.body.appendChild(widgetGhost);
+  widgetGhost.style.left=e.clientX+"px";widgetGhost.style.top=e.clientY+"px";w.setPointerCapture?.(e.pointerId)
+});
+customZone.addEventListener("pointermove",e=>{
+  if(!draggedWidget)return;e.stopPropagation();e.preventDefault();
+  widgetGhost.style.left=e.clientX+"px";widgetGhost.style.top=e.clientY+"px";
+  const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest(".custom-widget");
+  document.querySelectorAll("#customZone>.custom-widget").forEach(x=>x.classList.remove("drag-over"));
+  if(hit&&hit!==draggedWidget&&hit.parentElement===customZone){
+    hit.classList.add("drag-over");const r=hit.getBoundingClientRect();
+    customZone.insertBefore(draggedWidget,e.clientY>r.top+r.height/2?hit.nextSibling:hit)
+  }
+});
+function finishWidgetDrag(){
+  if(!draggedWidget)return;
+  draggedWidget.classList.remove("dragging-widget");document.querySelectorAll("#customZone>.custom-widget").forEach(x=>x.classList.remove("drag-over"));
+  widgetGhost?.remove();draggedWidget=widgetGhost=null;saveLayout()
+}
+customZone.addEventListener("pointerup",e=>{if(draggedWidget){e.stopPropagation();finishWidgetDrag()}});
+customZone.addEventListener("pointercancel",finishWidgetDrag);
 
 document.addEventListener("click",e=>{
   const minus=e.target.closest(".remove-badge");
