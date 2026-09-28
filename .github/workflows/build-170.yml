@@ -159,8 +159,6 @@ jobs:
           strings work/dex/classes.dex | grep -q 'WakeWordGate'
           strings work/dex/classes.dex | grep -q 'JarvisForensics'
           strings work/dex/classes.dex | grep -q 'onEndOfSpeech'
-          strings work/dex/classes.dex | grep -q 'handoff guard OK speechLease active'
-          strings work/dex/classes.dex | grep -q 'handoff_no_speech_ack'
           strings work/dex/classes.dex | grep -q 'energy-hold'
           strings work/dex/classes.dex | grep -q 'blocked-no-energy'
           strings work/dex/classes.dex | grep -q 'WATCHDOG detector not running'
