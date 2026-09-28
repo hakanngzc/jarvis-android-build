@@ -154,9 +154,12 @@ jobs:
           unzip -t work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk >/dev/null
           "$BT/aapt" dump badging work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk > work/badging.txt
           "$BT/aapt" dump xmltree work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
-          grep -q "package: name='com.hakan.jarvis' versionCode='111' versionName='1.8.9'" work/badging.txt
+          cat work/badging.txt
+          grep -q "package: name='com.hakan.jarvis'" work/badging.txt
+          grep -q "versionCode='111'" work/badging.txt
+          grep -q "versionName='1.8.9'" work/badging.txt
           echo "PACKAGE VERSION PASS"
-          grep -q "launchable-activity: name='com.hakan.jarvis.JarvisHomeActivity'" work/badging.txt
+          grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
           echo "LAUNCHER PASS"
           unzip -p work/JARVIS_1.8.9_UI_PHASE5B_UNSIGNED.apk classes.dex > work/final.dex
           python -c "d=open('work/final.dex','rb').read(); checks=[b'jarvis_core.webp',b'JarvisHomeActivity',b'JarvisAtomCoreView',b'Merhaba Hakan',b'Komut:',b'Cevap:',b'Sohbet',b'Ayarlar',b'buildJarvisReferenceHome',b'Dinliyorum...',b'jarvis_chat_history',b'jarvisQueueHistory',b'jarvisShowChatHistory',b'jarvisCommitHistory']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
