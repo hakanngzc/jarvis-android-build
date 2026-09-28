@@ -147,7 +147,10 @@ public final class MediaCommandRouter {
 
     static boolean isPause(String n,boolean hasProvider){
         if(n.matches("^(?:sarkiyi |muzigi |muzik |sarki )?(?:durdur|duraklat)$"))return true;
-        if(hasProvider && n.matches("^.*\\b(?:kapat|durdur|duraklat)\\b.*$"))return true;
+        if(n.matches("^(?:sarkiyi |muzigi |muzik |sarki )?(?:durdurur|duraklatir)(?: musun| misin)?$"))return true;
+        if(n.matches("^(?:sarkiyi |muzigi |muzik |sarki )?(?:durdurabilir|duraklatabilir)(?: misin| misiniz)?$"))return true;
+        if(n.matches("^(?:sarkiyi |muzigi |muzik |sarki )?(?:kapatir)(?: misin| misiniz)?$"))return true;
+        if(hasProvider && n.matches("^.*\\b(?:kapat|durdur|duraklat|durdurur|duraklatir|durdurabilir|duraklatabilir|kapatir)\\b.*$"))return true;
         return false;
     }
     static boolean isResume(String n){return n.matches("^(?:muzige |sarkiya )?(?:devam et|devam ettir|oynat|surdu?r)$");}
