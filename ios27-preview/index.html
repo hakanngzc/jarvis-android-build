@@ -275,6 +275,190 @@ body{touch-action:pan-y}
 .phone.low-power .control,.phone.low-power .folder-card,.phone.low-power .widget-sheet{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 @media(max-width:390px){:root{--icon-size:59px}.page{padding-left:13px;padding-right:13px}.hero-grid{gap:10px}.widget{min-height:136px}.dock .icon{width:59px;height:59px}.apps{gap:13px 7px}}
 
+
+/* LAYOUT REPAIR + NEW HOME FEATURES */
+.page{padding-left:14px;padding-right:14px}
+.hero-grid{
+  gap:10px;
+  margin:0 3px 13px;
+  grid-auto-rows:minmax(136px,146px);
+}
+.hero-grid>.widget{min-width:0;width:100%;height:100%;min-height:0}
+.apps{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px 6px;
+  margin:0;
+  align-items:start;
+}
+.app{
+  position:relative;
+  width:100%;
+  min-width:0;
+  align-items:center;
+  justify-self:center;
+}
+.icon{flex:0 0 auto}
+.label{width:100%;text-align:center;padding:0 2px}
+.dock{
+  left:15px;right:15px;
+  height:86px;
+  bottom:max(12px,calc(env(safe-area-inset-bottom) + 5px));
+  padding:0 11px;
+  border-radius:30px;
+}
+.dock .app{height:100%;justify-content:center}
+.dock .icon{width:60px;height:60px;border-radius:16px}
+.search-pill{
+  bottom:106px;
+  height:27px;
+  min-width:62px;
+  justify-content:center;
+  padding:0 10px;
+}
+.dots{display:none!important}
+.custom-zone{gap:10px;margin:0 3px 13px}
+.custom-widget{min-height:120px}
+.library-title{margin-top:2px}
+.lib-grid{gap:10px}
+.cat{min-height:148px}
+.edit-top{
+  left:12px;right:12px;
+  gap:8px;
+}
+.edit-left{display:flex;gap:7px;min-width:0}
+.edit-btn{
+  height:34px;
+  padding:0 11px;
+  font-size:11px;
+  white-space:nowrap;
+}
+.remove-badge{
+  display:none;
+  position:absolute;
+  z-index:8;
+  left:calc(50% - (var(--icon-size) / 2) - 7px);
+  top:-7px;
+  width:21px;height:21px;
+  border-radius:50%;
+  background:rgba(239,239,244,.96);
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:0 2px 6px rgba(0,0,0,.22);
+  padding:0;
+  pointer-events:auto;
+}
+.remove-badge:before{
+  content:"";
+  position:absolute;
+  width:9px;height:2px;
+  border-radius:2px;
+  background:#5b5d63;
+  left:50%;top:50%;
+  transform:translate(-50%,-50%);
+}
+.jiggle .remove-badge{display:block}
+.dock .remove-badge,.mini .remove-badge,.folder-grid .remove-badge{display:none!important}
+.custom-widget .remove-widget{
+  display:none;
+  position:absolute;
+  z-index:8;
+  left:8px;top:8px;
+  width:21px;height:21px;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:50%;
+  background:rgba(239,239,244,.96);
+  box-shadow:0 2px 6px rgba(0,0,0,.22);
+  font-size:0;
+}
+.custom-widget .remove-widget:before{
+  content:"";
+  position:absolute;
+  width:9px;height:2px;border-radius:2px;
+  background:#5b5d63;left:50%;top:50%;transform:translate(-50%,-50%);
+}
+.jiggle-zone .remove-widget{display:block}
+.notification-badge{
+  position:absolute;
+  z-index:7;
+  left:calc(50% + (var(--icon-size) / 2) - 13px);
+  top:-5px;
+  min-width:20px;height:20px;
+  padding:0 5px;
+  border-radius:11px;
+  background:#ff3b30;
+  color:#fff;
+  font-size:11px;font-weight:750;
+  line-height:20px;text-align:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.24);
+}
+.jiggle .notification-badge{opacity:.45}
+.wallpaper-gallery{
+  position:absolute;z-index:59;inset:0;
+  padding:66px 15px 18px;
+  background:rgba(10,14,20,.88);
+  opacity:0;pointer-events:none;
+  transition:.20s;
+}
+.wallpaper-gallery.show{opacity:1;pointer-events:auto}
+.wallpaper-sheet{
+  border-radius:30px;
+  background:linear-gradient(145deg,rgba(54,62,77,.97),rgba(26,31,41,.98));
+  border:1px solid rgba(255,255,255,.15);
+  padding:15px;
+  box-shadow:0 18px 42px rgba(0,0,0,.28);
+}
+.wallpaper-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.wallpaper-head h2{font-size:22px;margin:0}
+.wallpaper-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wallpaper-option{
+  height:142px;border:0;border-radius:24px;
+  position:relative;overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);
+}
+.wallpaper-option.active:after{
+  content:"✓";
+  position:absolute;right:9px;top:9px;
+  width:25px;height:25px;border-radius:50%;
+  display:grid;place-items:center;
+  background:#fff;color:#111;font-weight:800;
+}
+.wallpaper-name{
+  position:absolute;left:10px;bottom:9px;
+  font-size:11px;color:#fff;font-weight:700;
+  text-shadow:0 1px 3px rgba(0,0,0,.55);
+}
+.folder-header{
+  display:flex;align-items:center;justify-content:center;
+  gap:7px;margin-bottom:18px;
+}
+.folder-title{margin:0!important}
+.folder-edit{
+  width:27px;height:27px;border:0;border-radius:50%;
+  color:#fff;background:rgba(255,255,255,.12);
+  font-size:13px;
+}
+.folder-name-input{
+  display:none;
+  width:170px;height:34px;
+  border:1px solid rgba(255,255,255,.20);
+  border-radius:17px;
+  background:rgba(255,255,255,.11);
+  color:#fff;outline:0;text-align:center;
+  font-size:16px;font-weight:700;
+  padding:0 10px;
+}
+.folder-header.renaming .folder-title,
+.folder-header.renaming .folder-edit{display:none}
+.folder-header.renaming .folder-name-input{display:block}
+@media(max-width:390px){
+  .hero-grid{grid-auto-rows:minmax(128px,136px)}
+  .apps{gap:11px 4px}
+  .dock{height:82px;left:12px;right:12px}
+  .dock .icon{width:57px;height:57px}
+  .search-pill{bottom:101px}
+  .edit-btn{padding:0 9px;font-size:10.5px}
+}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -397,7 +581,10 @@ body{touch-action:pan-y}
   <div class="dock" id="dock"><div class="glass-sheen"></div></div>
 
   <div class="edit-top" id="editTop">
-    <button class="edit-btn" id="addWidget">＋ Widget</button>
+    <div class="edit-left">
+      <button class="edit-btn" id="addWidget">＋ Widget</button>
+      <button class="edit-btn" id="openWallpapers">Duvar Kâğıdı</button>
+    </div>
     <button class="edit-btn" id="doneEdit">Bitti</button>
   </div>
 
@@ -432,9 +619,25 @@ body{touch-action:pan-y}
     </div>
   </div>
 
+  <div class="wallpaper-gallery" id="wallpaperGallery">
+    <div class="wallpaper-sheet">
+      <div class="wallpaper-head"><h2>Duvar Kâğıdı</h2><button class="widget-close" id="closeWallpapers">×</button></div>
+      <div class="wallpaper-list">
+        <button class="wallpaper-option" data-wallpaper="aurora" style="background:radial-gradient(circle at 22% 18%,#ffb269,transparent 27%),radial-gradient(circle at 78% 24%,#6b69ff,transparent 32%),linear-gradient(150deg,#111321,#351a42 44%,#10253f)"><span class="wallpaper-name">Aurora</span></button>
+        <button class="wallpaper-option" data-wallpaper="ocean" style="background:radial-gradient(circle at 74% 24%,#6ee7ff,transparent 24%),radial-gradient(circle at 20% 70%,#4057ff,transparent 28%),linear-gradient(145deg,#06131e,#0b2e48 50%,#11152a)"><span class="wallpaper-name">Ocean</span></button>
+        <button class="wallpaper-option" data-wallpaper="ember" style="background:radial-gradient(circle at 25% 20%,#ffb04d,transparent 26%),radial-gradient(circle at 76% 64%,#ff4d7b,transparent 30%),linear-gradient(150deg,#211016,#4a1b31 54%,#181423)"><span class="wallpaper-name">Ember</span></button>
+        <button class="wallpaper-option" data-wallpaper="midnight" style="background:radial-gradient(circle at 70% 18%,#605cff,transparent 25%),radial-gradient(circle at 28% 78%,#264d7c,transparent 34%),linear-gradient(150deg,#05070e,#11172a 55%,#070b13)"><span class="wallpaper-name">Midnight</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="folder-overlay" id="folderOverlay">
     <div class="folder-card">
-      <div class="folder-title" id="folderTitle">Sosyal</div>
+      <div class="folder-header" id="folderHeader">
+        <div class="folder-title" id="folderTitle">Sosyal</div>
+        <button class="folder-edit" id="folderEdit" aria-label="Klasör adını değiştir">✎</button>
+        <input class="folder-name-input" id="folderNameInput" maxlength="18" autocomplete="off">
+      </div>
       <div class="folder-grid" id="folderGrid"></div>
     </div>
   </div>
@@ -471,15 +674,17 @@ const apps=[
 ["Saat","◷","c-black"],["Takvim","28","c-white"],["Notlar","▤","c-orange"],["Dosyalar","▰","c-blue"],
 ["Hava","☁","c-blue"],["Mail","✉","c-blue"],["Müzik","♪","c-pink"],["Cüzdan","▣","c-black"]
 ];
+const notificationCounts={"Mesajlar":5,"WhatsApp":3,"Instagram":2,"Mail":4};
 function tile(a,mini=false){
   const el=document.createElement("div");el.className="app";el.dataset.name=a[0];
-  el.innerHTML='<div class="icon '+a[2]+'"><span class="remove-badge">−</span>'+a[1]+'</div>'+(mini?'':'<div class="label">'+a[0]+'</div>');
+  const badge=(!mini&&notificationCounts[a[0]])?'<span class="notification-badge">'+notificationCounts[a[0]]+'</span>':'';
+  el.innerHTML='<span class="remove-badge" aria-label="Kaldır"></span>'+badge+'<div class="icon '+a[2]+'">'+a[1]+'</div>'+(mini?'':'<div class="label">'+a[0]+'</div>');
   return el;
 }
 function folderTile(data){
   const el=document.createElement("div");el.className="app folder-app";el.dataset.name=data.name||"Klasör";el.dataset.folder=JSON.stringify(data);
   const members=(data.members||[]).slice(0,4).map(n=>appByName?.[n]||apps.find(a=>a[0]===n)).filter(Boolean);
-  el.innerHTML='<div class="icon folder-icon"><span class="remove-badge">−</span>'+members.map(a=>'<span class="folder-mini">'+a[1]+'</span>').join("")+'</div><div class="label">'+(data.name||"Klasör")+'</div>';
+  el.innerHTML='<span class="remove-badge" aria-label="Kaldır"></span><div class="icon folder-icon">'+members.map(a=>'<span class="folder-mini">'+a[1]+'</span>').join("")+'</div><div class="label">'+(data.name||"Klasör")+'</div>';
   return el;
 }
 function fill(id,arr){const root=document.getElementById(id);arr.forEach(a=>root.appendChild(tile(a)))}
@@ -590,6 +795,24 @@ document.getElementById("doneEdit").onclick=endEdit;
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1200)}
 
 document.getElementById("addWidget").onclick=()=>document.getElementById("widgetGallery").classList.add("show");
+const wallpaperEl=document.querySelector(".wallpaper");
+const wallpaperMap={
+  aurora:"radial-gradient(circle at 22% 18%,rgba(255,178,105,.98),transparent 18%),radial-gradient(circle at 77% 20%,rgba(107,105,255,.95),transparent 23%),radial-gradient(circle at 55% 64%,rgba(67,184,255,.85),transparent 28%),radial-gradient(circle at 18% 88%,rgba(41,67,115,.95),transparent 27%),linear-gradient(150deg,#111321 0%,#351a42 36%,#10253f 72%,#09131d 100%)",
+  ocean:"radial-gradient(circle at 74% 22%,rgba(104,230,255,.95),transparent 22%),radial-gradient(circle at 18% 72%,rgba(65,83,255,.9),transparent 31%),linear-gradient(145deg,#06131e,#0b2e48 51%,#11152a)",
+  ember:"radial-gradient(circle at 22% 18%,rgba(255,177,76,.98),transparent 24%),radial-gradient(circle at 78% 68%,rgba(255,77,123,.9),transparent 30%),linear-gradient(150deg,#211016,#4a1b31 54%,#181423)",
+  midnight:"radial-gradient(circle at 72% 18%,rgba(96,92,255,.86),transparent 23%),radial-gradient(circle at 28% 80%,rgba(38,77,124,.78),transparent 34%),linear-gradient(150deg,#05070e,#11172a 55%,#070b13)"
+};
+let currentWallpaper="aurora";
+function setWallpaper(name,save=true){
+  if(!wallpaperMap[name])name="aurora";
+  currentWallpaper=name;wallpaperEl.style.background=wallpaperMap[name];
+  document.querySelectorAll(".wallpaper-option").forEach(x=>x.classList.toggle("active",x.dataset.wallpaper===name));
+  if(save)saveLayout()
+}
+document.getElementById("openWallpapers").onclick=()=>document.getElementById("wallpaperGallery").classList.add("show");
+document.getElementById("closeWallpapers").onclick=()=>document.getElementById("wallpaperGallery").classList.remove("show");
+document.getElementById("wallpaperGallery").addEventListener("click",e=>{if(e.target.id==="wallpaperGallery")e.currentTarget.classList.remove("show")});
+document.querySelectorAll(".wallpaper-option").forEach(b=>b.onclick=()=>{setWallpaper(b.dataset.wallpaper,true);document.getElementById("wallpaperGallery").classList.remove("show");toast("Duvar kâğıdı değişti")});
 document.getElementById("closeWidgets").onclick=()=>document.getElementById("widgetGallery").classList.remove("show");
 document.getElementById("widgetGallery").addEventListener("click",e=>{if(e.target.id==="widgetGallery")e.currentTarget.classList.remove("show")});
 
@@ -601,16 +824,39 @@ document.getElementById("islandExpanded").onclick=e=>e.stopPropagation();
 document.querySelectorAll(".cat").forEach(card=>card.addEventListener("click",()=>{
   const c=catData[Number(card.dataset.cat)];
   const fg=document.getElementById("folderGrid");fg.innerHTML="";
+  activeHomeFolder=null;
   document.getElementById("folderTitle").textContent=c[0];
+  document.getElementById("folderEdit").style.display="none";
+  document.getElementById("folderHeader").classList.remove("renaming");
   c[1].forEach(a=>fg.appendChild(tile(a)));
   document.getElementById("folderOverlay").classList.add("show");
 }));
-document.getElementById("folderOverlay").addEventListener("click",e=>{if(e.target.id==="folderOverlay")e.currentTarget.classList.remove("show")});
+document.getElementById("folderOverlay").addEventListener("click",e=>{if(e.target.id==="folderOverlay"){e.currentTarget.classList.remove("show");document.getElementById("folderHeader").classList.remove("renaming")}});
+document.getElementById("folderEdit").onclick=e=>{
+  e.stopPropagation();if(!activeHomeFolder)return;
+  const header=document.getElementById("folderHeader"),input=document.getElementById("folderNameInput");
+  input.value=document.getElementById("folderTitle").textContent;
+  header.classList.add("renaming");setTimeout(()=>{input.focus();input.select()},30)
+};
+function finishFolderRename(){
+  const header=document.getElementById("folderHeader"),input=document.getElementById("folderNameInput");
+  if(!header.classList.contains("renaming")||!activeHomeFolder)return;
+  const name=(input.value||"Klasör").trim().slice(0,18)||"Klasör";
+  let data;try{data=JSON.parse(activeHomeFolder.dataset.folder||"null")}catch(_){}
+  if(data){data.name=name;activeHomeFolder.dataset.folder=JSON.stringify(data);const l=activeHomeFolder.querySelector(".label");if(l)l.textContent=name;document.getElementById("folderTitle").textContent=name;saveLayout()}
+  header.classList.remove("renaming");toast("Klasör adı değişti")
+}
+document.getElementById("folderNameInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finishFolderRename()}});
+document.getElementById("folderNameInput").addEventListener("blur",finishFolderRename);
+let activeHomeFolder=null;
 function openHomeFolder(app){
+  activeHomeFolder=app;
   let data=null;try{data=JSON.parse(app.dataset.folder||"null")}catch(_){}
   if(!data)return;
   const fg=document.getElementById("folderGrid");fg.innerHTML="";
   document.getElementById("folderTitle").textContent=data.name||"Klasör";
+  document.getElementById("folderEdit").style.display="";
+  document.getElementById("folderHeader").classList.remove("renaming");
   (data.members||[]).forEach(n=>{const a=apps.find(x=>x[0]===n);if(a)fg.appendChild(tile(a))});
   document.getElementById("folderOverlay").classList.add("show")
 }
@@ -634,11 +880,11 @@ document.addEventListener("click",e=>{
 
 const appByName=Object.fromEntries(apps.map(a=>[a[0],a]));
 function widgetMarkup(type){
-  if(type==="weather")return '<button class="remove-widget">−</button><div style="font-size:11px;font-weight:700;opacity:.72">Onikişubat</div><div style="font-size:38px;font-weight:300;margin-top:9px">20°</div><div style="font-size:11px">Bulutlu · Y:25° D:17°</div>';
-  if(type==="battery")return '<button class="remove-widget">−</button><div style="font-size:11px;font-weight:700;opacity:.72">Pil</div><div style="font-size:38px;font-weight:300;margin-top:16px">75%</div><div style="font-size:11px;opacity:.62">6 sa 20 dk</div>';
-  if(type==="calendar")return '<button class="remove-widget">−</button><div style="font-size:11px;font-weight:700;opacity:.72">EYLÜL</div><div style="font-size:42px;font-weight:750;margin-top:12px">28</div><div style="font-size:11px;opacity:.62">Pazartesi</div>';
-  if(type==="photo")return '<button class="remove-widget">−</button><div style="position:absolute;inset:0;background:linear-gradient(145deg,rgba(114,86,255,.9),rgba(255,117,98,.76));display:grid;place-items:center;font-size:38px">✦</div>';
-  return '<button class="remove-widget">−</button><div style="font-size:11px;opacity:.65">Şimdi Çalıyor</div><div style="font-size:22px;font-weight:700;margin-top:14px">♪ Müzik</div><div style="font-size:11px;opacity:.62;margin-top:5px">Duraklatıldı</div>';
+  if(type==="weather")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;font-weight:700;opacity:.72">Onikişubat</div><div style="font-size:38px;font-weight:300;margin-top:9px">20°</div><div style="font-size:11px">Bulutlu · Y:25° D:17°</div>';
+  if(type==="battery")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;font-weight:700;opacity:.72">Pil</div><div style="font-size:38px;font-weight:300;margin-top:16px">75%</div><div style="font-size:11px;opacity:.62">6 sa 20 dk</div>';
+  if(type==="calendar")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;font-weight:700;opacity:.72">EYLÜL</div><div style="font-size:42px;font-weight:750;margin-top:12px">28</div><div style="font-size:11px;opacity:.62">Pazartesi</div>';
+  if(type==="photo")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="position:absolute;inset:0;background:linear-gradient(145deg,rgba(114,86,255,.9),rgba(255,117,98,.76));display:grid;place-items:center;font-size:38px">✦</div>';
+  return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;opacity:.65">Şimdi Çalıyor</div><div style="font-size:22px;font-weight:700;margin-top:14px">♪ Müzik</div><div style="font-size:11px;opacity:.62;margin-top:5px">Duraklatıldı</div>';
 }
 function addCustomWidget(type,save=true){
   const zone=document.getElementById("customZone");
@@ -659,13 +905,14 @@ function saveLayout(){
     a1:[...document.querySelectorAll("#apps1>.app")].map(x=>x.dataset.folder?JSON.parse(x.dataset.folder):x.dataset.name),
     a2:[...document.querySelectorAll("#apps2>.app")].map(x=>x.dataset.folder?JSON.parse(x.dataset.folder):x.dataset.name),
     widgets:[...document.querySelectorAll("#customZone>.custom-widget")].map(x=>x.dataset.widget),
-    mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal"
+    mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal",
+    wallpaper:currentWallpaper
   };
-  try{localStorage.setItem("glassHomeLayoutV4",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV5",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -682,6 +929,7 @@ function restoreLayout(){
   if(d.mode==="clear")phone.classList.add("clear-mode");
   if(d.mode==="tint")phone.classList.add("tint-mode");
   document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===(d.mode||"normal")));
+  setWallpaper(d.wallpaper||"aurora",false);
 }
 restoreLayout();
 
