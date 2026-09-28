@@ -48,7 +48,6 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
           cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          cp overlay185/JarvisApplication.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisApplication.java"
           python overlay185/patch_185.py "$PROJECT_DIR"
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
@@ -123,57 +122,12 @@ jobs:
           java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
           grep -q "FAIL 0" work/chain-test.txt
 
-      - name: Merge legacy engine with overlay classes
+      - name: Merge legacy engine with unique UI classes
         run: |
           unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
-          cat > work/pom.xml <<'XML'
-          <project xmlns="http://maven.apache.org/POM/4.0.0">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>jarvis</groupId><artifactId>dexfilter</artifactId><version>1</version>
-            <dependencies>
-              <dependency><groupId>org.smali</groupId><artifactId>dexlib2</artifactId><version>2.5.2</version></dependency>
-            </dependencies>
-          </project>
-          XML
-          (cd work && mvn -q dependency:copy-dependencies -DoutputDirectory=dexlib)
-          CP="$(find work/dexlib -type f -name '*.jar' | sort | paste -sd: -)"
-          cat > work/FilterDex.java <<'JAVA'
-          import java.io.*;
-          import java.nio.file.*;
-          import java.util.*;
-          import org.jf.dexlib2.*;
-          import org.jf.dexlib2.iface.*;
-          import org.jf.dexlib2.immutable.*;
-          public class FilterDex {
-            public static void main(String[] args) throws Exception {
-              DexFile d = DexFileFactory.loadDexFile(new File(args[0]), Opcodes.getDefault());
-              Set<String> remove = new HashSet<>(Files.readAllLines(Paths.get(args[1])));
-              List<ClassDef> keep = new ArrayList<>();
-              int removed=0;
-              for (ClassDef c: d.getClasses()) {
-                if (remove.contains(c.getType())) removed++;
-                else keep.add(c);
-              }
-              if (removed==0) throw new RuntimeException("No overlay classes removed from baseline");
-              DexFileFactory.writeDexFile(args[2], new ImmutableDexFile(Opcodes.getDefault(), keep));
-              System.out.println("FILTERED_BASELINE removed="+removed+" kept="+keep.size());
-            }
-          }
-          JAVA
-          javac -cp "$CP" work/FilterDex.java
-          python - <<'PY'
-from pathlib import Path
-items=[]
-for p in sorted(Path('work/classes').rglob('*.class')):
-    rel=p.relative_to('work/classes').as_posix()
-    items.append('L'+rel[:-6]+';')
-Path('work/remove-descriptors.txt').write_text('\n'.join(items)+'\n')
-PY
-          grep -q '^Lcom/hakan/jarvis/HybridActivity;' work/remove-descriptors.txt
-          java -cp "$CP:work" FilterDex work/baseline.dex work/remove-descriptors.txt work/filtered-baseline.dex
           mkdir -p work/dex
           mapfile -t CLASS_FILES < <(find work/classes -type f -name '*.class' | sort)
-          "$BT/d8" --release --min-api 23 --lib "$ANDROID_JAR"             --output work/dex             work/filtered-baseline.dex             "${CLASS_FILES[@]}"             "$PROJECT_DIR/app/libs/okhttp-3.12.13.jar"             "$PROJECT_DIR/app/libs/okio-1.17.5.jar"             work/ort/classes.jar
+          "$BT/d8" --release --min-api 23 --lib "$ANDROID_JAR"             --output work/dex             work/baseline.dex             "${CLASS_FILES[@]}"             "$PROJECT_DIR/app/libs/okhttp-3.12.13.jar"             "$PROJECT_DIR/app/libs/okio-1.17.5.jar"             work/ort/classes.jar
           test -s work/dex/classes.dex
           test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
 
