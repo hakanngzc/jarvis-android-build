@@ -21,52 +21,66 @@ public final class OnlineFollowupRouter {
 
     private OnlineFollowupRouter() {}
 
-    public static Followup match(String raw, OnlineIntelligenceEngine.Answer answer, long ageMs) {
-        if (answer == null || ageMs < 0 || ageMs > WINDOW_MS) return null;
+    public static Followup match(String raw, String title, String body, String source, String url, long ageMs) {
+        if (ageMs < 0 || ageMs > WINDOW_MS) return null;
+        if (clean(body).length() == 0) return null;
         String q = normalize(OnlineQueryRouter.query(raw));
         if (q.length() == 0) return null;
 
         if (eqAny(q, "kaynagin ne", "kaynak ne", "bunun kaynagi ne", "nereden biliyorsun")) {
-            String source = clean(answer.source);
-            if (source.length() == 0) source = "çevrimiçi kaynak";
-            String title = clean(answer.title);
-            String text = title.length() == 0
-                    ? "Kaynağım " + source + " efendim."
-                    : "Kaynağım " + source + ". Başlık " + title + " efendim.";
+            String sourceName = clean(source);
+            if (sourceName.length() == 0) sourceName = "çevrimiçi kaynak";
+            String cleanTitle = clean(title);
+            String text = cleanTitle.length() == 0
+                    ? "Kaynağım " + sourceName + " efendim."
+                    : "Kaynağım " + sourceName + ". Başlık " + cleanTitle + " efendim.";
             return new Followup("source", text, false);
         }
 
         if (eqAny(q, "kaynagi ac", "kaynak ac")) {
-            if (clean(answer.url).length() == 0) return null;
+            if (clean(url).length() == 0) return null;
             return new Followup("open_source", "Kaynağı açıyorum efendim.", true);
         }
 
         if (eqAny(q, "tekrar soyle", "bir daha soyle", "tekrar anlat")) {
-            return new Followup("repeat", OnlineIntelligenceEngine.speechText(answer), false);
+            return new Followup("repeat", repeatText(title, body), false);
         }
 
         if (eqAny(q, "kisaca anlat", "kisaca soyle", "ozetle")) {
-            return new Followup("short", shortText(answer), false);
+            return new Followup("short", shortText(body), false);
         }
 
         if (eqAny(q, "biraz daha anlat", "daha fazla anlat", "devam et", "devamini anlat",
                 "bunun hakkinda biraz daha anlat")) {
-            return new Followup("more", moreText(answer), false);
+            return new Followup("more", moreText(body), false);
         }
 
         return null;
     }
 
-    static String shortText(OnlineIntelligenceEngine.Answer a) {
-        String body = clean(a == null ? "" : a.text);
+    static String repeatText(String rawTitle, String rawBody) {
+        String body = clean(rawBody);
+        String title = clean(rawTitle);
+        if (body.length() > 720) {
+            int cut = body.lastIndexOf('.', 720);
+            if (cut < 260) cut = 720;
+            body = body.substring(0, Math.min(body.length(), cut + (cut < body.length() && body.charAt(cut) == '.' ? 1 : 0))).trim();
+        }
+        if (title.length() == 0 || body.toLowerCase(new Locale("tr","TR")).startsWith(title.toLowerCase(new Locale("tr","TR"))))
+            return body;
+        return title + ". " + body;
+    }
+
+    static String shortText(String rawBody) {
+        String body = clean(rawBody);
         if (body.length() == 0) return "Kısa bir özet çıkaramadım efendim.";
         int end = sentenceEnd(body, 320);
         String out = body.substring(0, end).trim();
         return out.length() == 0 ? body.substring(0, Math.min(260, body.length())).trim() : out;
     }
 
-    static String moreText(OnlineIntelligenceEngine.Answer a) {
-        String body = clean(a == null ? "" : a.text);
+    static String moreText(String rawBody) {
+        String body = clean(rawBody);
         if (body.length() == 0) return "Devam edecek kayıtlı bir özet yok efendim.";
 
         int start = sentenceEnd(body, 680);
