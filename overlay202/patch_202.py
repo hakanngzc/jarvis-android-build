@@ -86,7 +86,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     s=s.replace(dispatch,newdispatch,1)
 
     current='''        View n201=jarvisReleaseCard("JARVIS 2.0.1","ONLINE FOLLOW-UP CONTEXT",'''
-    replacement='''        View n202=jarvisReleaseCard("JARVIS 2.0.2","MEDIA ENTITY 4.0",
+    replacement=r'''        View n202=jarvisReleaseCard("JARVIS 2.0.2","MEDIA ENTITY 4.0",
             "• Spotify, YouTube ve YouTube Music için ayrı medya komut yönlendiricisi eklendi.\n• Sanatçı + şarkı sorguları sağlayıcıya medya arama/oynatma intent'i olarak gönderilir.\n• 'Nilüfer’i Müslüm’den aç' ve 'Müslüm’den Nilüfer çal' gibi sanatçı/şarkı ayrımı desteklenir.\n• Son kullanılan medya sağlayıcısı 30 dakika tutulur; 'durdur', 'devam et', 'sonraki', 'önceki' kısa komutları bağlama göre çalışır.\n• Spotify/YouTube uygulaması yoksa JARVIS işlem yapılmış gibi davranmaz.\n• 'Spotify’ı kapat' üçüncü parti uygulamayı force-stop etmek yerine gerçek medya oynatmasını durdurur.",true);
         View n201=jarvisReleaseCard("JARVIS 2.0.1","ONLINE FOLLOW-UP CONTEXT",'''
     if current not in s: raise SystemExit(name+': release 201 marker missing')
