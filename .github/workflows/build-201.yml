@@ -1,5 +1,5 @@
 name: Build JARVIS 2.0.1 Online Follow-up Context
-# online-followup-context-v2
+# online-followup-context-v2-final
 
 on:
   workflow_dispatch:
@@ -202,7 +202,7 @@ jobs:
           echo "PACKAGE / VERSION / LAUNCHER PASS"
 
           unzip -p work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_201',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_FOLLOWUP_CONTEXT_V1',b'OnlineConversationContext',b'onlineConversationTopic',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.1',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_201',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'onlineConversationTopic',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.1',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX ONLINE FOLLOWUP PASS"
 
           unzip -Z1 work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
