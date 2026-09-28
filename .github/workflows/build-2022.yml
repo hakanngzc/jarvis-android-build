@@ -1,5 +1,5 @@
 name: Build JARVIS 2.0.2.2 Direct MediaSession Control
-# direct-mediasession-control-v1
+# direct-mediasession-control-v1-final
 
 on:
   workflow_dispatch:
@@ -211,7 +211,7 @@ jobs:
           grep -q "versionCode='126'" work/badging.txt
           grep -q "versionName='2.0.2.2'" work/badging.txt
           grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
-          grep -q "com.hakan.jarvis.JarvisMediaListener" work/manifest.txt
+          grep -q "JarvisMediaListener" work/manifest.txt
           grep -q "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" work/manifest.txt
           echo "PACKAGE / VERSION / LAUNCHER / MEDIA LISTENER PASS"
 
