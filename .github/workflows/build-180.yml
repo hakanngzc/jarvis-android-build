@@ -1,4 +1,4 @@
-name: Build JARVIS 1.8.0 UI
+name: Build JARVIS 1.8.3 UI Phase 1
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
           grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
 
-      - name: Prepare JARVIS 1.8.0 source
+      - name: Prepare JARVIS 1.8.3 source
         run: |
           rm -rf work
           mkdir -p work/src
@@ -47,7 +47,7 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
           cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          python overlay180/patch_180.py "$PROJECT_DIR"
+          python overlay183/patch_183.py "$PROJECT_DIR"
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
           cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
@@ -56,9 +56,8 @@ jobs:
           grep -q 'android:icon="@drawable/jarvis_icon"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           grep -q 'new OpenWakeWordDetector(this,0.15f,0.42f,3800L)' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/WakeWordService.java"
           grep -q 'candidate.startRecording();return true;' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OpenWakeWordDetector.java"
-          grep -q 'Komut:' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
-          grep -q 'Cevap:' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
-          grep -q 'Merhaba Hakan' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
+          grep -q 'J A R V I S' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
+          ! grep -q 'DesignActivity' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
       - name: Download pinned offline wake models
         run: |
@@ -90,7 +89,7 @@ jobs:
           }
           JAVA
 
-      - name: Compile JARVIS 1.8.0 overlay
+      - name: Compile JARVIS 1.8.3 overlay
         run: |
           mkdir -p work/classes
           LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar:work/ort/classes.jar"
@@ -142,7 +141,7 @@ jobs:
           test -s work/dex/classes.dex
           test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
 
-      - name: Package JARVIS 1.8.0 APK
+      - name: Package JARVIS 1.8.3 APK
         run: |
           "$BT/aapt" package -f \
             -M "$PROJECT_DIR/app/src/main/AndroidManifest.xml" \
@@ -155,22 +154,21 @@ jobs:
           cp work/ort/jni/arm64-v8a/*.so work/apklibs/lib/arm64-v8a/
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk
 
       - name: Structural QA
         run: |
-          "$BT/aapt" dump badging work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
-          grep -q "package: name='com.hakan.jarvis' versionCode='102' versionName='1.8.0'" work/badging.txt
+          "$BT/aapt" dump badging work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          grep -q "package: name='com.hakan.jarvis' versionCode='105' versionName='1.8.3'" work/badging.txt
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
           grep -q "application-icon" work/badging.txt
-          unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'assets/jarvis_core.webp'
-          unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'res/drawable-nodpi-v4/jarvis_icon.webp\|res/drawable-nodpi/jarvis_icon.webp'
-          unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
-          strings work/dex/classes.dex | grep -q 'Merhaba Hakan'
-          strings work/dex/classes.dex | grep -q 'Yapay Zeka Asistan'
+          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'assets/jarvis_core.webp'
+          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'res/drawable-nodpi-v4/jarvis_icon.webp\|res/drawable-nodpi/jarvis_icon.webp'
+          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
+          strings work/dex/classes.dex | grep -q 'J A R V I S'
           strings work/dex/classes.dex | grep -q 'WakeWordService'
           strings work/dex/classes.dex | grep -q 'Hey Jarvis'
           ! strings work/dex/classes.dex | grep -q 'android/speech/tts/TextToSpeech'
@@ -178,14 +176,14 @@ jobs:
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk artifact/
+          cp work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          sha256sum artifact/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk > artifact/SHA256.txt
+          sha256sum artifact/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-1.8.0-ui-update
+          name: JARVIS-1.8.3-ui-phase1
           path: artifact/
           if-no-files-found: error
