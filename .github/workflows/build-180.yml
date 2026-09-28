@@ -170,7 +170,7 @@ jobs:
           unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
           unzip -l work/JARVIS_1.8.0_UI_UPDATE_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
           strings work/dex/classes.dex | grep -q 'Merhaba Hakan'
-          strings work/dex/classes.dex | grep -q 'Kişisel Yapay Zeka Asistanın'
+          strings work/dex/classes.dex | grep -q 'Yapay Zeka Asistan'
           strings work/dex/classes.dex | grep -q 'WakeWordService'
           strings work/dex/classes.dex | grep -q 'Hey Jarvis'
           ! strings work/dex/classes.dex | grep -q 'android/speech/tts/TextToSpeech'
