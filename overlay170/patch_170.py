@@ -3,7 +3,7 @@ import sys
 base=Path(sys.argv[1])
 h=base/'app/src/main/java/com/hakan/jarvis/HybridActivity.java'
 s=h.read_text(encoding='utf-8')
-s=s.replace('JARVIS 1.6.4.17 · CONTEXT CHAIN SAFE','JARVIS 1.7.0 · LISTENING FORENSIC')
+s=s.replace('JARVIS 1.6.4.17 · CONTEXT CHAIN SAFE','JARVIS 1.7.0 · MIC LEASE FIX')
 lines=s.splitlines();out=[];inserted=False
 for line in lines:
     if 'meta.setText("Telefon komutu · 1.6.2")' in line:
@@ -18,7 +18,7 @@ for line in lines:
     elif line.strip()=='private void beginListening(){':
         out.append(line);out.append('        JarvisForensics.event(this,"S","beginListening caller="+JarvisForensics.caller());WakeWordService.pause(this,"speech_begin");')
     elif line.strip().startswith('@Override public void onRequestPermissionsResult(int code'):
-        out.append('    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] grants){if(phone!=null&&phone.permissions(code,grants))return;if(code==813){if(grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED)WakeWordService.ensureStarted(this);else prefs.edit().putBoolean("wake_enabled",false).apply();return;}if(code==810){if(grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED)beginListening();else{WakeWordService.resume(this);local("Mikrofon izni kapalı","YAZ düğmesiyle komut verebilirsiniz. Telefonun uygulama izinlerinden mikrofonu açabilirsiniz.");}return;}super.onRequestPermissionsResult(code,permissions,grants);}')
+        out.append('    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] grants){if(phone!=null&&phone.permissions(code,grants))return;if(code==813){if(grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED)WakeWordService.ensureStarted(this);else prefs.edit().putBoolean("wake_enabled",false).apply();return;}if(code==810){if(grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED)beginListening();else{WakeWordService.resume(this,"mic_permission_denied");local("Mikrofon izni kapalı","YAZ düğmesiyle komut verebilirsiniz. Telefonun uygulama izinlerinden mikrofonu açabilirsiniz.");}return;}super.onRequestPermissionsResult(code,permissions,grants);}')
     elif line.strip().startswith('private void recognitionFailure(int code){'):
         out.append('    private void recognitionFailure(int code){JarvisForensics.event(this,"S","recognitionFailure code="+code+" caller="+JarvisForensics.caller());stopRecognition();if(dead)return;recognitionStatus.setText("DİNLEME SONA ERDİ · "+RecognitionConfig.error(code));meta.setText("Tanıma kodu: "+code+" · Son duyulan metin yukarıda.");say("",code==9?"mic_denied":"speech_error",null);WakeWordService.resume(this,"recognition_error_"+code);}')
     else: out.append(line)
@@ -46,15 +46,15 @@ if marker not in s: raise SystemExit('button marker missing')
 s=s.replace(marker,insert+marker,1)
 cloud='        final CheckBox cloud=new CheckBox(this);cloud.setText("Çevrimiçi ayrıntılı konuşma");cloud.setChecked(prefs.getBoolean("cloud_voice",true));layout.addView(cloud);'
 if cloud not in s: raise SystemExit('cloud marker missing')
-s=s.replace(cloud,cloud+'\n        final CheckBox wake=new CheckBox(this);wake.setText("Ekran kapalıyken ‘Hey Jarvis’ ile uyan");wake.setChecked(prefs.getBoolean("wake_enabled",true));layout.addView(wake);\n        TextView wakeInfo=new TextView(this);wakeInfo.setText("Wake word tamamen cihazda çalışır. FORENSIC sürüm: wake servisi, AudioRecord, sistem silencing callback ve SpeechRecognizer yaşam döngüsü nedenleri kaydedilir. Bildirim son olayları gösterir.");layout.addView(wakeInfo);',1)
+s=s.replace(cloud,cloud+'\n        final CheckBox wake=new CheckBox(this);wake.setText("Ekran kapalıyken ‘Hey Jarvis’ ile uyan");wake.setChecked(prefs.getBoolean("wake_enabled",true));layout.addView(wake);\n        TextView wakeInfo=new TextView(this);wakeInfo.setText("Wake word tamamen cihazda çalışır. Mic Lease Fix: wake mikrofonu SpeechRecognizer aktifken tekrar açılmaz. Kör 20 saniye restart kaldırıldı; yalnız komut sonucu, hata, timeout veya gerçek handoff başarısızlığında wake dinleme geri gelir.");layout.addView(wakeInfo);',1)
 old='prefs.edit().putString("city",c.length()==0?"Kahramanmaraş":c).putBoolean("force_offline",offline.isChecked()).putBoolean("cloud_voice",cloud.isChecked()).apply();cancelWork();stopRecognition();voice.beginTurn();updateHybridStatus();say("","settings_saved",null);'
 new='prefs.edit().putString("city",c.length()==0?"Kahramanmaraş":c).putBoolean("force_offline",offline.isChecked()).putBoolean("cloud_voice",cloud.isChecked()).putBoolean("wake_enabled",wake.isChecked()).apply();cancelWork();stopRecognition();voice.beginTurn();updateHybridStatus();if(wake.isChecked()){if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)WakeWordService.ensureStarted(HybridActivity.this);else requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},813);}else WakeWordService.stop(HybridActivity.this);say("","settings_saved",null);'
 if old not in s: raise SystemExit('settings marker missing')
 s=s.replace(old,new,1);h.write_text(s,encoding='utf-8')
 m=base/'app/src/main/AndroidManifest.xml';x=m.read_text(encoding='utf-8')
-x=x.replace('android:versionCode="81" android:versionName="1.6.4.16-hybrid-safe01"','android:versionCode="91" android:versionName="1.7.0"')
+x=x.replace('android:versionCode="81" android:versionName="1.6.4.16-hybrid-safe01"','android:versionCode="92" android:versionName="1.7.0"')
 if 'android.permission.FOREGROUND_SERVICE_MICROPHONE' not in x:x=x.replace('<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />','<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />')
 x=x.replace('<activity android:name="com.hakan.jarvis.HybridActivity" android:exported="true" android:windowSoftInputMode="adjustResize">','<activity android:name="com.hakan.jarvis.HybridActivity" android:exported="true" android:launchMode="singleTop" android:showWhenLocked="true" android:turnScreenOn="true" android:windowSoftInputMode="adjustResize">')
 if 'android:name=".WakeWordService"' not in x:x=x.replace('<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />','<service android:name=".AlarmRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    <service android:name=".WakeWordService" android:exported="false" android:foregroundServiceType="microphone|mediaPlayback" />\n    <receiver android:name=".WakeBootReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver>')
 m.write_text(x,encoding='utf-8')
-b=base/'app/build.gradle';g=b.read_text(encoding='utf-8').replace('versionCode 82','versionCode 91').replace("versionName '1.6.4.17-context-chain-src1'","versionName '1.7.0'");b.write_text(g,encoding='utf-8')
+b=base/'app/build.gradle';g=b.read_text(encoding='utf-8').replace('versionCode 82','versionCode 92').replace("versionName '1.6.4.17-context-chain-src1'","versionName '1.7.0'");b.write_text(g,encoding='utf-8')
