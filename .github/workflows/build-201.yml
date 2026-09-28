@@ -1,5 +1,5 @@
-name: Build JARVIS 2.0.1 Natural Online
-# natural-online-v2
+name: Build JARVIS 2.0.1 Online Follow-up Context
+# online-followup-context-v1
 
 on:
   workflow_dispatch:
@@ -64,8 +64,7 @@ jobs:
           cp overlay200/OnlineQueryRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"
           cp overlay200/OnlineIntelligenceEngine.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineIntelligenceEngine.java"
           python overlay200/patch_200.py "$PROJECT_DIR"
-          cp overlay201/OnlineQueryRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"
-          cp overlay201/OnlineFollowupRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineFollowupRouter.java"
+          cp overlay201/OnlineConversationContext.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"
           python overlay201/patch_201.py "$PROJECT_DIR"
 
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
@@ -134,8 +133,8 @@ jobs:
           test -f work/classes/com/hakan/jarvis/ConversationRouter.class
           test -f work/classes/com/hakan/jarvis/ContextCommandResolver.class
           test -f work/classes/com/hakan/jarvis/OnlineQueryRouter.class
-          test -f work/classes/com/hakan/jarvis/OnlineFollowupRouter.class
           test -f work/classes/com/hakan/jarvis/OnlineIntelligenceEngine.class
+          test -f work/classes/com/hakan/jarvis/OnlineConversationContext.class
           test -f work/classes/com/hakan/jarvis/JarvisAtomCoreView.class
           test -f work/classes/com/hakan/jarvis/JarvisEliteBackdropView.class
           test -f work/classes/com/hakan/jarvis/WakeWordService.class
@@ -145,7 +144,7 @@ jobs:
       - name: Run regression and conversation tests
         run: |
           rm -rf work/qa && mkdir -p work/qa
-          javac -encoding UTF-8 -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineFollowupRouter.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineQueryRouterV2Test.java             overlay201/OnlineFollowupRouterTest.java
+          javac -encoding UTF-8 -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java
 
           java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
@@ -157,8 +156,7 @@ jobs:
           java -cp work/qa com.hakan.jarvis.ConversationMemoryTest | tee work/memory-test.txt
           java -cp work/qa com.hakan.jarvis.ContextCommandResolverTest | tee work/context-command-test.txt
           java -cp work/qa com.hakan.jarvis.OnlineQueryRouterTest | tee work/online-query-test.txt
-          java -cp work/qa com.hakan.jarvis.OnlineQueryRouterV2Test | tee work/online-query-v2-test.txt
-          java -cp work/qa com.hakan.jarvis.OnlineFollowupRouterTest | tee work/online-followup-test.txt
+          java -cp work/qa com.hakan.jarvis.OnlineConversationContextTest | tee work/online-context-test.txt
 
           grep -q "FAIL 0" work/chain-test.txt
           grep -q "FAIL 0" work/conversation-test.txt
@@ -166,8 +164,7 @@ jobs:
           grep -q "FAIL 0" work/memory-test.txt
           grep -q "FAIL 0" work/context-command-test.txt
           grep -q "FAIL 0" work/online-query-test.txt
-          grep -q "FAIL 0" work/online-query-v2-test.txt
-          grep -q "FAIL 0" work/online-followup-test.txt
+          grep -q "FAIL 0" work/online-context-test.txt
 
       - name: Merge legacy engine with 2.0.1 classes
         run: |
@@ -188,14 +185,14 @@ jobs:
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
 
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk
 
       - name: Structural QA
         run: |
-          unzip -t work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk >/dev/null
-          "$BT/aapt" dump badging work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          unzip -t work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk >/dev/null
+          "$BT/aapt" dump badging work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
           cat work/badging.txt
 
           grep -q "package: name='com.hakan.jarvis'" work/badging.txt
@@ -204,27 +201,27 @@ jobs:
           grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
           echo "PACKAGE / VERSION / LAUNCHER PASS"
 
-          unzip -p work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V2',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'ONLINE_FOLLOWUP_CONTEXT_V1',b'RELEASE_NOTES_201',b'OnlineQueryRouter',b'OnlineFollowupRouter',b'OnlineIntelligenceEngine',b'jarvisTryOnlineFollowup',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.1',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
-          echo "DEX NATURAL ONLINE PASS"
+          unzip -p work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk classes.dex > work/final.dex
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_201',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_FOLLOWUP_CONTEXT_V1',b'OnlineConversationContext',b'onlineConversationTopic',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.1',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX ONLINE FOLLOWUP PASS"
 
-          unzip -Z1 work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -Z1 work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
-          test "$(unzip -Z1 work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          unzip -Z1 work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -Z1 work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          test "$(unzip -Z1 work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
           echo "WAKE / ONNX / SINGLE DEX PASS"
 
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk artifact/
+          cp work/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-query-v2-test.txt work/online-followup-test.txt artifact/
-          sha256sum artifact/JARVIS_2.0.1_NATURAL_ONLINE_UNSIGNED.apk > artifact/SHA256.txt
+          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt artifact/
+          sha256sum artifact/JARVIS_2.0.1_ONLINE_FOLLOWUP_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-2.0.1-natural-online
+          name: JARVIS-2.0.1-online-followup
           path: artifact/
           if-no-files-found: error
