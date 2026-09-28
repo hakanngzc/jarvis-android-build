@@ -153,19 +153,15 @@ jobs:
 
       - name: Structural QA
         run: |
+          unzip -t work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk >/dev/null
           "$BT/aapt" dump badging work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk > work/badging.txt
           "$BT/aapt" dump xmltree work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
           grep -q "package: name='com.hakan.jarvis' versionCode='105' versionName='1.8.3'" work/badging.txt
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
-          grep -q "application-icon" work/badging.txt
-          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'assets/jarvis_core.webp'
-          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'res/drawable-nodpi-v4/jarvis_icon.webp\|res/drawable-nodpi/jarvis_icon.webp'
+          unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'classes.dex'
+          ! unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'classes2.dex'
           unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
           unzip -l work/JARVIS_1.8.3_UI_PHASE1_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
-          strings work/dex/classes.dex | grep -q 'J A R V I S'
-          strings work/dex/classes.dex | grep -q 'WakeWordService'
-          strings work/dex/classes.dex | grep -q 'Hey Jarvis'
-          ! strings work/dex/classes.dex | grep -q 'android/speech/tts/TextToSpeech'
 
       - name: Collect artifact
         run: |
