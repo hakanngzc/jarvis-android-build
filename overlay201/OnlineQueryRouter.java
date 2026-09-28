@@ -46,6 +46,16 @@ public final class OnlineQueryRouter {
         return s.trim();
     }
 
+    public static String searchTerms(String raw) {
+        String s = query(raw);
+        s = s.replaceAll("(?iu)\\b(nedir|kimdir|nasıl|neden|nerede|neresi|ne zaman|hangi|kaç|ne demek|ne işe yarar|neden önemli)\\b", " ");
+        s = s.replaceAll("(?iu)\\b(açıklar mısın|anlatır mısın|bilgi verir misin|anlatabilir misin|açıklayabilir misin)\\b", " ");
+        s = s.replaceAll("(?iu)\\b(mı|mi|mu|mü)\\b", " ");
+        s = s.replaceAll("[?!.,]+$", " ").replaceAll("\\s+", " ").trim();
+        if (s.length() < 2) return query(raw).replaceAll("[?!.,]+$", "").trim();
+        return s;
+    }
+
     static boolean looksOnlineFollowup(String n) {
         return eqAny(n,
                 "biraz daha anlat", "daha fazla anlat", "devam et", "devamini anlat",
