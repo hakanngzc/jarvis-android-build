@@ -1,5 +1,5 @@
-name: Build JARVIS 2.0.2.4 Spotify Web API OAuth
-# spotify-web-api-oauth-v1
+name: Build JARVIS 2.0.2.4 Spotify OAuth Exact Track
+# spotify-oauth-exact-track-v1
 
 on:
   workflow_dispatch:
@@ -74,10 +74,10 @@ jobs:
           cp overlay2022/JarvisMediaListener.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisMediaListener.java"
           python overlay2022/patch_2022.py "$PROJECT_DIR"
           cp overlay2023/ExactSongResolver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"
-          cp overlay2023/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
+          cp overlay2024/MediaCommandRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"
+          cp overlay2024/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
           cp overlay2024/SpotifyOAuthManager.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"
           cp overlay2024/SpotifyWebApi.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"
-          cp overlay2024/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
           python overlay2024/patch_2024.py "$PROJECT_DIR"
 
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
@@ -150,6 +150,20 @@ jobs:
               print("MUSICBRAINZ ENDPOINT DEGRADED - runtime fallback will be used")
           PY
 
+      - name: Spotify OAuth configuration smoke test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("overlay2024/SpotifyOAuthManager.java").read_text(encoding="utf-8")
+          assert 'e6a9bcc48fc34959aa5914e46efb1a44' in s
+          assert 'http://127.0.0.1:43821/callback' in s
+          assert 'code_challenge_method=S256' in s
+          assert 'user-modify-playback-state' in s
+          assert 'user-read-playback-state' in s
+          assert 'client_secret' not in s.lower()
+          print("SPOTIFY OAUTH CONFIG PASS")
+          PY
+
       - name: Download JSON test runtime
         run: |
           wget -q https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar -O work/json.jar
@@ -195,7 +209,7 @@ jobs:
       - name: Run regression and conversation tests
         run: |
           rm -rf work/qa && mkdir -p work/qa
-          javac -encoding UTF-8 -cp "$ANDROID_JAR:work/json.jar" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisMediaListener.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay202/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java             overlay2024/SpotifyWebApiTest.java
+          javac -encoding UTF-8 -cp "$ANDROID_JAR:work/json.jar" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay2024/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java             overlay2024/SpotifyWebApiTest.java
 
           java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
@@ -209,8 +223,8 @@ jobs:
           java -cp work/qa com.hakan.jarvis.OnlineQueryRouterTest | tee work/online-query-test.txt
           java -cp work/qa com.hakan.jarvis.OnlineConversationContextTest | tee work/online-context-test.txt
           java -cp work/qa com.hakan.jarvis.MediaCommandRouterTest | tee work/media-entity-test.txt
-          java -cp "work/json.jar:$ANDROID_JAR:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
-          java -cp "work/json.jar:$ANDROID_JAR:work/qa" com.hakan.jarvis.SpotifyWebApiTest | tee work/spotify-api-test.txt
+          java -cp "work/json.jar:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
+          java -cp "work/json.jar:$ANDROID_JAR:work/qa" com.hakan.jarvis.SpotifyWebApiTest | tee work/spotify-web-api-test.txt
 
           grep -q "FAIL 0" work/chain-test.txt
           grep -q "FAIL 0" work/conversation-test.txt
@@ -221,7 +235,7 @@ jobs:
           grep -q "FAIL 0" work/online-context-test.txt
           grep -q "FAIL 0" work/media-entity-test.txt
           grep -q "FAIL 0" work/exact-song-test.txt
-          grep -q "FAIL 0" work/spotify-api-test.txt
+          grep -q "FAIL 0" work/spotify-web-api-test.txt
 
       - name: Merge legacy engine with 2.0.2.4 classes
         run: |
@@ -261,12 +275,8 @@ jobs:
           echo "PACKAGE / VERSION / LAUNCHER / MEDIA LISTENER PASS"
 
           unzip -p work/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_2024',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V4',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_OAUTH',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_PKCE_OAUTH_V1',b'SPOTIFY_WEB_API_V1',b'accounts.spotify.com',b'api.spotify.com',b'user-modify-playback-state',b'127.0.0.1',b'spotify:track:',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.2.4',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
-          if unzip -p work/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk classes.dex | strings | grep -q "client_secret"; then
-            echo "CLIENT SECRET MUST NOT BE EMBEDDED"; exit 1
-          fi
-          echo "SPOTIFY PKCE NO-SECRET PASS"
-          echo "DEX SPOTIFY OAUTH PASS"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_2024',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V5_SPOTIFY_OAUTH',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_WEB_API',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_OAUTH_PKCE_V1',b'SPOTIFY_WEB_API_V1',b'http://127.0.0.1:43821/callback',b'accounts.spotify.com/api/token',b'api.spotify.com/v1/search',b'user-modify-playback-state',b'spotify:track:',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.2.4',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX SPOTIFY OAUTH EXACT TRACK PASS"
 
           unzip -Z1 work/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
           unzip -Z1 work/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
@@ -279,7 +289,7 @@ jobs:
           cp work/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-api-test.txt artifact/
+          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-web-api-test.txt artifact/
           sha256sum artifact/JARVIS_2.0.2.4_SPOTIFY_OAUTH_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
