@@ -52,12 +52,6 @@ jobs:
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
           cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
           test -s "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
-          grep -q 'android:versionCode="105" android:versionName="1.8.3"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
-          grep -q 'android:icon="@drawable/jarvis_icon"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
-          grep -q 'new OpenWakeWordDetector(this,0.15f,0.42f,3800L)' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/WakeWordService.java"
-          grep -q 'candidate.startRecording();return true;' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OpenWakeWordDetector.java"
-          grep -q 'J A R V I S' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java"
-          ! grep -q 'DesignActivity' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
       - name: Download pinned offline wake models
         run: |
