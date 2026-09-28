@@ -148,7 +148,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
 
     settings='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Çalışma Modu","Hibrit  •  çevrimiçi + çevrimdışı","↔"));'''
     settings_new='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Çalışma Modu","Hibrit  •  çevrimiçi + çevrimdışı","↔"));
-        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Anahtarsız bilgi fallback'i  •  DDG + Türkçe Wikipedia","◎"));'''
+        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Anahtarsız bilgi fallback'i  •  Wikimedia + Türkçe Wikipedia","◎"));'''
     if settings not in s: raise SystemExit(name+': settings system marker missing')
     s=s.replace(settings,settings_new,1)
 
@@ -158,7 +158,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     old_n199=r'''        View n199=jarvisReleaseCard("JARVIS 1.9.9","CONTEXTUAL COMMAND ENGINE",
             "• Son güvenli cihaz komutu 90 saniye boyunca bağlam olarak tutulur.\n• Ses komutlarında 'biraz daha', 'geri al', 'tekrar yap' devamları eklendi.\n• Fener için 'kapat', 'geri aç' gibi kısa devam komutları eklendi.\n• Spotify ve YouTube açma komutları güvenli biçimde tekrar edilebilir.\n• Göreli alarmda '5 dakika daha ekle', '10 dakika azalt', 'tekrar kur' desteği eklendi.\n• Arama ve mesaj gibi hassas eylemler tekrar bağlamına özellikle alınmadı.",true);'''
     new_n199=r'''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
-            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• DuckDuckGo Instant Answer ve Türkçe Wikipedia kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);
+            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• Wikimedia tabanlı Türkçe Wikipedia arama ve özet kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);
         View n199=jarvisReleaseCard("JARVIS 1.9.9","CONTEXTUAL COMMAND ENGINE",
             "• Son güvenli cihaz komutu 90 saniye boyunca bağlam olarak tutulur.\n• Ses komutlarında 'biraz daha', 'geri al', 'tekrar yap' devamları eklendi.\n• Fener için 'kapat', 'geri aç' gibi kısa devam komutları eklendi.\n• Spotify ve YouTube açma komutları güvenli biçimde tekrar edilebilir.\n• Göreli alarmda '5 dakika daha ekle', '10 dakika azalt', 'tekrar kur' desteği eklendi.\n• Arama ve mesaj gibi hassas eylemler tekrar bağlamına özellikle alınmadı.",false);'''
     if old_n199 not in s: raise SystemExit(name+': release note 199 marker missing')
