@@ -1,0 +1,28 @@
+name: Inspect JARVIS Hybrid Source
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract source
+        run: |
+          rm -rf inspect-src
+          mkdir -p inspect-src
+          unzip -q JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip -d inspect-src
+          PROJECT_DIR="$(find inspect-src -maxdepth 3 -type f -name settings.gradle -printf '%h\n' | head -n1)"
+          test -n "$PROJECT_DIR"
+          mkdir -p inspect-out
+          cp "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/HybridActivity.java" inspect-out/
+          for f in HybridEngine.java MainActivity.java CommandLanguage.java PhoneCommand.java AlarmPlan.java CommandChain.java; do
+            if [ -f "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/$f" ]; then cp "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/$f" inspect-out/; fi
+          done
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-hybrid-source-inspect
+          path: inspect-out/
+          if-no-files-found: error
