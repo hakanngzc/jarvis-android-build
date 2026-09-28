@@ -39,7 +39,7 @@ public final class DeviceCommandRouter {
 
     static boolean matchesBluetooth(String n,String verb){
         return n.matches("^(?:lutfen )?(?:bluetooth|blutut|blu tot|bluetoothu|bluetooth u|bluetooth i|bluetooth yi|blututu) "
-                +verb+"(?:ar misin|er misin|abilir misin|abilir misiniz|iver|iver misin)?$")
+                +verb+"(?:ar misin|er misin|ir misin|abilir misin|abilir misiniz|iver|iver misin)?$")
             || n.matches("^(?:lutfen )?"+verb+" (?:bluetooth|blutut|bluetoothu|blututu)$");
     }
 
