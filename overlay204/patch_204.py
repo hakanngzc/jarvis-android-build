@@ -112,7 +112,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
         indent+'    ||CommandLanguage.isWake(top)||pendingAlarm.length()>0||pendingConfirmation!=null;'
     ]
     lines=lines[:known_i]+known_lines+lines[known_i+1:]
-    s='\\n'.join(lines)+'\\n'
+    s='\n'.join(lines)+'\n'
 
     release='''        View n203=jarvisReleaseCard("JARVIS 2.0.3","DEVICE CONTROL ENGINE",'''
     newrelease='''        View n204=jarvisReleaseCard("JARVIS 2.0.4","APP CONTROL + NATURAL MEDIA",
