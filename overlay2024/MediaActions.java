@@ -14,7 +14,7 @@ import android.provider.MediaStore;
 import android.view.KeyEvent;
 
 public final class MediaActions {
-    public static final String PROFILE="MEDIA_ACTIONS_V4_SPOTIFY_OAUTH";
+    public static final String PROFILE="MEDIA_ACTIONS_V4_SPOTIFY_WEB_API";
 
     private MediaActions(){}
 
@@ -26,25 +26,121 @@ public final class MediaActions {
 
     public static void execute(Activity a,MediaCommandRouter.Command c){
         if(c==null)return;
-        if("spotify".equals(c.provider)&&SpotifyOAuthManager.handle(a,c))return;
-        executeLegacy(a,c);
-    }
+        if("AUTH".equals(c.action)&&"spotify".equals(c.provider)){spotifyAuthorize(a,null);return;}
 
-    public static void executeLegacy(Activity a,MediaCommandRouter.Command c){
-        if(c==null)return;
+        if(isTransportAction(c)&&"spotify".equals(c.provider)&&SpotifyOAuthManager.isLinked(a)){
+            spotifyControl(a,c);return;
+        }
+
         if("PAUSE".equals(c.action)){if(!sessionControl(a,c.provider,"PAUSE"))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PAUSE);return;}
         if("RESUME".equals(c.action)){if(!sessionControl(a,c.provider,"RESUME"))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PLAY);return;}
         if("NEXT".equals(c.action)){if(!sessionControl(a,c.provider,"NEXT"))mediaKey(a,KeyEvent.KEYCODE_MEDIA_NEXT);return;}
         if("PREVIOUS".equals(c.action)){if(!sessionControl(a,c.provider,"PREVIOUS"))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PREVIOUS);return;}
         if("OPEN".equals(c.action)){openProvider(a,c.provider);return;}
         if("SEARCH".equals(c.action)){search(a,c);return;}
-        if("PLAY".equals(c.action)){play(a,c);}
+        if("PLAY".equals(c.action)){
+            if("spotify".equals(c.provider))spotifyPlay(a,c);
+            else play(a,c);
+        }
     }
 
-    public static void oauthStatus(String message){
-        android.util.Log.i("JARVIS_SPOTIFY",message==null?"":message);
+
+    static void spotifyAuthorize(final Activity a,final MediaCommandRouter.Command pending){
+        SpotifyOAuthManager.authorize(a,new SpotifyOAuthManager.Callback(){
+            public void onAuthorized(){
+                android.widget.Toast.makeText(a,"Spotify JARVIS'e bağlandı.",android.widget.Toast.LENGTH_SHORT).show();
+                if(pending!=null)spotifyPlay(a,pending);
+            }
+            public void onError(String message){
+                android.widget.Toast.makeText(a,message,android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
+    static void spotifyControl(final Activity a,final MediaCommandRouter.Command c){
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable(){public void run(){
+            boolean ok=false;
+            try{ok=SpotifyWebApi.control(a,c.action);}catch(Exception ignored){}
+            final boolean success=ok;
+            a.runOnUiThread(new Runnable(){public void run(){
+                if(success)return;
+                try{
+                    if(!sessionControl(a,c.provider,c.action)){
+                        if("PAUSE".equals(c.action))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PAUSE);
+                        else if("RESUME".equals(c.action))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PLAY);
+                        else if("NEXT".equals(c.action))mediaKey(a,KeyEvent.KEYCODE_MEDIA_NEXT);
+                        else if("PREVIOUS".equals(c.action))mediaKey(a,KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+                    }
+                }catch(Exception ignored){}
+            }});
+        }});
+    }
+
+    static void spotifyPlay(final Activity a,final MediaCommandRouter.Command c){
+        if(!SpotifyOAuthManager.isLinked(a)){
+            spotifyAuthorize(a,c);
+            return;
+        }
+
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable(){public void run(){
+            MediaCommandRouter.Command chosen=c;
+            try{
+                ExactSongResolver.Result r=ExactSongResolver.resolve(c,new ExactSongResolver.HttpsTransport());
+                if(r!=null&&r.resolved&&r.query.length()>0)
+                    chosen=new MediaCommandRouter.Command(c.action,c.provider,r.query,r.artist,r.title,c.reply);
+            }catch(Exception ignored){}
+
+            SpotifyWebApi.PlayResult result=null;
+            try{
+                result=SpotifyWebApi.playExact(a,chosen.artist,chosen.title,chosen.query);
+                if(result!=null&&result.success)return;
+            }catch(SpotifyWebApi.AuthRequiredException auth){
+                final MediaCommandRouter.Command again=chosen;
+                a.runOnUiThread(new Runnable(){public void run(){spotifyAuthorize(a,again);}});
+                return;
+            }catch(Exception ignored){}
+
+            if(result!=null&&result.track!=null){
+                final SpotifyWebApi.Track track=result.track;
+                try{
+                    a.runOnUiThread(new Runnable(){public void run(){
+                        try{
+                            Intent i=new Intent(Intent.ACTION_VIEW,Uri.parse(track.uri)).setPackage("com.spotify.music");
+                            a.startActivity(i);
+                        }catch(Exception ignored){}
+                    }});
+                    Thread.sleep(1600L);
+                    try{
+                        SpotifyWebApi.PlayResult retry=SpotifyWebApi.playExact(a,chosen.artist,chosen.title,chosen.query);
+                        if(retry!=null&&retry.success)return;
+                    }catch(Exception ignored){}
+                    final String uri=track.uri;
+                    a.runOnUiThread(new Runnable(){public void run(){
+                        if(sessionPlayFromUri(a,"spotify",uri))return;
+                        playResolved(a,new MediaCommandRouter.Command("PLAY","spotify",track.artist+" "+track.name,track.artist,track.name,c.reply));
+                    }});
+                    return;
+                }catch(Exception ignored){}
+            }
+
+            final MediaCommandRouter.Command fallback=chosen;
+            a.runOnUiThread(new Runnable(){public void run(){playResolved(a,fallback);}});
+        }});
+    }
+
+    static boolean sessionPlayFromUri(Activity a,String provider,String uri){
+        if(!hasSessionAccess(a))return false;
+        try{
+            MediaSessionManager msm=(MediaSessionManager)a.getSystemService(Context.MEDIA_SESSION_SERVICE);
+            if(msm==null)return false;
+            java.util.List<MediaController> sessions=msm.getActiveSessions(new ComponentName(a,JarvisMediaListener.class));
+            if(sessions==null||sessions.isEmpty())return false;
+            MediaController target=chooseSession(sessions,provider);
+            if(target==null)return false;
+            target.getTransportControls().playFromUri(Uri.parse(uri),new android.os.Bundle());
+            return true;
+        }catch(Exception e){return false;}
+    }
 
     public static boolean isTransportAction(MediaCommandRouter.Command c){
         if(c==null)return false;
