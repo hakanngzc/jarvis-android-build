@@ -158,15 +158,20 @@ jobs:
           "$BT/aapt" dump badging work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk > work/badging.txt
           "$BT/aapt" dump xmltree work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
           grep -q "package: name='com.hakan.jarvis' versionCode='107' versionName='1.8.5'" work/badging.txt
+          echo "PACKAGE VERSION PASS"
           grep -q "launchable-activity: name='com.hakan.jarvis.JarvisHomeActivity'" work/badging.txt
-          unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'classes.dex'
-          ! unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'classes2.dex'
+          echo "LAUNCHER PASS"
           unzip -p work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk classes.dex > work/final.dex
-          grep -a -q 'jarvis_core.webp' work/final.dex
-          grep -a -q 'JarvisHomeActivity' work/final.dex
-          echo "DEX UI REFERENCES PASS"
-          unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
+          python -c "d=open('work/final.dex','rb').read(); print('CORE_REF',b'jarvis_core.webp' in d); print('HOME_CLASS',b'JarvisHomeActivity' in d); assert b'jarvis_core.webp' in d and b'JarvisHomeActivity' in d"
+          echo "DEX UI PASS"
+          unzip -Z1 work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -Fxq 'assets/jarvis_core.webp'
+          echo "CORE ASSET PASS"
+          unzip -Z1 work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          echo "WAKE MODEL PASS"
+          unzip -Z1 work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          echo "ONNX LIB PASS"
+          test "$(unzip -Z1 work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          echo "SINGLE DEX PASS"
 
       - name: Collect artifact
         run: |
