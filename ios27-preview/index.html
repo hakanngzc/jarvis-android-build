@@ -860,6 +860,69 @@ body{touch-action:pan-y}
 .recent-app span{display:block;font-size:9px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quick-action.primary{color:#68a8ff}
 
+
+/* NOTIFICATION CENTER + A-Z LIBRARY + MAINTENANCE */
+.library-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:2px 5px 12px;
+}
+.library-head .library-title{margin:0}
+.az-btn{
+  height:31px;min-width:42px;padding:0 11px;border:0;border-radius:16px;
+  background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:750;
+}
+.notification-center{
+  position:absolute;z-index:73;inset:0;
+  background:linear-gradient(180deg,rgba(12,19,31,.96),rgba(8,13,21,.99));
+  opacity:0;pointer-events:none;transform:translateY(-18px);
+  transition:opacity .18s,transform .18s;
+  padding:54px 12px 18px;overflow:auto;
+}
+.notification-center.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.nc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.nc-head h2{margin:0;font-size:25px;letter-spacing:-.6px}
+.nc-actions{display:flex;gap:7px}
+.nc-btn{height:31px;border:0;border-radius:16px;padding:0 11px;background:rgba(255,255,255,.10);color:#fff;font-size:10px}
+.nc-list{display:flex;flex-direction:column;gap:9px}
+.nc-note{
+  display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:22px;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.09)
+}
+.nc-note .icon{width:42px;height:42px;border-radius:12px;font-size:18px;box-shadow:none!important}
+.nc-note-copy{min-width:0;flex:1}
+.nc-note-copy b{font-size:12px;display:block}
+.nc-note-copy span{font-size:11px;opacity:.72;display:block;margin-top:2px}
+.nc-note-copy small{font-size:9px;opacity:.42;display:block;margin-top:3px}
+.nc-empty{text-align:center;padding:70px 20px;font-size:12px;opacity:.48}
+.az-overlay{
+  position:absolute;z-index:74;inset:0;padding:55px 12px 15px;
+  background:rgba(9,13,20,.96);opacity:0;pointer-events:none;transition:opacity .18s;
+}
+.az-overlay.show{opacity:1;pointer-events:auto}
+.az-sheet{
+  height:100%;border-radius:29px;background:linear-gradient(160deg,rgba(47,56,71,.98),rgba(23,28,38,.99));
+  border:1px solid rgba(255,255,255,.11);padding:14px;overflow:hidden;display:flex;flex-direction:column
+}
+.az-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.az-head h2{margin:0;font-size:23px}
+.az-search{
+  height:42px;border-radius:20px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.08);
+  padding:0 13px;display:flex;align-items:center;margin-bottom:10px
+}
+.az-search input{width:100%;border:0;outline:0;background:none;color:#fff;font-size:13px}
+.az-list{overflow:auto;flex:1;scrollbar-width:none}
+.az-list::-webkit-scrollbar{display:none}
+.az-letter{font-size:11px;font-weight:800;opacity:.42;padding:10px 4px 5px}
+.az-item{
+  min-height:50px;display:flex;align-items:center;gap:10px;padding:6px 4px;border-top:1px solid rgba(255,255,255,.06)
+}
+.az-item .icon{width:38px;height:38px;border-radius:11px;font-size:17px;box-shadow:none!important}
+.az-item b{font-size:12px;flex:1}
+.maint-btn{
+  height:32px;border:0;border-radius:16px;padding:0 11px;background:rgba(255,255,255,.11);color:#fff;font-size:10px
+}
+.maint-btn.danger{color:#ff746d}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -972,7 +1035,7 @@ body{touch-action:pan-y}
     </section>
 
     <section class="page">
-      <div class="library-title">Uygulama Arşivi</div>
+      <div class="library-head"><div class="library-title">Uygulama Arşivi</div><button class="az-btn" id="openAZ">A‑Z</button></div>
       <div class="library-search">⌕&nbsp;&nbsp;<input id="libraryInput" placeholder="Uygulamalar" autocomplete="off"></div>
       <div class="lib-grid" id="libGrid"></div>
     </section>
@@ -999,6 +1062,19 @@ body{touch-action:pan-y}
 
   <div class="save-chip" id="saveChip">Düzen kaydedildi</div>
 
+  <div class="notification-center" id="notificationCenter">
+    <div class="nc-head"><h2>Bildirimler</h2><div class="nc-actions"><button class="nc-btn" id="clearNotifications">Temizle</button><button class="nc-btn" id="closeNotifications">×</button></div></div>
+    <div class="nc-list" id="notificationList"></div>
+  </div>
+
+  <div class="az-overlay" id="azOverlay">
+    <div class="az-sheet">
+      <div class="az-head"><h2>Tüm Uygulamalar</h2><button class="settings-close" id="closeAZ">×</button></div>
+      <div class="az-search">⌕&nbsp;&nbsp;<input id="azInput" placeholder="Uygulama ara" autocomplete="off"></div>
+      <div class="az-list" id="azList"></div>
+    </div>
+  </div>
+
   <div class="settings-overlay" id="launcherSettings">
     <div class="settings-sheet">
       <div class="settings-head"><h2>Launcher Ayarları</h2><button class="settings-close" id="closeLauncherSettings">×</button></div>
@@ -1018,6 +1094,14 @@ body{touch-action:pan-y}
       <div class="settings-section">
         <div class="settings-section-title">Dock</div>
         <div class="setting-card dock-settings" id="dockSettings"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Bakım</div>
+        <div class="setting-card">
+          <div class="setting-row"><div class="setting-copy"><b>Son Kullanılanlar</b><small>Spotlight geçmişini temizle</small></div><button class="maint-btn" id="clearRecents">Temizle</button></div>
+          <div class="setting-row"><div class="setting-copy"><b>Ana Ekranı Sıfırla</b><small>İkonlar, Dock, widget ve görünümü varsayılana döndür</small></div><button class="maint-btn danger" id="resetHome">Sıfırla</button></div>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -1202,6 +1286,12 @@ const apps=[
 ];
 const notificationCounts={"Mesajlar":5,"WhatsApp":3,"Instagram":2,"Mail":4};
 let hiddenApps=[];
+let notificationItems=[
+  {app:"WhatsApp",text:"3 yeni mesaj",time:"2 dk"},
+  {app:"Instagram",text:"2 yeni bildirim",time:"8 dk"},
+  {app:"Mail",text:"4 okunmamış e-posta",time:"24 dk"},
+  {app:"Mesajlar",text:"5 yeni mesaj",time:"32 dk"}
+];
 let launcherPrefs={dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72};
 let recentApps=[];
 let dockApps=["Telefon","Mesajlar","Kamera","Chrome"];
@@ -1274,9 +1364,9 @@ function go(n){
   document.getElementById("searchPill").style.display=page===2?"none":"flex";
   document.getElementById("dock").style.opacity=page===2?".25":"1"
 }
-let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,captured=false;
+let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,notifGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.settings-overlay.show,.dock-chooser.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.notification-center.show,.az-overlay.show,.settings-overlay.show,.dock-chooser.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
   jiggle=true;navTracking=false;phone.classList.add("editing");
@@ -1289,7 +1379,8 @@ function setEditMode(){
 phone.addEventListener("pointerdown",e=>{
   startX=e.clientX;startY=e.clientY;dx=dy=0;navStartPage=page;navPointer=e.pointerId;navHorizontal=false;captured=false;
   ccGesture=!jiggle&&e.clientX>phone.clientWidth*.68&&e.clientY<92&&!navBlockedTarget(e.target);
-  navTracking=!jiggle&&!ccGesture&&!navBlockedTarget(e.target);
+  notifGesture=!jiggle&&e.clientX<phone.clientWidth*.32&&e.clientY<92&&!navBlockedTarget(e.target);
+  navTracking=!jiggle&&!ccGesture&&!notifGesture&&!navBlockedTarget(e.target);
   if(navTracking&&page<2){
     longTimer=setTimeout(()=>{
       if(!navTracking||navHorizontal||Math.abs(dx)>=8||Math.abs(dy)>=8)return;
@@ -1304,7 +1395,7 @@ phone.addEventListener("pointermove",e=>{
   if(e.pointerId!==navPointer)return;
   dx=e.clientX-startX;dy=e.clientY-startY;
   if(Math.abs(dx)>8||Math.abs(dy)>8)clearTimeout(longTimer);
-  if(ccGesture)return;
+  if(ccGesture||notifGesture)return;
   if(!navTracking)return;
   if(!navHorizontal&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.10){
     navHorizontal=true;phone.classList.add("swiping");ws.style.pointerEvents="none";
@@ -1323,6 +1414,8 @@ function finishNav(e,cancel=false){
   clearTimeout(longTimer);
   if(ccGesture){
     if(!cancel&&dy>52&&Math.abs(dy)>Math.abs(dx)*.75)document.getElementById("controlCenter").classList.add("show");
+  }else if(notifGesture){
+    if(!cancel&&dy>52&&Math.abs(dy)>Math.abs(dx)*.75)openNotificationCenter();
   }else if(navTracking&&navHorizontal){
     const threshold=Math.min(50,phone.clientWidth*.13);
     if(!cancel&&Math.abs(dx)>threshold)go(navStartPage+(dx<0?1:-1));else go(navStartPage)
@@ -1333,7 +1426,7 @@ function finishNav(e,cancel=false){
   }
   phone.classList.remove("swiping");ws.style.pointerEvents="";
   if(captured){try{phone.releasePointerCapture?.(e.pointerId)}catch(_){}}
-  navPointer=null;navTracking=false;navHorizontal=false;ccGesture=false;captured=false
+  navPointer=null;navTracking=false;navHorizontal=false;ccGesture=false;notifGesture=false;captured=false
 }
 phone.addEventListener("pointerup",e=>finishNav(e,false));
 phone.addEventListener("pointercancel",e=>finishNav(e,true));
@@ -1389,6 +1482,55 @@ function renderResults(q){
     other.forEach(x=>{const r=document.createElement("div");r.className="result";r.innerHTML='<div class="icon c-gray">'+x[2]+'</div><div><b>'+x[0]+'</b><div class="result-meta">'+x[1]+'</div></div>';out.appendChild(r)})
   }
 }
+
+function renderNotificationCenter(){
+  const root=document.getElementById("notificationList");root.innerHTML="";
+  if(!notificationItems.length){root.innerHTML='<div class="nc-empty">Yeni bildirim yok</div>';return}
+  notificationItems.forEach((n,idx)=>{
+    const a=apps.find(x=>x[0]===n.app)||["Uygulama","•","c-gray"];
+    const row=document.createElement("div");row.className="nc-note";row.dataset.index=idx;
+    row.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><div class="nc-note-copy"><b>'+n.app+'</b><span>'+n.text+'</span><small>'+n.time+'</small></div>';
+    row.onclick=()=>{closeNotificationCenter();openNamedApp(n.app)};root.appendChild(row)
+  })
+}
+function openNotificationCenter(){renderNotificationCenter();document.getElementById("notificationCenter").classList.add("show")}
+function closeNotificationCenter(){document.getElementById("notificationCenter").classList.remove("show")}
+document.getElementById("closeNotifications").onclick=closeNotificationCenter;
+document.getElementById("clearNotifications").onclick=()=>{notificationItems=[];renderNotificationCenter();saveLayout();toast("Bildirimler temizlendi")};
+
+function renderAZ(q=""){
+  const root=document.getElementById("azList");root.innerHTML="";
+  const query=q.trim().toLocaleLowerCase("tr-TR");
+  const list=apps.filter(a=>!hiddenApps.includes(a[0])&&a[0].toLocaleLowerCase("tr-TR").includes(query))
+    .sort((a,b)=>a[0].localeCompare(b[0],"tr"));
+  let last="";
+  list.forEach(a=>{
+    const first=a[0][0].toLocaleUpperCase("tr-TR");
+    if(first!==last){last=first;const h=document.createElement("div");h.className="az-letter";h.textContent=first;root.appendChild(h)}
+    const row=document.createElement("div");row.className="az-item";row.dataset.openApp=a[0];
+    row.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><b>'+a[0]+'</b><span>›</span>';root.appendChild(row)
+  })
+}
+function openAZ(){renderAZ("");document.getElementById("azInput").value="";document.getElementById("azOverlay").classList.add("show")}
+function closeAZ(){document.getElementById("azOverlay").classList.remove("show")}
+document.getElementById("openAZ").onclick=openAZ;
+document.getElementById("closeAZ").onclick=closeAZ;
+document.getElementById("azInput").oninput=e=>renderAZ(e.target.value);
+document.getElementById("azList").onclick=e=>{const r=e.target.closest("[data-open-app]");if(!r)return;closeAZ();openNamedApp(r.dataset.openApp)};
+
+let resetArmTimer=null;
+document.getElementById("clearRecents").onclick=()=>{recentApps=[];saveLayout();toast("Son kullanılanlar temizlendi")};
+document.getElementById("resetHome").onclick=e=>{
+  const b=e.currentTarget;
+  if(b.dataset.armed!=="1"){
+    b.dataset.armed="1";b.textContent="Emin misin?";
+    clearTimeout(resetArmTimer);resetArmTimer=setTimeout(()=>{b.dataset.armed="0";b.textContent="Sıfırla"},3000);return
+  }
+  try{
+    ["glassHomeLayoutV11","glassHomeLayoutV10","glassHomeLayoutV9","glassHomeLayoutV8","glassHomeLayoutV7","glassHomeLayoutV6","glassHomeLayoutV5","glassHomeLayoutV4","glassHomeLayoutV3"].forEach(k=>localStorage.removeItem(k))
+  }catch(_){}
+  location.reload()
+};
 
 let quickApp=null;
 function closeQuickMenu(){
@@ -1684,13 +1826,14 @@ function saveLayout(){
     hidden:hiddenApps,
     prefs:launcherPrefs,
     dock:dockApps,
-    recents:recentApps
+    recents:recentApps,
+    notifications:notificationItems
   };
-  try{localStorage.setItem("glassHomeLayoutV10",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV11",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV10")||localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV11")||localStorage.getItem("glassHomeLayoutV10")||localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -1712,6 +1855,7 @@ function restoreLayout(){
   launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72},d.prefs||{});
   dockApps=Array.isArray(d.dock)&&d.dock.length===4?d.dock:dockApps;
   recentApps=Array.isArray(d.recents)?d.recents:[];
+  notificationItems=Array.isArray(d.notifications)?d.notifications:notificationItems;
   renderDock();applyLauncherPrefs();renderHiddenApps();renderLibrary();
 }
 restoreLayout();applyLauncherPrefs();renderHiddenApps();renderLibrary();
