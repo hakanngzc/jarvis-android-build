@@ -65,6 +65,10 @@ public final class AppCommandRouter {
         t=t.replaceFirst("^(?:uygulama )","");
         t=t.replaceAll("(?: yi| i| yu| u| yı| ı)$","");
         t=t.replaceAll("\\s+"," ").trim();
+        if("kamerayi".equals(t))t="kamera";
+        else if("ayarlari".equals(t))t="ayarlar";
+        else if("galeriyi".equals(t))t="galeri";
+        else if("rehberi".equals(t))t="rehber";
         return t;
     }
 
@@ -74,7 +78,7 @@ public final class AppCommandRouter {
 
     static boolean reserved(String t){
         String n=normalize(t);
-        return n.matches(".*\\b(?:alarm|fener|flash|wifi|wi fi|bluetooth|blutut|sarki|muzik|ses|arama|ara)\\b.*");
+        return n.matches(".*\\b(?:alarm|fener|feneri|flash|flas|flasi|wifi|wi fi|bluetooth|blutut|sarki|muzik|ses|arama|ara)\\b.*");
     }
 
     static boolean eqAny(String s,String... values){
