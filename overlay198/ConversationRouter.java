@@ -61,6 +61,10 @@ public final class ConversationRouter {
         if (q.length() == 0) return null;
 
         // Exact conversation-memory clears must be resolved before the action shield.
+        if (eqAny(q, "konuyu unut", "konuyu kapat", "bu konuyu kapat")) {
+            return reply("memory_topic_clear", "Peki efendim. Konuyu kapattım.", "", true, null, "");
+        }
+
         // Mature action commands always stay with the legacy command engine.
         if (looksLikeAction(q)) return null;
 
@@ -84,10 +88,6 @@ public final class ConversationRouter {
 
         if (eqAny(q, "ismimi unut", "adimi unut")) {
             return reply("memory_name_clear", "Peki efendim. Bu oturumdaki isim bilgisini bıraktım.", "", true, "", null);
-        }
-
-        if (eqAny(q, "konuyu unut", "konuyu kapat", "bu konuyu kapat")) {
-            return reply("memory_topic_clear", "Peki efendim. Konuyu kapattım.", "", true, null, "");
         }
 
         String learnedName = extractName(q);
