@@ -130,11 +130,22 @@ public final class MediaActions {
         a.startActivity(i);
     }
 
-    static void play(Activity a,MediaCommandRouter.Command c){
+    static void play(final Activity a,final MediaCommandRouter.Command c){
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable(){public void run(){
+            MediaCommandRouter.Command chosen=c;
+            try{
+                ExactSongResolver.Result r=ExactSongResolver.resolve(c,new ExactSongResolver.HttpsTransport());
+                if(r!=null&&r.resolved&&r.query.length()>0)
+                    chosen=new MediaCommandRouter.Command(c.action,c.provider,r.query,r.artist,r.title,c.reply);
+            }catch(Exception ignored){}
+            final MediaCommandRouter.Command finalCommand=chosen;
+            a.runOnUiThread(new Runnable(){public void run(){playResolved(a,finalCommand);}});
+        }});
+    }
+
+    static void playResolved(Activity a,MediaCommandRouter.Command c){
         String q=c.query==null?"":c.query.trim();
 
-        // Prefer the exact active provider MediaSession. This avoids a generic
-        // Android chooser/search path when Spotify/YouTube Music already has a session.
         if(hasSessionAccess(a)&&sessionPlayFromSearch(a,c.provider,q,c.artist,c.title))return;
 
         String pkg=packageFor(c.provider);
