@@ -459,6 +459,150 @@ body{touch-action:pan-y}
   .edit-btn{padding:0 9px;font-size:10.5px}
 }
 
+
+/* COLLISION / RESPONSIVE LAYOUT PASS */
+:root{
+  --home-top:54px;
+  --home-bottom:124px;
+}
+.page{
+  padding-top:var(--home-top)!important;
+  padding-bottom:var(--home-bottom)!important;
+}
+.page:nth-child(2){
+  overflow-y:auto!important;
+  touch-action:pan-y!important;
+  overscroll-behavior:contain;
+  scrollbar-width:none;
+}
+.page:nth-child(2)::-webkit-scrollbar{display:none}
+.page:nth-child(2) .apps{padding-bottom:18px}
+.phone.editing .status,
+.phone.editing .island,
+.phone.editing .cc-hotspot{
+  opacity:0;
+  pointer-events:none;
+}
+.phone.editing .edit-top{
+  top:max(9px,env(safe-area-inset-top))!important;
+}
+.phone.editing .search-pill{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.phone.editing .notification-badge{
+  display:none!important;
+}
+.phone.editing .dock{
+  opacity:.88;
+}
+.edit-top{
+  transition:opacity .18s,transform .18s,top .18s;
+}
+.customizer{
+  bottom:104px!important;
+}
+.search-pill{
+  bottom:103px!important;
+}
+.save-chip{
+  top:max(48px,calc(env(safe-area-inset-top) + 40px))!important;
+}
+.phone.editing .save-chip{
+  top:max(51px,calc(env(safe-area-inset-top) + 42px))!important;
+}
+.folder-grid .app,
+.mini .app{
+  min-width:0;
+}
+.folder-grid .label{
+  max-width:76px;
+}
+.library-search{
+  flex-shrink:0;
+}
+.lib-grid{
+  min-height:0;
+}
+.remove-badge{
+  left:calc(50% - (var(--icon-size) / 2) - 6px)!important;
+  top:-6px!important;
+  width:20px!important;height:20px!important;
+}
+.remove-badge:before{
+  width:8px!important;height:2px!important;
+}
+.notification-badge{
+  left:calc(50% + (var(--icon-size) / 2) - 12px)!important;
+  top:-4px!important;
+}
+@media(max-height:760px){
+  :root{--icon-size:58px;--home-top:48px;--home-bottom:112px}
+  .hero-grid{grid-auto-rows:116px!important;gap:8px!important;margin-bottom:10px!important}
+  .clockface{width:98px!important;height:98px!important}
+  .battery-value{font-size:36px!important}
+  .apps{gap:9px 4px!important}
+  .label{font-size:11px!important}
+  .dock{height:78px!important}
+  .dock .icon{width:54px!important;height:54px!important}
+  .search-pill{bottom:94px!important}
+  .customizer{bottom:95px!important}
+}
+@media(max-height:680px){
+  :root{--icon-size:54px;--home-top:45px;--home-bottom:104px}
+  .hero-grid{grid-auto-rows:102px!important}
+  .clockface{width:87px!important;height:87px!important}
+  .calendar{padding:10px 10px 7px!important}
+  .cal-title{font-size:14px!important;margin-bottom:6px!important}
+  .week{margin-bottom:4px!important}
+  .battery{padding:12px!important}
+  .battery-value{font-size:32px!important}
+  .apps{gap:7px 3px!important}
+  .dock{height:72px!important}
+  .dock .icon{width:50px!important;height:50px!important}
+  .search-pill{bottom:87px!important}
+  .customizer{bottom:88px!important}
+}
+/* iOS-like remove action sheet */
+.remove-sheet{
+  position:absolute;z-index:65;inset:0;
+  display:flex;align-items:flex-end;
+  padding:0 10px max(10px,env(safe-area-inset-bottom));
+  background:rgba(8,11,17,.30);
+  opacity:0;pointer-events:none;
+  transition:opacity .18s;
+}
+.remove-sheet.show{opacity:1;pointer-events:auto}
+.remove-panel{
+  width:100%;
+  transform:translateY(14px);
+  transition:transform .18s;
+}
+.remove-sheet.show .remove-panel{transform:translateY(0)}
+.remove-card,.remove-cancel{
+  background:rgba(36,43,55,.97);
+  border:1px solid rgba(255,255,255,.11);
+  overflow:hidden;
+}
+.remove-card{border-radius:22px;margin-bottom:8px}
+.remove-title{
+  padding:14px 16px 10px;
+  text-align:center;
+  font-size:12px;
+  color:rgba(255,255,255,.62);
+}
+.remove-action{
+  width:100%;height:52px;border:0;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:#fff;background:transparent;
+  font-size:16px;
+}
+.remove-action.danger{color:#ff6961}
+.remove-cancel{
+  width:100%;height:52px;border-radius:18px;
+  color:#fff;font-size:16px;font-weight:700;
+}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -596,6 +740,17 @@ body{touch-action:pan-y}
 
   <div class="save-chip" id="saveChip">Düzen kaydedildi</div>
 
+  <div class="remove-sheet" id="removeSheet">
+    <div class="remove-panel">
+      <div class="remove-card">
+        <div class="remove-title" id="removeTitle">Uygulama</div>
+        <button class="remove-action" id="removeHomeAction">Ana Ekrandan Kaldır</button>
+        <button class="remove-action danger" id="hideAppAction">Uygulamayı Gizle</button>
+      </div>
+      <button class="remove-cancel" id="cancelRemove">İptal</button>
+    </div>
+  </div>
+
   <div class="widget-gallery" id="widgetGallery">
     <div class="widget-sheet">
       <div class="widget-head"><h2>Widget Ekle</h2><button class="widget-close" id="closeWidgets">×</button></div>
@@ -721,10 +876,10 @@ function go(n){
 }
 let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.widget-gallery.show,.folder-overlay.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
-  jiggle=true;navTracking=false;
+  jiggle=true;navTracking=false;phone.classList.add("editing");
   document.querySelectorAll(".workspace>.page").forEach((p,i)=>{if(i<2)p.classList.add("jiggle")});
   document.getElementById("customZone").classList.add("jiggle-zone");
   document.getElementById("customizer").classList.add("show");
@@ -788,7 +943,7 @@ document.addEventListener("click",e=>{
  const m=e.target.closest(".mode"); if(m){document.querySelectorAll(".mode").forEach(x=>x.classList.remove("active"));m.classList.add("active");phone.classList.remove("clear-mode","tint-mode");if(m.dataset.mode==="clear")phone.classList.add("clear-mode");if(m.dataset.mode==="tint")phone.classList.add("tint-mode");return}
  const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}toast(app.dataset.name+" açılıyor")}
 });
-function endEdit(){if(!jiggle)return;jiggle=false;document.querySelectorAll(".workspace>.page").forEach((p,i)=>{if(i<2)p.classList.remove("jiggle")});document.getElementById("customZone").classList.remove("jiggle-zone");document.getElementById("customizer").classList.remove("show");document.getElementById("editTop").classList.remove("show");saveLayout();toast("Bitti")}
+function endEdit(){if(!jiggle)return;jiggle=false;phone.classList.remove("editing");document.querySelectorAll(".workspace>.page").forEach((p,i)=>{if(i<2)p.classList.remove("jiggle")});document.getElementById("customZone").classList.remove("jiggle-zone");document.getElementById("customizer").classList.remove("show");document.getElementById("editTop").classList.remove("show");saveLayout();toast("Bitti")}
 document.addEventListener("dblclick",endEdit);
 document.getElementById("doneEdit").onclick=endEdit;
 
@@ -908,11 +1063,11 @@ function saveLayout(){
     mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal",
     wallpaper:currentWallpaper
   };
-  try{localStorage.setItem("glassHomeLayoutV5",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV6",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -1025,14 +1180,30 @@ function finishWidgetDrag(){
 customZone.addEventListener("pointerup",e=>{if(draggedWidget){e.stopPropagation();finishWidgetDrag()}});
 customZone.addEventListener("pointercancel",finishWidgetDrag);
 
+let pendingRemoveApp=null;
+function closeRemoveSheet(){document.getElementById("removeSheet").classList.remove("show");pendingRemoveApp=null}
 document.addEventListener("click",e=>{
   const minus=e.target.closest(".remove-badge");
   if(minus&&jiggle){
-    e.stopImmediatePropagation();
+    e.stopImmediatePropagation();e.preventDefault();
     const app=minus.closest(".app");
-    if(app&&app.parentElement?.classList.contains("apps")){app.remove();saveLayout();toast("Ana ekrandan kaldırıldı")}
+    if(app&&app.parentElement?.classList.contains("apps")){
+      pendingRemoveApp=app;
+      document.getElementById("removeTitle").textContent=app.dataset.name||"Uygulama";
+      document.getElementById("removeSheet").classList.add("show")
+    }
   }
 },true);
+document.getElementById("cancelRemove").onclick=closeRemoveSheet;
+document.getElementById("removeSheet").addEventListener("click",e=>{if(e.target.id==="removeSheet")closeRemoveSheet()});
+document.getElementById("removeHomeAction").onclick=()=>{
+  if(pendingRemoveApp){pendingRemoveApp.remove();saveLayout();toast("Ana ekrandan kaldırıldı")}
+  closeRemoveSheet()
+};
+document.getElementById("hideAppAction").onclick=()=>{
+  if(pendingRemoveApp){pendingRemoveApp.remove();saveLayout();toast("Uygulama gizlendi")}
+  closeRemoveSheet()
+};
 
 function updateClock(){const d=new Date();document.getElementById("clock").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
 updateClock();setInterval(updateClock,30000);
