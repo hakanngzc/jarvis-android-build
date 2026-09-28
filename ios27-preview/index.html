@@ -821,6 +821,45 @@ body{touch-action:pan-y}
   height:30px;border:0;border-radius:15px;padding:0 11px;background:rgba(255,255,255,.12);color:#fff;font-size:10px;
 }
 
+
+/* DOCK EDITOR + RECENTS + ADD TO HOME */
+.dock-settings{display:flex;flex-direction:column}
+.dock-slot{
+  min-height:52px;padding:7px 11px;
+  display:flex;align-items:center;gap:10px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.dock-slot:first-child{border-top:0}
+.dock-slot .icon{width:36px;height:36px;border-radius:10px;font-size:16px;box-shadow:none!important}
+.dock-slot b{font-size:12px;flex:1}
+.dock-change{height:28px;border:0;border-radius:14px;padding:0 10px;background:rgba(255,255,255,.12);color:#fff;font-size:10px}
+.dock-chooser{
+  position:absolute;z-index:72;inset:0;padding:58px 12px 14px;
+  background:rgba(9,13,20,.92);
+  opacity:0;pointer-events:none;transition:opacity .18s;
+}
+.dock-chooser.show{opacity:1;pointer-events:auto}
+.dock-chooser-sheet{
+  height:100%;border-radius:30px;
+  background:linear-gradient(160deg,rgba(48,57,72,.98),rgba(24,29,39,.99));
+  border:1px solid rgba(255,255,255,.12);
+  padding:15px;overflow:auto;
+}
+.dock-chooser-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.dock-chooser-head h2{margin:0;font-size:23px}
+.dock-app-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 7px}
+.dock-choice{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;color:#fff;min-width:0}
+.dock-choice .icon{width:55px;height:55px;border-radius:15px;font-size:23px}
+.dock-choice span{font-size:10px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-row{
+  display:flex;gap:10px;padding:5px 10px 12px;overflow-x:auto;scrollbar-width:none;
+}
+.recent-row::-webkit-scrollbar{display:none}
+.recent-app{min-width:61px;text-align:center}
+.recent-app .icon{width:48px;height:48px;border-radius:14px;font-size:20px;margin:auto}
+.recent-app span{display:block;font-size:9px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quick-action.primary{color:#68a8ff}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -977,9 +1016,21 @@ body{touch-action:pan-y}
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Dock</div>
+        <div class="setting-card dock-settings" id="dockSettings"></div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">Gizlilik</div>
         <div class="setting-card hidden-list" id="hiddenList"><div class="hidden-empty">Gizlenmiş uygulama yok</div></div>
       </div>
+    </div>
+  </div>
+
+  <div class="dock-chooser" id="dockChooser">
+    <div class="dock-chooser-sheet">
+      <div class="dock-chooser-head"><h2>Dock Uygulaması</h2><button class="settings-close" id="closeDockChooser">×</button></div>
+      <div class="dock-app-grid" id="dockAppGrid"></div>
     </div>
   </div>
 
@@ -992,6 +1043,7 @@ body{touch-action:pan-y}
       </div>
       <button class="quick-action" id="quickOpen">Aç <span>›</span></button>
       <button class="quick-action" id="quickShare">Paylaş <span>↗</span></button>
+      <button class="quick-action primary" id="quickAddHome" style="display:none">Ana Ekrana Ekle <span>＋</span></button>
       <button class="quick-action" id="quickEdit">Ana Ekranı Düzenle <span>⋯</span></button>
       <button class="quick-action danger" id="quickHide">Ana Ekrandan Kaldır <span>−</span></button>
     </div>
@@ -1149,6 +1201,8 @@ const apps=[
 ["Clash Royale","♜","c-blue"],["Oyun Merkezi","★","c-purple"],["Hesap Mak.","＋","c-gray"],["Kısayollar","◇","c-purple"]
 ];
 const notificationCounts={"Mesajlar":5,"WhatsApp":3,"Instagram":2,"Mail":4};
+let recentApps=[];
+let dockApps=["Telefon","Mesajlar","Kamera","Chrome"];
 function tile(a,mini=false){
   const el=document.createElement("div");el.className="app";el.dataset.name=a[0];
   const badge=(!mini&&notificationCounts[a[0]])?'<span class="notification-badge">'+notificationCounts[a[0]]+'</span>':'';
@@ -1163,7 +1217,14 @@ function folderTile(data){
 }
 function fill(id,arr){const root=document.getElementById(id);arr.forEach(a=>root.appendChild(tile(a)))}
 fill("apps1",apps.slice(4,12)); fill("apps2",apps.slice(12,20));
-[apps[0],apps[1],apps[2],apps[3]].forEach(a=>document.getElementById("dock").appendChild(tile(a,true)));
+function renderDock(){
+  const root=document.getElementById("dock"),sheen=root.querySelector(".glass-sheen");
+  [...root.querySelectorAll(".app")].forEach(x=>x.remove());
+  dockApps.slice(0,4).forEach(name=>{const a=apps.find(x=>x[0]===name);if(a)root.appendChild(tile(a,true))});
+  if(sheen)root.prepend(sheen);
+  renderDockSettings()
+}
+renderDock();
 
 const catData=[
   ["Öneriler",[apps[4],apps[5],apps[6],apps[20]]],
@@ -1187,7 +1248,7 @@ function bindLibraryCards(){
   document.querySelectorAll(".cat").forEach(card=>card.onclick=()=>{
     const c=catData[Number(card.dataset.cat)],fg=document.getElementById("folderGrid");fg.innerHTML="";
     activeHomeFolder=null;document.getElementById("folderTitle").textContent=c[0];document.getElementById("folderEdit").style.display="none";document.getElementById("folderHeader").classList.remove("renaming");
-    c[1].filter(a=>!hiddenApps.includes(a[0])).forEach(a=>fg.appendChild(tile(a)));
+    c[1].filter(a=>!hiddenApps.includes(a[0])).forEach(a=>{const t=tile(a);t.dataset.source="library";fg.appendChild(t)});
     document.getElementById("folderOverlay").classList.add("show")
   })
 }
@@ -1213,7 +1274,7 @@ function go(n){
 }
 let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.settings-overlay.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.settings-overlay.show,.dock-chooser.show,.weather-detail.show,.lock-preview.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
   jiggle=true;navTracking=false;phone.classList.add("editing");
@@ -1231,7 +1292,7 @@ phone.addEventListener("pointerdown",e=>{
     longTimer=setTimeout(()=>{
       if(!navTracking||navHorizontal||Math.abs(dx)>=8||Math.abs(dy)>=8)return;
       const heldApp=e.target.closest(".app");
-      if(heldApp&&!heldApp.closest(".dock")&&heldApp.parentElement?.classList.contains("apps")){
+      if(heldApp&&!heldApp.closest(".dock")&&(heldApp.parentElement?.classList.contains("apps")||heldApp.parentElement?.classList.contains("folder-grid"))){
         navTracking=false;openQuickMenu(heldApp)
       }else setEditMode()
     },520)
@@ -1280,6 +1341,10 @@ document.getElementById("closeSearch").onclick=closeSearch;
 function openSearch(){document.getElementById("spotlight").classList.add("show");renderResults("");setTimeout(()=>document.getElementById("searchInput").focus(),80)}
 function closeSearch(){document.getElementById("spotlight").classList.remove("show");document.getElementById("searchInput").blur()}
 document.getElementById("searchInput").oninput=e=>renderResults(e.target.value);
+document.getElementById("results").addEventListener("click",e=>{
+  const el=e.target.closest("[data-open-app]");if(!el)return;
+  const name=el.dataset.openApp;closeSearch();openNamedApp(name)
+});
 const infoResults=[
   ["Anne","Kişi","☎"],
   ["Baba","Kişi","☎"],
@@ -1288,13 +1353,33 @@ const infoResults=[
   ["Son kullanılanlar","Kısayol","◷"]
 ];
 function isHiddenName(name){return hiddenApps.includes(name)}
+function recordRecent(name){
+  if(!name||hiddenApps.includes(name))return;
+  recentApps=[name,...recentApps.filter(x=>x!==name)].slice(0,6);
+  saveLayout()
+}
+function openNamedApp(name){
+  if(name==="Ayarlar"){openSettings();return}
+  if(name==="Hava"){openWeather();return}
+  recordRecent(name);toast(name+" açılıyor")
+}
 function renderResults(q){
   const out=document.getElementById("results");out.innerHTML="";
   const query=q.trim().toLowerCase();
+  if(!query&&recentApps.length){
+    const h=document.createElement("div");h.className="result-section";h.textContent="Son Kullanılanlar";out.appendChild(h);
+    const row=document.createElement("div");row.className="recent-row";
+    recentApps.forEach(name=>{
+      const a=apps.find(x=>x[0]===name);if(!a||hiddenApps.includes(name))return;
+      const b=document.createElement("button");b.className="dock-choice recent-app";b.dataset.openApp=name;
+      b.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><span>'+name+'</span>';row.appendChild(b)
+    });
+    out.appendChild(row)
+  }
   const appMatches=apps.filter(a=>!isHiddenName(a[0])&&a[0].toLowerCase().includes(query)).slice(0,5);
   if(appMatches.length){
     const h=document.createElement("div");h.className="result-section";h.textContent="Uygulamalar";out.appendChild(h);
-    appMatches.forEach(a=>{const r=document.createElement("div");r.className="result";r.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><div><b>'+a[0]+'</b><div class="result-meta">Uygulama</div></div>';out.appendChild(r)})
+    appMatches.forEach(a=>{const r=document.createElement("div");r.className="result";r.dataset.openApp=a[0];r.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><div><b>'+a[0]+'</b><div class="result-meta">Uygulama</div></div>';out.appendChild(r)})
   }
   const other=infoResults.filter(x=>!query||x[0].toLowerCase().includes(query)||x[1].toLowerCase().includes(query)).slice(0,3);
   if(other.length){
@@ -1326,17 +1411,25 @@ function openQuickMenu(app){
   let top=r.top-pr.top-12;
   top=Math.max(48,Math.min(pr.height-h-16,top));
   menu.style.left=left+"px";menu.style.top=top+"px";
+  document.getElementById("quickAddHome").style.display=app.dataset.source==="library"?"flex":"none";
   back.classList.add("show");menu.classList.add("show")
 }
 document.getElementById("quickBackdrop").onclick=closeQuickMenu;
-document.getElementById("quickOpen").onclick=()=>{if(quickApp)toast((quickApp.dataset.name||"Uygulama")+" açılıyor");closeQuickMenu()};
+document.getElementById("quickOpen").onclick=()=>{if(quickApp)openNamedApp(quickApp.dataset.name||"Uygulama");closeQuickMenu()};
+document.getElementById("quickAddHome").onclick=()=>{
+  if(!quickApp)return;
+  const name=quickApp.dataset.name,a=apps.find(x=>x[0]===name);
+  const exists=[...document.querySelectorAll("#apps1>.app,#apps2>.app")].some(x=>x.dataset.name===name);
+  if(a&&!exists){document.getElementById("apps2").appendChild(tile(a));saveLayout();toast(name+" ana ekrana eklendi")}else if(exists)toast("Zaten ana ekranda");
+  closeQuickMenu()
+};
 document.getElementById("quickShare").onclick=()=>{if(quickApp)toast((quickApp.dataset.name||"Uygulama")+" paylaşım menüsü");closeQuickMenu()};
 document.getElementById("quickEdit").onclick=()=>{closeQuickMenu();setEditMode()};
 document.getElementById("quickHide").onclick=()=>{if(quickApp){const name=quickApp.dataset.name;if(name&&!hiddenApps.includes(name))hiddenApps.push(name);quickApp.remove();renderLibrary();saveLayout();toast("Uygulama gizlendi")}closeQuickMenu()};
 
 document.addEventListener("click",e=>{
  const m=e.target.closest(".mode"); if(m){document.querySelectorAll(".mode").forEach(x=>x.classList.remove("active"));m.classList.add("active");phone.classList.remove("clear-mode","tint-mode");if(m.dataset.mode==="clear")phone.classList.add("clear-mode");if(m.dataset.mode==="tint")phone.classList.add("tint-mode");return}
- const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}if(app.dataset.name==="Ayarlar"){openSettings();return}if(app.dataset.name==="Hava"){openWeather();return}toast(app.dataset.name+" açılıyor")}
+ const app=e.target.closest(".app"); if(app&&!jiggle){if(app.dataset.folder){openHomeFolder(app);return}openNamedApp(app.dataset.name)}
 });
 function endEdit(){if(!jiggle)return;jiggle=false;phone.classList.remove("editing");document.querySelectorAll(".workspace>.page").forEach((p,i)=>{if(i<2)p.classList.remove("jiggle")});document.getElementById("customZone").classList.remove("jiggle-zone");document.getElementById("customizer").classList.remove("show");document.getElementById("editTop").classList.remove("show");saveLayout();toast("Bitti")}
 document.addEventListener("dblclick",endEdit);
@@ -1425,6 +1518,37 @@ function renderHiddenApps(){
     root.appendChild(row)
   })
 }
+let dockEditIndex=0;
+function renderDockSettings(){
+  const root=document.getElementById("dockSettings");if(!root)return;root.innerHTML="";
+  dockApps.slice(0,4).forEach((name,i)=>{
+    const a=apps.find(x=>x[0]===name);if(!a)return;
+    const row=document.createElement("div");row.className="dock-slot";
+    row.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><b>'+name+'</b><button class="dock-change">Değiştir</button>';
+    row.querySelector(".dock-change").onclick=()=>openDockChooser(i);root.appendChild(row)
+  })
+}
+function openDockChooser(index){
+  dockEditIndex=index;
+  const grid=document.getElementById("dockAppGrid");grid.innerHTML="";
+  apps.filter(a=>!hiddenApps.includes(a[0])).forEach(a=>{
+    const b=document.createElement("button");b.className="dock-choice";
+    b.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><span>'+a[0]+'</span>';
+    b.onclick=()=>setDockApp(index,a[0]);grid.appendChild(b)
+  });
+  document.getElementById("dockChooser").classList.add("show")
+}
+function setDockApp(index,name){
+  const oldIndex=dockApps.indexOf(name);
+  if(oldIndex>=0&&oldIndex!==index){
+    const old=dockApps[index];dockApps[oldIndex]=old
+  }
+  dockApps[index]=name;renderDock();saveLayout();
+  document.getElementById("dockChooser").classList.remove("show");toast("Dock güncellendi")
+}
+document.getElementById("closeDockChooser").onclick=()=>document.getElementById("dockChooser").classList.remove("show");
+document.getElementById("dockChooser").addEventListener("click",e=>{if(e.target.id==="dockChooser")e.currentTarget.classList.remove("show")});
+
 function openSettings(){renderHiddenApps();document.getElementById("launcherSettings").classList.add("show")}
 function closeSettings(){document.getElementById("launcherSettings").classList.remove("show")}
 document.getElementById("openLauncherSettings").onclick=openSettings;
@@ -1558,13 +1682,15 @@ function saveLayout(){
     mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal",
     wallpaper:currentWallpaper,
     hidden:hiddenApps,
-    prefs:launcherPrefs
+    prefs:launcherPrefs,
+    dock:dockApps,
+    recents:recentApps
   };
-  try{localStorage.setItem("glassHomeLayoutV9",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV10",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV10")||localStorage.getItem("glassHomeLayoutV9")||localStorage.getItem("glassHomeLayoutV8")||localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
@@ -1584,7 +1710,9 @@ function restoreLayout(){
   setWallpaper(d.wallpaper||"aurora",false);
   hiddenApps=Array.isArray(d.hidden)?d.hidden:[];
   launcherPrefs=Object.assign({dark:false,labels:true,badges:true,search:true,size:"normal",brightness:72},d.prefs||{});
-  applyLauncherPrefs();renderHiddenApps();renderLibrary();
+  dockApps=Array.isArray(d.dock)&&d.dock.length===4?d.dock:dockApps;
+  recentApps=Array.isArray(d.recents)?d.recents:[];
+  renderDock();applyLauncherPrefs();renderHiddenApps();renderLibrary();
 }
 restoreLayout();applyLauncherPrefs();renderHiddenApps();renderLibrary();
 
