@@ -2,6 +2,9 @@ name: Inspect JARVIS Hybrid Source
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/inspect-hybrid-source.yml'
 
 jobs:
   inspect:
