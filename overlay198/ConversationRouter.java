@@ -5,7 +5,7 @@ import java.util.Locale;
 
 public final class ConversationRouter {
     public static final String PROFILE = "CONTEXT_MEMORY_V3";
-    public static final long CONTEXT_WINDOW_MS = 180000L;
+    public static final long CONTEXT_WINDOW_MS = 120000L;
 
     public static final class Reply {
         public final String intent;
