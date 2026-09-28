@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'overlay180/**'
+      - 'overlay185/**'
       - '.github/workflows/build-185.yml'
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
           cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          python overlay185/patch_184.py "$PROJECT_DIR"
+          python overlay185/patch_185.py "$PROJECT_DIR"
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
           cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
@@ -160,27 +160,7 @@ jobs:
           grep -q "launchable-activity: name='com.hakan.jarvis.HybridActivity'" work/badging.txt
           unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'classes.dex'
           ! unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'classes2.dex'
-          python - <<'PY'
-import struct,zipfile
-p='work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk'
-d=zipfile.ZipFile(p).read('classes.dex')
-size,off=struct.unpack_from('<II',d,0x38)
-offs=struct.unpack_from('<'+'I'*size,d,off)
-def uleb(pos):
-    r=0;s=0
-    while True:
-        b=d[pos];pos+=1;r|=(b&127)<<s
-        if not b&128:return pos
-        s+=7
-ss=[]
-for o in offs:
-    pos=uleb(o)
-    end=d.index(0,pos)
-    ss.append(d[pos:end].decode('utf-8','ignore'))
-assert 'jarvis_core.webp' in ss, 'core reference missing from DEX'
-assert 'J A R V I S' in ss, 'JARVIS title missing from DEX'
-print('DEX UI REFERENCES PASS')
-PY
+          python -c "import struct,zipfile; d=zipfile.ZipFile('work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk').read('classes.dex'); n,o=struct.unpack_from('<II',d,0x38); offs=struct.unpack_from('<'+'I'*n,d,o); dec=lambda p:(lambda q:d[q:d.index(b'\\x00',q)].decode('utf-8','ignore'))((lambda x:(lambda y:y)(x))(next((q+1 for q in range(p,p+8) if not (d[q]&128)),p+1))); ss=[dec(x) for x in offs]; assert 'jarvis_core.webp' in ss; assert 'J A R V I S' in ss; print('DEX UI REFERENCES PASS')"
           unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'assets/openwakeword/hey_jarvis_v0.1.onnx'
           unzip -l work/JARVIS_1.8.5_UI_PHASE2_UNSIGNED.apk | grep -q 'lib/arm64-v8a/libonnxruntime.so'
 
