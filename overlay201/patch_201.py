@@ -1,141 +1,69 @@
 from pathlib import Path
 import sys,re
-
 base=Path(sys.argv[1])
 java=base/'app/src/main/java/com/hakan/jarvis'
 
-follow_method=r'''    private boolean jarvisTryOnlineFollowup(final String raw){
-        if(onlineIntelligenceLastAnswer==null)return false;
-        long age=onlineIntelligenceLastAnswerAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-onlineIntelligenceLastAnswerAt);
-        final OnlineFollowupRouter.Followup f=OnlineFollowupRouter.match(
-            raw,
-            onlineIntelligenceLastAnswer.title,
-            onlineIntelligenceLastAnswer.text,
-            onlineIntelligenceLastAnswer.source,
-            onlineIntelligenceLastAnswer.url,
-            age);
-        if(f==null)return false;
-
-        if(voice!=null)voice.beginTurn();
-        if(answer!=null)answer.setText(f.text);
-        if(meta!=null){
-            String source=onlineIntelligenceLastAnswer.source==null?"":onlineIntelligenceLastAnswer.source;
-            meta.setText("Online Intelligence · bağlamsal takip\nKaynak: "+source);
-            if(!f.openSource){
-                final String link=onlineIntelligenceLastAnswer.url;
-                meta.setOnClickListener(new View.OnClickListener(){public void onClick(View v){
-                    try{if(link!=null&&link.startsWith("https://"))startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}catch(Exception ignored){}
-                }});
-            }
-        }
-        if(retry!=null)retry.setVisibility(View.VISIBLE);
-        if(jarvisReadyLine!=null)jarvisReadyLine.setText("Yanıtlıyorum...");
-        if(jarvisAtomCore!=null)jarvisAtomCore.setMode(2);
-
-        Runnable action=null;
-        if(f.openSource){
-            final String link=onlineIntelligenceLastAnswer.url;
-            action=new Runnable(){public void run(){
-                try{
-                    if(link!=null&&link.startsWith("https://"))startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));
-                }catch(Exception ignored){}
-            }};
-        }
-        say(f.text,"",action);
-        if(jarvisAtomCore!=null)jarvisAtomCore.postDelayed(new Runnable(){public void run(){
-            if(jarvisAtomCore!=null)jarvisAtomCore.setMode(0);
-            if(jarvisReadyLine!=null)jarvisReadyLine.setText("Hazırım.");
-        }},900L);
-        return true;
-    }
-
-'''
-
 for name in ['HybridActivity.java','JarvisHomeActivity.java']:
-    p=java/name
-    s=p.read_text(encoding='utf-8')
+ p=java/name
+ s=p.read_text(encoding='utf-8')
 
-    field='''    private String onlineIntelligenceLastQuery="";
+ field='''    private String onlineIntelligenceLastQuery="";
 '''
-    field_new='''    private String onlineIntelligenceLastQuery="";
-    private OnlineIntelligenceEngine.Answer onlineIntelligenceLastAnswer;
-    private long onlineIntelligenceLastAnswerAt=0L;
+ newfield='''    private String onlineIntelligenceLastQuery="";
+    private String onlineConversationTopic="";
+    private long onlineConversationTopicAt=0L;
 '''
-    if field not in s: raise SystemExit(name+': online field marker missing')
-    s=s.replace(field,field_new,1)
+ if field not in s: raise SystemExit(name+': online field marker missing')
+ s=s.replace(field,newfield,1)
 
-    method_marker='    private void jarvisRequestOnlineIntelligence(final String raw){'
-    if method_marker not in s: raise SystemExit(name+': online request method marker missing')
-    s=s.replace(method_marker,follow_method+method_marker,1)
-
-    success=r'''                    if(cancel!=null)cancel.setVisibility(View.GONE);
-                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);'''
-    success_new=r'''                    if(cancel!=null)cancel.setVisibility(View.GONE);
-                    onlineIntelligenceLastAnswer=a;
-                    onlineIntelligenceLastAnswerAt=android.os.SystemClock.elapsedRealtime();
-                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);'''
-    if success not in s: raise SystemExit(name+': online success marker missing')
-    s=s.replace(success,success_new,1)
-
-    dispatch='''        if(jarvisTryDailyConversation(raw)){
-            jarvisLastActionCommand="";
-            jarvisLastActionAt=0L;
+ dispatch='''    private void dispatch(String raw){
+        String jarvisOriginalRaw=raw;'''
+ newdispatch='''    private void dispatch(String raw){
+        String jarvisOriginalRaw=raw;
+        long onlineTopicAge=onlineConversationTopicAt<=0L?Long.MAX_VALUE:(android.os.SystemClock.elapsedRealtime()-onlineConversationTopicAt);
+        String onlineExpanded=OnlineConversationContext.expand(raw,onlineConversationTopic,onlineTopicAge);
+        if(onlineExpanded!=null){
+            jarvisRequestOnlineIntelligence(onlineExpanded);
             return;
-        }
-'''
-    dispatch_new='''        if(jarvisTryOnlineFollowup(jarvisOriginalRaw)){
-            jarvisLastActionCommand="";
-            jarvisLastActionAt=0L;
-            return;
-        }
+        }'''
+ if dispatch not in s: raise SystemExit(name+': dispatch marker missing')
+ s=s.replace(dispatch,newdispatch,1)
 
-        if(jarvisTryDailyConversation(raw)){
-            jarvisLastActionCommand="";
-            jarvisLastActionAt=0L;
-            return;
-        }
-'''
-    if dispatch not in s: raise SystemExit(name+': dispatch conversation marker missing')
-    s=s.replace(dispatch,dispatch_new,1)
+ success='''                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);
 
-    clear='engine.clearCache();if(onlineIntelligence!=null)onlineIntelligence.clearCache();handler.post'
-    clear_new='engine.clearCache();if(onlineIntelligence!=null)onlineIntelligence.clearCache();onlineIntelligenceLastAnswer=null;onlineIntelligenceLastAnswerAt=0L;handler.post'
-    if clear in s:s=s.replace(clear,clear_new,1)
+                    String date='''
+ successnew='''                    if(answer!=null)answer.setText(a.title+"\n\n"+a.text);
+                    onlineConversationTopic=OnlineConversationContext.topicFromAnswer(a.title,query);
+                    onlineConversationTopicAt=android.os.SystemClock.elapsedRealtime();
 
-    settings='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Anahtarsız bilgi fallback'i  •  Wikimedia + Türkçe Wikipedia","◎"));'''
-    settings_new='''        jarvisAddSettingsCard(content,jarvisSettingsInfo("Online Intelligence","Natural Query V2  •  Wikimedia + Türkçe Wikipedia","◎"));'''
-    if settings not in s: raise SystemExit(name+': online settings marker missing')
-    s=s.replace(settings,settings_new,1)
+                    String date='''
+ if success not in s: raise SystemExit(name+': online success marker missing')
+ s=s.replace(success,successnew,1)
 
-    s=s.replace('private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_200";',
-                'private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_201";',1)
+ # If a real trackable device action begins, do not let old online topic leak into later followups.
+ action='''        if(ContextCommandResolver.isTrackable(raw)){
+            jarvisLastActionCommand=raw==null?"":raw.trim();'''
+ actionnew='''        if(ContextCommandResolver.isTrackable(raw)){
+            onlineConversationTopic="";
+            onlineConversationTopicAt=0L;
+            jarvisLastActionCommand=raw==null?"":raw.trim();'''
+ if action not in s: raise SystemExit(name+': action marker missing')
+ s=s.replace(action,actionnew,1)
 
-    anchor='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
-'''
-    if anchor not in s: raise SystemExit(name+': release 200 anchor missing')
-    n201=r'''        View n201=jarvisReleaseCard("JARVIS 2.0.1","NATURAL ONLINE FOLLOW-UP",
-            "• Doğal bilgi soru kalıpları genişletildi: 'bana anlat', 'açıkla', 'ne işe yarar', 'neden önemli' ve karşılaştırma soruları.\n• Son çevrimiçi yanıt 3 dakika boyunca konuşma bağlamında tutulur.\n• 'biraz daha anlat', 'kısaca söyle', 'tekrar söyle' takip komutları eklendi.\n• 'kaynağın ne?' sorusuna kaynak adıyla yanıt verilir.\n• 'kaynağı aç' komutu önce sesli geri dönüş yapıp ardından güvenli HTTPS kaynağını açar.\n• Online takip cümleleri yeni arama sanılmaz; mevcut yanıt bağlamından çözülür.",true);
-'''
-    s=s.replace(anchor,n201+anchor,1)
-
-    # Demote only the 2.0.0 card without depending on exact note wording.
-    card_start=s.find('        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",')
-    if card_start<0: raise SystemExit(name+': release 200 card missing')
-    card_end=s.find(');',card_start)
-    if card_end<0: raise SystemExit(name+': release 200 card end missing')
-    block=s[card_start:card_end+2]
-    if not block.endswith('true);'): raise SystemExit(name+': release 200 current badge missing')
-    s=s[:card_start]+block[:-6]+'false);'+s[card_end+2:]
-
-    cards='View[] cards={n200,n199,n198,n197,n196,n195,n164};'
-    if cards not in s: raise SystemExit(name+': release cards marker missing')
-    s=s.replace(cards,'View[] cards={n201,n200,n199,n198,n197,n196,n195,n164};',1)
-
-    s=s.replace('JARVIS 2.0.0  •  ONLINE INTELLIGENCE','JARVIS 2.0.1  •  NATURAL ONLINE',1)
-    s=s.replace('JARVIS 2.0.0  •  build 122','JARVIS 2.0.1  •  build 123',1)
-    s=s.replace('JARVIS  •  ELITE INTERFACE  •  2.0.0','JARVIS  •  ELITE INTERFACE  •  2.0.1',1)
-
-    p.write_text(s,encoding='utf-8')
+ old='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
+            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• Wikimedia tabanlı Türkçe Wikipedia arama ve özet kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);'''
+ new='''        View n201=jarvisReleaseCard("JARVIS 2.0.1","ONLINE FOLLOW-UP CONTEXT",
+            "• Online bilgi cevabının konusu 3 dakika boyunca kısa bağlam olarak tutulur.\n• 'Biraz daha anlat', 'devam et', 'peki ne zaman?', 'nerede?', 'neden?' ve 'nasıl?' gibi takip soruları aynı konuya bağlanır.\n• Yeni cihaz komutu başladığında eski online konu bağlamı temizlenir.\n• Takip soruları yine mevcut güvenli Wikipedia + cache altyapısını kullanır.\n• Offline komut motoru ve 1.9.9 Contextual Commands önceliği korunur.",true);
+        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
+            "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• Wikimedia tabanlı Türkçe Wikipedia arama ve özet kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",false);'''
+ if old not in s: raise SystemExit(name+': release 200 marker missing')
+ s=s.replace(old,new,1)
+ s=s.replace('View[] cards={n200,n199,n198,n197,n196,n195,n164};','View[] cards={n201,n200,n199,n198,n197,n196,n195,n164};',1)
+ s=s.replace('private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_200";','private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_201";',1)
+ s=s.replace('JARVIS 2.0.0  •  ONLINE INTELLIGENCE','JARVIS 2.0.1  •  FOLLOW-UP CONTEXT',1)
+ s=s.replace('JARVIS 2.0.0  •  build 122','JARVIS 2.0.1  •  build 123',1)
+ s=s.replace('JARVIS  •  ELITE INTERFACE  •  2.0.0','JARVIS  •  ELITE INTERFACE  •  2.0.1',1)
+ p.write_text(s,encoding='utf-8')
 
 m=base/'app/src/main/AndroidManifest.xml'
 x=m.read_text(encoding='utf-8')
@@ -147,5 +75,4 @@ g=b.read_text(encoding='utf-8')
 g=re.sub(r'versionCode\s+\d+','versionCode 123',g,count=1)
 g=re.sub(r"versionName\s+'[^']+'","versionName '2.0.1'",g,count=1)
 b.write_text(g,encoding='utf-8')
-
-print('JARVIS 2.0.1 natural online follow-up patch applied')
+print('JARVIS 2.0.1 online follow-up context patch applied')
