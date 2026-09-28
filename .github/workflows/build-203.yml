@@ -1,0 +1,309 @@
+name: Build JARVIS 2.0.3 Device Control Engine
+# device-control-v1
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'overlay203/**'
+      - '.github/workflows/build-203.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Locate Android tools
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar" >> "$GITHUB_ENV"
+          echo "BT=$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_ENV"
+
+      - name: Verify production baseline
+        run: |
+          test -f JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip
+          test -f JARVIS_v1.5.7_STABLE_VOICE_READY.apk
+          keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
+          grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
+
+      - name: Prepare JARVIS 2.0.3 source
+        run: |
+          rm -rf work
+          mkdir -p work/src
+          unzip -q JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip -d work/src
+          PROJECT_DIR="$(find work/src -maxdepth 3 -type f -name settings.gradle -printf '%h\n' | head -n1)"
+          test -n "$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          python overlay170/patch_170.py "$PROJECT_DIR"
+          cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
+          cp overlay195/JarvisAtomCoreView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisAtomCoreView.java"
+          cp overlay194/JarvisEliteBackdropView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisEliteBackdropView.java"
+          python overlay195/patch_195.py "$PROJECT_DIR"
+
+          cp overlay196/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay196/patch_196.py "$PROJECT_DIR"
+          cp overlay197/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay197/patch_197.py "$PROJECT_DIR"
+          cp overlay198/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay198/patch_198.py "$PROJECT_DIR"
+          cp overlay199/ContextCommandResolver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"
+          python overlay199/patch_199.py "$PROJECT_DIR"
+          cp overlay200/OnlineQueryRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"
+          cp overlay200/OnlineIntelligenceEngine.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineIntelligenceEngine.java"
+          python overlay200/patch_200.py "$PROJECT_DIR"
+          cp overlay201/OnlineConversationContext.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"
+          python overlay201/patch_201.py "$PROJECT_DIR"
+          cp overlay202/MediaCommandRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"
+          cp overlay202/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
+          python overlay202/patch_202.py "$PROJECT_DIR"
+          python overlay2021/patch_2021.py "$PROJECT_DIR"
+          cp overlay2022/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
+          cp overlay2022/JarvisMediaListener.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisMediaListener.java"
+          python overlay2022/patch_2022.py "$PROJECT_DIR"
+          cp overlay2023/ExactSongResolver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"
+          cp overlay2024/MediaCommandRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"
+          cp overlay2024/MediaActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaActions.java"
+          cp overlay2024/SpotifyOAuthManager.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"
+          cp overlay2024/SpotifyWebApi.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"
+          python overlay2024/patch_2024.py "$PROJECT_DIR"
+          cp overlay203/DeviceCommandRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/DeviceCommandRouter.java"
+          cp overlay203/DeviceActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/DeviceActions.java"
+          python overlay203/patch_203.py "$PROJECT_DIR"
+
+          mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
+          base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
+          cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
+          test -s "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
+
+      - name: Download pinned offline wake models
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/assets/openwakeword"
+          BASE=https://github.com/dscripka/openWakeWord/releases/download/v0.5.1
+          wget -q "$BASE/melspectrogram.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/melspectrogram.onnx"
+          wget -q "$BASE/embedding_model.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/embedding_model.onnx"
+          wget -q "$BASE/hey_jarvis_v0.1.onnx" -O "$PROJECT_DIR/app/src/main/assets/openwakeword/hey_jarvis_v0.1.onnx"
+          test -s "$PROJECT_DIR/app/src/main/assets/openwakeword/hey_jarvis_v0.1.onnx"
+          sha256sum "$PROJECT_DIR"/app/src/main/assets/openwakeword/*.onnx | tee work/wake-model-sha256.txt
+
+      - name: Download ONNX Runtime Android 1.17.1
+        run: |
+          wget -q https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.1/onnxruntime-android-1.17.1.aar -O work/onnxruntime.aar
+          mkdir -p work/ort
+          unzip -q work/onnxruntime.aar -d work/ort
+          test -s work/ort/classes.jar
+          test -s work/ort/jni/arm64-v8a/libonnxruntime.so
+
+      - name: Online intelligence endpoint smoke test
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+
+          def get(url):
+              req=urllib.request.Request(url,headers={"User-Agent":"JarvisAndroid/2.0.3 QA"})
+              with urllib.request.urlopen(req,timeout=12) as r:
+                  assert r.status==200
+                  raw=r.read(350000).decode("utf-8")
+                  return json.loads(raw)
+
+          for q in ("kara delik","Türkiye başkenti"):
+              wiki=get("https://tr.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=search&gsrnamespace=0&gsrlimit=1&gsrsearch="+urllib.parse.quote(q)+"&prop=extracts%7Cinfo&exintro=1&explaintext=1&exchars=800&inprop=url")
+              pages=(wiki.get("query") or {}).get("pages") or []
+              assert pages and isinstance(pages[0],dict)
+              assert pages[0].get("title")
+          print("ONLINE ENDPOINT SMOKE PASS")
+          PY
+
+      - name: MusicBrainz exact song smoke test
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request, urllib.error, time
+          q=urllib.parse.quote("Müslüm Gürses Nilüfer")
+          url="https://musicbrainz.org/ws/2/recording/?query="+q+"&limit=5&fmt=json"
+          ok=False
+          for attempt in range(3):
+              try:
+                  req=urllib.request.Request(url,headers={"User-Agent":"JARVIS-Android/2.0.2.3 QA (personal non-commercial assistant)","Accept":"application/json"})
+                  with urllib.request.urlopen(req,timeout=12) as r:
+                      if r.status==200:
+                          j=json.loads(r.read(400000).decode("utf-8"))
+                          rec=j.get("recordings") or []
+                          ok=bool(rec)
+                          if ok: break
+              except urllib.error.HTTPError as e:
+                  print("MusicBrainz attempt",attempt+1,"HTTP",e.code)
+              except Exception as e:
+                  print("MusicBrainz attempt",attempt+1,type(e).__name__)
+              time.sleep(1.2)
+          if ok:
+              print("MUSICBRAINZ ENDPOINT AVAILABLE")
+          else:
+              print("MUSICBRAINZ ENDPOINT DEGRADED - runtime fallback will be used")
+          PY
+
+      - name: Spotify OAuth configuration smoke test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("overlay2024/SpotifyOAuthManager.java").read_text(encoding="utf-8")
+          assert 'e6a9bcc48fc34959aa5914e46efb1a44' in s
+          assert 'http://127.0.0.1:43821/callback' in s
+          assert 'code_challenge_method=S256' in s
+          assert 'user-modify-playback-state' in s
+          assert 'user-read-playback-state' in s
+          assert 'client_secret' not in s.lower()
+          print("SPOTIFY OAUTH CONFIG PASS")
+          PY
+
+      - name: Download JSON test runtime
+        run: |
+          wget -q https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar -O work/json.jar
+          test -s work/json.jar
+
+      - name: Prepare compile-only MainActivity stub
+        run: |
+          mkdir -p work/stub/com/hakan/jarvis
+          cat > work/stub/com/hakan/jarvis/MainActivity.java <<'JAVA'
+          package com.hakan.jarvis;
+          public class MainActivity extends android.app.Activity implements android.view.View.OnClickListener {
+              protected void updateHybridStatus(){}
+              protected boolean isOnline(){return false;}
+              public void onClick(android.view.View v){}
+          }
+          JAVA
+
+      - name: Compile JARVIS 2.0.3 overlay
+        run: |
+          mkdir -p work/classes
+          LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar:work/ort/classes.jar"
+          find "$PROJECT_DIR/app/src/main/java" -type f -name '*.java' | sort > work/sources.txt
+          javac -encoding UTF-8 -source 8 -target 8 -Xlint:none             -cp "$ANDROID_JAR:$LIBCP"             -d work/classes             work/stub/com/hakan/jarvis/MainActivity.java             @work/sources.txt
+          test -f work/classes/com/hakan/jarvis/HybridActivity.class
+          test -f work/classes/com/hakan/jarvis/JarvisHomeActivity.class
+          test -f work/classes/com/hakan/jarvis/ConversationRouter.class
+          test -f work/classes/com/hakan/jarvis/ContextCommandResolver.class
+          test -f work/classes/com/hakan/jarvis/OnlineQueryRouter.class
+          test -f work/classes/com/hakan/jarvis/OnlineIntelligenceEngine.class
+          test -f work/classes/com/hakan/jarvis/OnlineConversationContext.class
+          test -f work/classes/com/hakan/jarvis/MediaCommandRouter.class
+          test -f work/classes/com/hakan/jarvis/MediaActions.class
+          test -f work/classes/com/hakan/jarvis/ExactSongResolver.class
+          test -f work/classes/com/hakan/jarvis/SpotifyOAuthManager.class
+          test -f work/classes/com/hakan/jarvis/SpotifyWebApi.class
+          test -f work/classes/com/hakan/jarvis/DeviceCommandRouter.class
+          test -f work/classes/com/hakan/jarvis/DeviceActions.class
+          test -f work/classes/com/hakan/jarvis/JarvisMediaListener.class
+          test -f work/classes/com/hakan/jarvis/JarvisAtomCoreView.class
+          test -f work/classes/com/hakan/jarvis/JarvisEliteBackdropView.class
+          test -f work/classes/com/hakan/jarvis/WakeWordService.class
+          rm work/classes/com/hakan/jarvis/MainActivity.class
+          if find work/classes -type f -name 'MainActivity*.class' | grep -q .; then echo "Compile stub leaked"; exit 1; fi
+
+      - name: Run regression and conversation tests
+        run: |
+          rm -rf work/qa && mkdir -p work/qa
+          javac -encoding UTF-8 -cp "$ANDROID_JAR:work/json.jar" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/DeviceCommandRouter.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay2024/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java             overlay2024/SpotifyWebApiTest.java             overlay203/DeviceCommandRouterTest.java
+
+          java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
+          java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
+          java -cp work/qa UnderstandingTest | tee work/understanding-test.txt
+          java -cp work/qa WakeWordTest | tee work/wake-parser-test.txt
+          java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
+          java -cp work/qa com.hakan.jarvis.ConversationRouterTest | tee work/conversation-test.txt
+          java -cp work/qa com.hakan.jarvis.ConversationContextTest | tee work/context-test.txt
+          java -cp work/qa com.hakan.jarvis.ConversationMemoryTest | tee work/memory-test.txt
+          java -cp work/qa com.hakan.jarvis.ContextCommandResolverTest | tee work/context-command-test.txt
+          java -cp work/qa com.hakan.jarvis.OnlineQueryRouterTest | tee work/online-query-test.txt
+          java -cp work/qa com.hakan.jarvis.OnlineConversationContextTest | tee work/online-context-test.txt
+          java -cp work/qa com.hakan.jarvis.MediaCommandRouterTest | tee work/media-entity-test.txt
+          java -cp "work/json.jar:work/qa" com.hakan.jarvis.ExactSongResolverTest | tee work/exact-song-test.txt
+          java -cp "work/json.jar:$ANDROID_JAR:work/qa" com.hakan.jarvis.SpotifyWebApiTest | tee work/spotify-web-api-test.txt
+          java -cp work/qa com.hakan.jarvis.DeviceCommandRouterTest | tee work/device-control-test.txt
+
+          grep -q "FAIL 0" work/chain-test.txt
+          grep -q "FAIL 0" work/conversation-test.txt
+          grep -q "FAIL 0" work/context-test.txt
+          grep -q "FAIL 0" work/memory-test.txt
+          grep -q "FAIL 0" work/context-command-test.txt
+          grep -q "FAIL 0" work/online-query-test.txt
+          grep -q "FAIL 0" work/online-context-test.txt
+          grep -q "FAIL 0" work/media-entity-test.txt
+          grep -q "FAIL 0" work/exact-song-test.txt
+          grep -q "FAIL 0" work/spotify-web-api-test.txt
+          grep -q "FAIL 0" work/device-control-test.txt
+
+      - name: Merge legacy engine with 2.0.3 classes
+        run: |
+          unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
+          mkdir -p work/dex
+          mapfile -t CLASS_FILES < <(find work/classes -type f -name '*.class' | sort)
+          "$BT/d8" --release --min-api 23 --lib "$ANDROID_JAR"             --output work/dex             work/baseline.dex             "${CLASS_FILES[@]}"             "$PROJECT_DIR/app/libs/okhttp-3.12.13.jar"             "$PROJECT_DIR/app/libs/okio-1.17.5.jar"             work/ort/classes.jar
+          test -s work/dex/classes.dex
+          test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
+
+      - name: Package JARVIS 2.0.3 APK
+        run: |
+          "$BT/aapt" package -f             -M "$PROJECT_DIR/app/src/main/AndroidManifest.xml"             -I "$ANDROID_JAR"             -S "$PROJECT_DIR/app/src/main/res"             -A "$PROJECT_DIR/app/src/main/assets"             -F work/unsigned.apk
+          (cd work/dex && zip -q ../unsigned.apk classes.dex)
+
+          mkdir -p work/apklibs/lib/arm64-v8a work/apklibs/lib/armeabi-v7a
+          cp work/ort/jni/arm64-v8a/*.so work/apklibs/lib/arm64-v8a/
+          if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
+          (cd work/apklibs && zip -qr ../unsigned.apk lib)
+
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk
+
+      - name: Structural QA
+        run: |
+          unzip -t work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk >/dev/null
+          "$BT/aapt" dump badging work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          cat work/badging.txt
+
+          grep -q "package: name='com.hakan.jarvis'" work/badging.txt
+          grep -q "versionCode='129'" work/badging.txt
+          grep -q "versionName='2.0.3'" work/badging.txt
+          grep -q "com.hakan.jarvis.JarvisHomeActivity" work/badging.txt
+          grep -q "JarvisMediaListener" work/manifest.txt
+          grep -q "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" work/manifest.txt
+          grep -q "android.permission.BLUETOOTH_ADMIN" work/manifest.txt
+          grep -q "android.permission.CHANGE_WIFI_STATE" work/manifest.txt
+          echo "PACKAGE / VERSION / LAUNCHER / MEDIA LISTENER PASS"
+
+          unzip -p work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk classes.dex > work/final.dex
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_203',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V5_SPOTIFY_OAUTH',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_WEB_API',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_OAUTH_PKCE_V1',b'SPOTIFY_WEB_API_V1',b'http://127.0.0.1:43821/callback',b'accounts.spotify.com/api/token',b'api.spotify.com/v1/search',b'user-modify-playback-state',b'DEVICE_CONTROL_V1',b'DEVICE_ACTIONS_V1',b'DeviceCommandRouter',b'DeviceActions',b'BLUETOOTH_ON',b'WIFI_ON',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.3',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX DEVICE CONTROL PASS"
+
+          unzip -Z1 work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -Z1 work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          test "$(unzip -Z1 work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          echo "WAKE / ONNX / SINGLE DEX PASS"
+
+      - name: Collect artifact
+        run: |
+          mkdir -p artifact
+          cp work/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk artifact/
+          cp "$BT/lib/apksigner.jar" artifact/
+          cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
+          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-web-api-test.txt work/device-control-test.txt artifact/
+          sha256sum artifact/JARVIS_2.0.3_DEVICE_CONTROL_UNSIGNED.apk > artifact/SHA256.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-2.0.3-device-control
+          path: artifact/
+          if-no-files-found: error
