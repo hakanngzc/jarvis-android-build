@@ -37,6 +37,10 @@ public final class MediaCommandRouterTest {
 
         expect("durdur","spotify",5000,"PAUSE","spotify","","","");
         expect("şarkıyı durdur","youtube",5000,"PAUSE","youtube","","","");
+        expect("şarkıyı durdurur musun","",0,"PAUSE","active_media","","","");
+        expect("müziği durdurabilir misin","",0,"PAUSE","active_media","","","");
+        expect("şarkıyı duraklatır mısın","",0,"PAUSE","active_media","","","");
+        expect("Spotify'daki şarkıyı durdurur musun","",0,"PAUSE","spotify","","","");
         expect("Spotify'ı kapat","youtube",5000,"PAUSE","spotify","","","");
         expect("devam et","spotify",5000,"RESUME","spotify","","","");
         expect("sonraki","spotify",5000,"NEXT","spotify","","","");
