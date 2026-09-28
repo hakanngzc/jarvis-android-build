@@ -97,16 +97,14 @@ jobs:
               req=urllib.request.Request(url,headers={"User-Agent":"JarvisAndroid/2.0.0 QA"})
               with urllib.request.urlopen(req,timeout=12) as r:
                   assert r.status==200
-                  return json.loads(r.read(350000).decode("utf-8"))
+                  raw=r.read(350000).decode("utf-8")
+                  return json.loads(raw)
 
-          ddg=get("https://api.duckduckgo.com/?q="+urllib.parse.quote("OpenAI")+"&format=json&no_html=1&no_redirect=1&skip_disambig=1&kl=tr-tr")
-          assert isinstance(ddg,dict)
-          assert any(k in ddg for k in ("AbstractText","Answer","RelatedTopics"))
-
-          wiki=get("https://tr.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=search&gsrnamespace=0&gsrlimit=1&gsrsearch="+urllib.parse.quote("kara delik")+"&prop=extracts%7Cinfo&exintro=1&explaintext=1&exchars=800&inprop=url")
-          pages=(wiki.get("query") or {}).get("pages") or []
-          assert pages and isinstance(pages[0],dict)
-          assert pages[0].get("title")
+          for q in ("kara delik","Türkiye başkenti"):
+              wiki=get("https://tr.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=search&gsrnamespace=0&gsrlimit=1&gsrsearch="+urllib.parse.quote(q)+"&prop=extracts%7Cinfo&exintro=1&explaintext=1&exchars=800&inprop=url")
+              pages=(wiki.get("query") or {}).get("pages") or []
+              assert pages and isinstance(pages[0],dict)
+              assert pages[0].get("title")
           print("ONLINE ENDPOINT SMOKE PASS")
           PY
 
@@ -199,7 +197,7 @@ jobs:
           echo "PACKAGE / VERSION / LAUNCHER PASS"
 
           unzip -p work/JARVIS_2.0.0_ONLINE_INTELLIGENCE_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_200',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'jarvisRequestOnlineIntelligence',b'api.duckduckgo.com',b'tr.wikipedia.org',b'JARVIS 2.0.0',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_200',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.0',b'JarvisHomeActivity',b'ELITE_ATOM_V3',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX ONLINE INTELLIGENCE PASS"
 
           unzip -Z1 work/JARVIS_2.0.0_ONLINE_INTELLIGENCE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
