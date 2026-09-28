@@ -89,8 +89,6 @@ m=base/'app/src/main/AndroidManifest.xml';x=m.read_text(encoding='utf-8')
 x=re.sub(r'android:versionCode="\d+" android:versionName="[^"]+"','android:versionCode="107" android:versionName="1.8.5"',x,count=1)
 if 'android:icon="@drawable/jarvis_icon"' not in x:
     x=x.replace('<application android:label="JARVIS"','<application android:label="JARVIS" android:icon="@drawable/jarvis_icon" android:roundIcon="@drawable/jarvis_icon"',1)
-if 'android:name="com.hakan.jarvis.JarvisApplication"' not in x and 'android:name=".JarvisApplication"' not in x:
-    x=x.replace('<application ', '<application android:name="com.hakan.jarvis.JarvisApplication" ', 1)
 if 'com.hakan.jarvis.DesignActivity' in x:
     raise SystemExit('unsafe DesignActivity found')
 m.write_text(x,encoding='utf-8')
