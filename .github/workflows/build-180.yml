@@ -52,7 +52,7 @@ jobs:
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
           cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
           test -s "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
-          grep -q 'android:versionCode="102" android:versionName="1.8.0"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          grep -q 'android:versionCode="105" android:versionName="1.8.3"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           grep -q 'android:icon="@drawable/jarvis_icon"' "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           grep -q 'new OpenWakeWordDetector(this,0.15f,0.42f,3800L)' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/WakeWordService.java"
           grep -q 'candidate.startRecording();return true;' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OpenWakeWordDetector.java"
@@ -126,7 +126,7 @@ jobs:
           java -cp work/qa com.hakan.jarvis.CommandChainTest | tee work/chain-test.txt
           grep -q "FAIL 0" work/chain-test.txt
 
-      - name: Merge legacy engine and 1.8.0 DEX
+      - name: Merge legacy engine and 1.8.3 DEX
         run: |
           unzip -p JARVIS_v1.5.7_STABLE_VOICE_READY.apk classes.dex > work/baseline.dex
           mkdir -p work/dex
