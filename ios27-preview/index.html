@@ -603,6 +603,67 @@ body{touch-action:pan-y}
   color:#fff;font-size:16px;font-weight:700;
 }
 
+
+/* QUICK ACTIONS + SMART STACK */
+.quick-menu{
+  position:absolute;
+  z-index:66;
+  width:218px;
+  opacity:0;
+  pointer-events:none;
+  transform:scale(.96);
+  transform-origin:top left;
+  transition:opacity .16s,transform .16s;
+}
+.quick-menu.show{opacity:1;pointer-events:auto;transform:scale(1)}
+.quick-card{
+  overflow:hidden;
+  border-radius:22px;
+  background:rgba(38,45,58,.98);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 16px 36px rgba(0,0,0,.30);
+}
+.quick-head{
+  display:flex;align-items:center;gap:11px;
+  padding:12px 13px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.quick-head .icon{
+  width:42px;height:42px;border-radius:12px;
+  font-size:19px;box-shadow:none!important;
+}
+.quick-app-name{font-size:13px;font-weight:750}
+.quick-sub{font-size:10px;opacity:.55;margin-top:2px}
+.quick-action{
+  width:100%;height:47px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;border:0;
+  border-top:1px solid rgba(255,255,255,.07);
+  background:transparent;color:#fff;
+  font-size:13px;text-align:left;
+}
+.quick-action:first-of-type{border-top:0}
+.quick-action.danger{color:#ff746d}
+.quick-backdrop{
+  position:absolute;z-index:64;inset:0;
+  background:rgba(7,10,15,.16);
+  opacity:0;pointer-events:none;
+}
+.quick-backdrop.show{opacity:1;pointer-events:auto}
+.smart-stack{
+  cursor:pointer;
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.stack-top{font-size:10px;font-weight:750;opacity:.62}
+.stack-main{font-size:32px;font-weight:300;letter-spacing:-1px;margin-top:8px}
+.stack-sub{font-size:11px;opacity:.68;margin-top:4px}
+.stack-dots{
+  position:absolute;right:10px;bottom:10px;
+  display:flex;gap:4px;
+}
+.stack-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.28)}
+.stack-dot.active{background:#fff}
+
 /* ULTRA MOBILE PERFORMANCE LAYER */
 .phone.ultra-perf *{
   -webkit-backdrop-filter:none!important;
@@ -740,6 +801,20 @@ body{touch-action:pan-y}
 
   <div class="save-chip" id="saveChip">Düzen kaydedildi</div>
 
+  <div class="quick-backdrop" id="quickBackdrop"></div>
+  <div class="quick-menu" id="quickMenu">
+    <div class="quick-card">
+      <div class="quick-head">
+        <div class="icon c-gray" id="quickIcon">◉</div>
+        <div><div class="quick-app-name" id="quickName">Uygulama</div><div class="quick-sub">Hızlı İşlemler</div></div>
+      </div>
+      <button class="quick-action" id="quickOpen">Aç <span>›</span></button>
+      <button class="quick-action" id="quickShare">Paylaş <span>↗</span></button>
+      <button class="quick-action" id="quickEdit">Ana Ekranı Düzenle <span>⋯</span></button>
+      <button class="quick-action danger" id="quickHide">Ana Ekrandan Kaldır <span>−</span></button>
+    </div>
+  </div>
+
   <div class="remove-sheet" id="removeSheet">
     <div class="remove-panel">
       <div class="remove-card">
@@ -769,6 +844,9 @@ body{touch-action:pan-y}
         </button>
         <button class="wopt" data-widget="music" style="border:0;color:#fff;text-align:left;grid-column:1/-1">
           <div class="wpreview"><div style="font-size:25px">♪ Şimdi Çalıyor</div></div><div><b>Müzik</b><br><small>4 × 2</small></div>
+        </button>
+        <button class="wopt" data-widget="stack" style="border:0;color:#fff;text-align:left;grid-column:1/-1">
+          <div class="wpreview"><div style="font-size:23px">▣ Akıllı Yığın</div></div><div><b>Akıllı Yığın</b><br><small>4 × 2 · Dokunarak değiştir</small></div>
         </button>
       </div>
     </div>
@@ -876,7 +954,7 @@ function go(n){
 }
 let navPointer=null,navTracking=false,navHorizontal=false,navStartPage=0,ccGesture=false,captured=false;
 function navBlockedTarget(t){
-  return !!t.closest("input,button,.overlay.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
+  return !!t.closest("input,button,.overlay.show,.widget-gallery.show,.folder-overlay.show,.remove-sheet.show,.quick-menu.show,.quick-backdrop.show,.control.show,.island-expanded.show,.customizer.show,.edit-top.show");
 }
 function setEditMode(){
   jiggle=true;navTracking=false;phone.classList.add("editing");
@@ -891,7 +969,13 @@ phone.addEventListener("pointerdown",e=>{
   ccGesture=!jiggle&&e.clientX>phone.clientWidth*.68&&e.clientY<92&&!navBlockedTarget(e.target);
   navTracking=!jiggle&&!ccGesture&&!navBlockedTarget(e.target);
   if(navTracking&&page<2){
-    longTimer=setTimeout(()=>{if(navTracking&&!navHorizontal&&Math.abs(dx)<8&&Math.abs(dy)<8)setEditMode()},520)
+    longTimer=setTimeout(()=>{
+      if(!navTracking||navHorizontal||Math.abs(dx)>=8||Math.abs(dy)>=8)return;
+      const heldApp=e.target.closest(".app");
+      if(heldApp&&!heldApp.closest(".dock")&&heldApp.parentElement?.classList.contains("apps")){
+        navTracking=false;openQuickMenu(heldApp)
+      }else setEditMode()
+    },520)
   }
 });
 phone.addEventListener("pointermove",e=>{
@@ -938,6 +1022,37 @@ function openSearch(){document.getElementById("spotlight").classList.add("show")
 function closeSearch(){document.getElementById("spotlight").classList.remove("show");document.getElementById("searchInput").blur()}
 document.getElementById("searchInput").oninput=e=>renderResults(e.target.value);
 function renderResults(q){const out=document.getElementById("results");out.innerHTML="";apps.filter(a=>a[0].toLowerCase().includes(q.toLowerCase())).slice(0,7).forEach(a=>{const r=document.createElement("div");r.className="result";r.innerHTML='<div class="icon '+a[2]+'">'+a[1]+'</div><div><b>'+a[0]+'</b><div style="font-size:11px;opacity:.6">Uygulama</div></div>';out.appendChild(r)})}
+
+let quickApp=null;
+function closeQuickMenu(){
+  document.getElementById("quickMenu").classList.remove("show");
+  document.getElementById("quickBackdrop").classList.remove("show");
+  quickApp=null
+}
+function openQuickMenu(app){
+  quickApp=app;
+  const menu=document.getElementById("quickMenu"),back=document.getElementById("quickBackdrop");
+  const name=app.dataset.name||"Uygulama";
+  document.getElementById("quickName").textContent=name;
+  const sourceIcon=app.querySelector(".icon");
+  const qi=document.getElementById("quickIcon");
+  qi.className="icon "+([...(sourceIcon?.classList||[])].find(x=>x.startsWith("c-"))||"c-gray");
+  qi.textContent=sourceIcon?.textContent?.replace("−","").trim().slice(0,2)||"◉";
+  const pr=phone.getBoundingClientRect(),r=app.getBoundingClientRect();
+  const w=218,h=272;
+  let left=r.left-pr.left+r.width+8;
+  if(left+w>pr.width-8)left=r.left-pr.left-w-8;
+  left=Math.max(8,Math.min(pr.width-w-8,left));
+  let top=r.top-pr.top-12;
+  top=Math.max(48,Math.min(pr.height-h-16,top));
+  menu.style.left=left+"px";menu.style.top=top+"px";
+  back.classList.add("show");menu.classList.add("show")
+}
+document.getElementById("quickBackdrop").onclick=closeQuickMenu;
+document.getElementById("quickOpen").onclick=()=>{if(quickApp)toast((quickApp.dataset.name||"Uygulama")+" açılıyor");closeQuickMenu()};
+document.getElementById("quickShare").onclick=()=>{if(quickApp)toast((quickApp.dataset.name||"Uygulama")+" paylaşım menüsü");closeQuickMenu()};
+document.getElementById("quickEdit").onclick=()=>{closeQuickMenu();setEditMode()};
+document.getElementById("quickHide").onclick=()=>{if(quickApp){quickApp.remove();saveLayout();toast("Ana ekrandan kaldırıldı")}closeQuickMenu()};
 
 document.addEventListener("click",e=>{
  const m=e.target.closest(".mode"); if(m){document.querySelectorAll(".mode").forEach(x=>x.classList.remove("active"));m.classList.add("active");phone.classList.remove("clear-mode","tint-mode");if(m.dataset.mode==="clear")phone.classList.add("clear-mode");if(m.dataset.mode==="tint")phone.classList.add("tint-mode");return}
@@ -1039,7 +1154,24 @@ function widgetMarkup(type){
   if(type==="battery")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;font-weight:700;opacity:.72">Pil</div><div style="font-size:38px;font-weight:300;margin-top:16px">75%</div><div style="font-size:11px;opacity:.62">6 sa 20 dk</div>';
   if(type==="calendar")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;font-weight:700;opacity:.72">EYLÜL</div><div style="font-size:42px;font-weight:750;margin-top:12px">28</div><div style="font-size:11px;opacity:.62">Pazartesi</div>';
   if(type==="photo")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="position:absolute;inset:0;background:linear-gradient(145deg,rgba(114,86,255,.9),rgba(255,117,98,.76));display:grid;place-items:center;font-size:38px">✦</div>';
+  if(type==="stack")return '<button class="remove-widget" aria-label="Widget kaldır"></button><div class="smart-stack" data-stack-index="0"><div><div class="stack-top">AKILLI YIĞIN</div><div class="stack-main">20° ☁</div><div class="stack-sub">Onikişubat · Bulutlu</div></div><div class="stack-dots"><i class="stack-dot active"></i><i class="stack-dot"></i><i class="stack-dot"></i></div></div>';
   return '<button class="remove-widget" aria-label="Widget kaldır"></button><div style="font-size:11px;opacity:.65">Şimdi Çalıyor</div><div style="font-size:22px;font-weight:700;margin-top:14px">♪ Müzik</div><div style="font-size:11px;opacity:.62;margin-top:5px">Duraklatıldı</div>';
+}
+function bindSmartStack(w){
+  const stack=w.querySelector(".smart-stack");if(!stack)return;
+  const slides=[
+    ["20° ☁","Onikişubat · Bulutlu"],
+    ["28","Pazartesi · Eylül"],
+    ["75%","Pil · 6 sa 20 dk"]
+  ];
+  stack.addEventListener("click",e=>{
+    if(jiggle||e.target.closest(".remove-widget"))return;
+    let i=(Number(stack.dataset.stackIndex||0)+1)%slides.length;
+    stack.dataset.stackIndex=i;
+    stack.querySelector(".stack-main").textContent=slides[i][0];
+    stack.querySelector(".stack-sub").textContent=slides[i][1];
+    stack.querySelectorAll(".stack-dot").forEach((d,n)=>d.classList.toggle("active",n===i))
+  })
 }
 function addCustomWidget(type,save=true){
   const zone=document.getElementById("customZone");
@@ -1047,6 +1179,7 @@ function addCustomWidget(type,save=true){
   const w=document.createElement("div");w.className="custom-widget"+(type==="music"?" wide":"");w.dataset.widget=type;w.innerHTML=widgetMarkup(type);
   w.querySelector(".remove-widget").onclick=e=>{e.stopPropagation();w.remove();saveLayout()};
   zone.appendChild(w);
+  if(type==="stack")bindSmartStack(w);
   if(save)saveLayout();
 }
 document.querySelectorAll(".wopt").forEach(b=>b.addEventListener("click",()=>{
@@ -1063,11 +1196,11 @@ function saveLayout(){
     mode:phone.classList.contains("clear-mode")?"clear":phone.classList.contains("tint-mode")?"tint":"normal",
     wallpaper:currentWallpaper
   };
-  try{localStorage.setItem("glassHomeLayoutV6",JSON.stringify(data))}catch(e){}
+  try{localStorage.setItem("glassHomeLayoutV7",JSON.stringify(data))}catch(e){}
   const chip=document.getElementById("saveChip");clearTimeout(saveLayout._t);chip.classList.add("show");saveLayout._t=setTimeout(()=>chip.classList.remove("show"),650)
 }
 function restoreLayout(){
-  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
+  let d=null;try{d=JSON.parse(localStorage.getItem("glassHomeLayoutV7")||localStorage.getItem("glassHomeLayoutV6")||localStorage.getItem("glassHomeLayoutV5")||localStorage.getItem("glassHomeLayoutV4")||localStorage.getItem("glassHomeLayoutV3")||"null")}catch(e){}
   if(!d)return;
   [["apps1",d.a1],["apps2",d.a2]].forEach(([id,items])=>{
     if(!Array.isArray(items))return;
