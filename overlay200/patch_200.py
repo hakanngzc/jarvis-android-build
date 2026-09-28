@@ -155,9 +155,9 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     s=s.replace('private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_198";',
                 'private static final String JARVIS_RELEASE_NOTES_PROFILE="RELEASE_NOTES_200";',1)
 
-    old_n199='''        View n199=jarvisReleaseCard("JARVIS 1.9.9","CONTEXTUAL COMMAND ENGINE",
+    old_n199=r'''        View n199=jarvisReleaseCard("JARVIS 1.9.9","CONTEXTUAL COMMAND ENGINE",
             "• Son güvenli cihaz komutu 90 saniye boyunca bağlam olarak tutulur.\n• Ses komutlarında 'biraz daha', 'geri al', 'tekrar yap' devamları eklendi.\n• Fener için 'kapat', 'geri aç' gibi kısa devam komutları eklendi.\n• Spotify ve YouTube açma komutları güvenli biçimde tekrar edilebilir.\n• Göreli alarmda '5 dakika daha ekle', '10 dakika azalt', 'tekrar kur' desteği eklendi.\n• Arama ve mesaj gibi hassas eylemler tekrar bağlamına özellikle alınmadı.",true);'''
-    new_n199='''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
+    new_n199=r'''        View n200=jarvisReleaseCard("JARVIS 2.0.0","ONLINE INTELLIGENCE LAYER",
             "• Tanınmayan güvenli bilgi soruları için çevrimiçi fallback eklendi.\n• DuckDuckGo Instant Answer ve Türkçe Wikipedia kaynakları anahtarsız kullanılır.\n• Cihaz, alarm, uygulama ve medya komutları online fallback'ten tamamen ayrıldı.\n• Çevrimiçi yanıtlar kaynak, alınma zamanı ve tıklanabilir kaynak bağlantısıyla gösterilir.\n• Yanıtlar cihazda önbelleğe alınır; çevrimdışıyken daha önce alınmış bilgi kullanılabilir.\n• Canlı haber, skor, borsa ve benzeri zaman hassas sorgular bilinçli olarak bu ilk sürümde kapsama alınmadı.",true);
         View n199=jarvisReleaseCard("JARVIS 1.9.9","CONTEXTUAL COMMAND ENGINE",
             "• Son güvenli cihaz komutu 90 saniye boyunca bağlam olarak tutulur.\n• Ses komutlarında 'biraz daha', 'geri al', 'tekrar yap' devamları eklendi.\n• Fener için 'kapat', 'geri aç' gibi kısa devam komutları eklendi.\n• Spotify ve YouTube açma komutları güvenli biçimde tekrar edilebilir.\n• Göreli alarmda '5 dakika daha ekle', '10 dakika azalt', 'tekrar kur' desteği eklendi.\n• Arama ve mesaj gibi hassas eylemler tekrar bağlamına özellikle alınmadı.",false);'''
