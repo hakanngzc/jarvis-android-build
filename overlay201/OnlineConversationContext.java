@@ -40,6 +40,9 @@ public final class OnlineConversationContext {
         if(eq(q,"ne demek","bu ne demek"))
             return topic+" ne demek";
 
+        if(eq(q,"peki nereli","peki nereliydi","peki nerede dogdu","peki nerede dogmus"))
+            return topic+" nerede doğdu";
+
         if(q.startsWith("peki ")){
             String tail=q.substring(5).trim();
             if(tail.length()>=3 && isSafeFollowup(tail))return topic+" "+tail;
