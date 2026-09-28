@@ -1,0 +1,40 @@
+name: Inspect JARVIS Media Engine 2.0.2
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/inspect-media-202.yml'
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack and apply current overlays
+        run: |
+          rm -rf work && mkdir -p work/src
+          unzip -q JARVIS_1.6.4.17_CONTEXT_CHAIN_SOURCE_READY.zip -d work/src
+          PROJECT_DIR="$(find work/src -maxdepth 3 -type f -name settings.gradle -printf '%h\n' | head -n1)"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          python overlay170/patch_170.py "$PROJECT_DIR"
+          cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
+          cp overlay195/JarvisAtomCoreView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisAtomCoreView.java"
+          cp overlay194/JarvisEliteBackdropView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisEliteBackdropView.java"
+          python overlay195/patch_195.py "$PROJECT_DIR"
+          cp overlay196/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay196/patch_196.py "$PROJECT_DIR"
+          cp overlay197/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay197/patch_197.py "$PROJECT_DIR"
+          cp overlay198/ConversationRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"
+          python overlay198/patch_198.py "$PROJECT_DIR"
+          cp overlay199/ContextCommandResolver.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"
+          python overlay199/patch_199.py "$PROJECT_DIR"
+          cp overlay200/OnlineQueryRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"
+          cp overlay200/OnlineIntelligenceEngine.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineIntelligenceEngine.java"
+          python overlay200/patch_200.py "$PROJECT_DIR"
+          cp overlay201/OnlineConversationContext.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"
+          python overlay201/patch_201.py "$PROJECT_DIR"
+      - name: Print media engine references
+        run: |
+          grep -RniE 'spotify|youtube|music|muzik|sarki|şark|media|play|pause|next|previous|ACTION_MEDIA|KEYCODE_MEDIA|deeplink|intent://' "$PROJECT_DIR/app/src/main/java" | head -n 500 || true
+          echo "--- FILES ---"
+          find "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis" -maxdepth 1 -type f -printf '%f\n' | sort
