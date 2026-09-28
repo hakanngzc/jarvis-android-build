@@ -40,6 +40,16 @@ public final class OnlineQueryRouter {
         return s.trim();
     }
 
+    public static String searchTerms(String raw) {
+        String s = query(raw);
+        s = s.replaceAll("(?iu)\\b(nedir|kimdir|nasıl|neden|nerede|neresi|ne zaman|hangi|kaç|ne demek)\\b", " ");
+        s = s.replaceAll("(?iu)\\b(açıklar mısın|anlatır mısın|bilgi verir misin)\\b", " ");
+        s = s.replaceAll("(?iu)\\b(mı|mi|mu|mü)\\b", " ");
+        s = s.replaceAll("[?!.,]+$", " ").replaceAll("\\s+", " ").trim();
+        if (s.length() < 2) return query(raw).replaceAll("[?!.,]+$", "").trim();
+        return s;
+    }
+
     static boolean looksAlreadyLocal(String n) {
         return n.matches("(?:su an )?saat(?: kac( oldu)?)?")
                 || n.matches("(?:tarih|bugun hangi gun|bugun ayin kaci)")
