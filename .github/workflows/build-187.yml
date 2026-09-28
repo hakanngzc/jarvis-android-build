@@ -48,7 +48,7 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           python overlay170/patch_170.py "$PROJECT_DIR"
           cp overlay170/OpenWakeWordDetector.java overlay170/WakeWordGate.java overlay170/WakeWordService.java overlay170/WakeBootReceiver.java overlay170/JarvisForensics.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/"
-          python overlay187/patch_186.py "$PROJECT_DIR"
+          python overlay187/patch_187.py "$PROJECT_DIR"
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
           base64 -d overlay180/jarvis_icon_320_webp.b64 > "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp"
           cp "$PROJECT_DIR/app/src/main/assets/jarvis_core.webp" "$PROJECT_DIR/app/src/main/res/drawable-nodpi/jarvis_icon.webp"
