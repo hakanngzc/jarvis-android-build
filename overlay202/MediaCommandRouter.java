@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 
 public final class MediaCommandRouter {
     public static final String PROFILE="MEDIA_ENTITY_V4";
+    public static final String PAUSE_PROFILE="MEDIA_PAUSE_HOTFIX_V1";
     public static final long CONTEXT_WINDOW_MS=30L*60L*1000L;
 
     public static final class Command {
