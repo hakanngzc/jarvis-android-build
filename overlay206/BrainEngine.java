@@ -74,7 +74,9 @@ public final class BrainEngine {
                     broadConfidence(corrected),false,freeText);
         }
 
-        boolean safe=!freeText && best.score>=80 && !best.command.equals(corrected);
+        boolean correctionChanged=!corrected.equals(normalized);
+        boolean canonicalChanged=!best.command.equals(corrected);
+        boolean safe=!freeText && best.score>=80 && (correctionChanged||canonicalChanged);
         String routed=safe?best.command:original;
         return new Result(original,normalized,corrected,routed,best.intent,best.action,
                 entity.target,entity.provider,best.score,safe,freeText);
