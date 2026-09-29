@@ -18,10 +18,10 @@ public final class ContactCommandRouterTest {
         expect("İkbal'e WhatsApp'tan merhaba yaz","",0,"MESSAGE","ikbal","merhaba","whatsapp");
         expect("Ahmet'e WhatsApp'tan yaz","",0,"MESSAGE","ahmet","","whatsapp");
         expect("Ahmet'e mesaj gönder","",0,"MESSAGE","ahmet","","sms");
-        expect("Ahmet'e mesaj gönder merhaba nasılsın","",0,"MESSAGE","ahmet","merhaba nasilsin","sms");
+        expect("Ahmet'e mesaj gönder merhaba nasılsın","",0,"MESSAGE","ahmet","merhaba nasılsın","sms");
         expect("olmadı WhatsApp'tan yaz","Ahmet",1000,"MESSAGE","Ahmet","","whatsapp");
         expect("ona WhatsApp'tan merhaba yaz","İkbal",1000,"MESSAGE","İkbal","merhaba","whatsapp");
-        expect("ona mesaj at nasılsın","İkbal",1000,"MESSAGE","İkbal","nasilsin","sms");
+        expect("ona mesaj at nasılsın","İkbal",1000,"MESSAGE","İkbal","nasılsın","sms");
         expect("onu ara","Ahmet",1000,"CALL","Ahmet","","call");
 
         if(ContactCommandRouter.yes("evet"))pass++;else fail++;
