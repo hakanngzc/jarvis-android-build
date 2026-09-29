@@ -63,7 +63,9 @@ public final class AppCommandRouter {
         if(target==null)return "";
         String t=target.trim();
         t=t.replaceFirst("^(?:uygulama )","");
-        t=t.replaceAll("(?: yi| i| yu| u| yı| ı)$","");
+        t=t.replaceAll("(?: yi| i| yu| u| yi| i)$","");
+        t=t.replaceAll("(?iu)(?:yi|yı|yu|yü)$","");
+        if(t.endsWith("i")&&t.length()>4)t=t.substring(0,t.length()-1);
         t=t.replaceAll("\\s+"," ").trim();
         if("kamerayi".equals(t))t="kamera";
         else if("ayarlari".equals(t))t="ayarlar";
