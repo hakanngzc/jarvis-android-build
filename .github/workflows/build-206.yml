@@ -296,13 +296,13 @@ jobs:
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
 
           "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk
-          "$BT/zipalign" -c 4 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk
+          "$BT/zipalign" -c 4 work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk
 
       - name: Structural QA
         run: |
-          unzip -t work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk >/dev/null
-          "$BT/aapt" dump badging work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk > work/badging.txt
-          "$BT/aapt" dump xmltree work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
+          unzip -t work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk >/dev/null
+          "$BT/aapt" dump badging work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk > work/badging.txt
+          "$BT/aapt" dump xmltree work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk AndroidManifest.xml > work/manifest.txt
           cat work/badging.txt
 
           grep -q "package: name='com.hakan.jarvis'" work/badging.txt
@@ -349,23 +349,23 @@ jobs:
           grep -q 'LOCAL_INTENT_SIMILARITY_V1' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
           echo "BRAIN ENGINE / ASR / ENTITY / CONFIDENCE / LOCAL SIMILARITY PASS"
 
-          unzip -p work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk classes.dex > work/final.dex
+          unzip -p work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk classes.dex > work/final.dex
           python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_206',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V6_NATURAL_CONTEXT',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_WEB_API',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_OAUTH_PKCE_V1',b'SPOTIFY_WEB_API_V1',b'http://127.0.0.1:43821/callback',b'accounts.spotify.com/api/token',b'api.spotify.com/v1/search',b'user-modify-playback-state',b'DEVICE_CONTROL_V1',b'DEVICE_ACTIONS_V1',b'DeviceCommandRouter',b'DeviceActions',b'BLUETOOTH_ON',b'WIFI_ON',b'APP_CONTROL_V1',b'APP_ACTIONS_V1',b'AppCommandRouter',b'AppActions',b'CONTACT_INTELLIGENCE_V1',b'CONTACT_ACTIONS_V1',b'HOME_CORE_SMOOTH_VOICE_FOCUS_V1',b'ELITE_ATOM_V6_SMOOTH_VOICE_FOCUS',b'INTELLIGENCE_CORE_STAGE1_V1',b'SEMANTIC_COMMAND_BRAIN_V1',b'SemanticCommandBrain',b'BRAIN_ENGINE_V1',b'ASR_CORRECTION_V1',b'TURKISH_ENTITY_V2',b'CONFIDENCE_ENGINE_V1',b'LOCAL_INTENT_SIMILARITY_V1',b'BrainEngine',b'ContactCommandRouter',b'ContactActions',b'jarvisLastContactTarget',b'WAIT_CONFIRM',b'wa.me',b'jarvisLastAppTarget',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.6',b'JarvisHomeActivity',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
           echo "DEX BRAIN ENGINE + SEMANTIC CORE PASS"
 
-          unzip -Z1 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
-          unzip -Z1 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
-          test "$(unzip -Z1 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
+          unzip -Z1 work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
+          unzip -Z1 work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
+          test "$(unzip -Z1 work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk | grep -c '^classes[0-9]*\.dex$')" -eq 1
           echo "WAKE / ONNX / SINGLE DEX PASS"
 
       - name: Collect artifact
         run: |
           mkdir -p artifact
-          cp work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk artifact/
+          cp work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
           cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-web-api-test.txt work/device-control-test.txt work/app-control-test.txt work/contact-router-test.txt work/contact-match-test.txt work/semantic-brain-test.txt work/brain-engine-test.txt artifact/
-          sha256sum artifact/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk > artifact/SHA256.txt
+          sha256sum artifact/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
