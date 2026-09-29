@@ -213,12 +213,16 @@ public final class ContactActions {
         return out;
     }
 
+    public static boolean canDirectCall(Activity a){
+        return Build.VERSION.SDK_INT<23
+            ||a.checkSelfPermission(Manifest.permission.CALL_PHONE)==PackageManager.PERMISSION_GRANTED;
+    }
+
     public static ActionResult call(Activity a,ResolvedContact c){
         if(c==null||c.number.length()==0)return new ActionResult(false,false,"Numara yok.");
         Uri tel=Uri.fromParts("tel",c.number,null);
         try{
-            boolean direct=Build.VERSION.SDK_INT<23
-                ||a.checkSelfPermission(Manifest.permission.CALL_PHONE)==PackageManager.PERMISSION_GRANTED;
+            boolean direct=canDirectCall(a);
             Intent i=new Intent(direct?Intent.ACTION_CALL:Intent.ACTION_DIAL,tel);
             if(i.resolveActivity(a.getPackageManager())==null)return new ActionResult(false,false,"Telefon uygulaması bulunamadı.");
             a.startActivity(i);
