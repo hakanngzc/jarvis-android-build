@@ -111,14 +111,34 @@ public final class BrainEngine {
         if(e.provider.length()>0 && containsAny(n,"ac","baslat","calistir") && !containsAny(n,"cal ","oynat","sarki","muzik"))
             return new Candidate("APP","OPEN_PROVIDER",e.provider+" aç",94);
 
-        Matcher rel=Pattern.compile(".*?(\\d{1,4})\\s*(?:dakika|dk)\\s*sonra.*?alarm.*").matcher(n);
+        String naturalApp=findNaturalApp(n);
+        if(naturalApp.length()>0){
+            if(containsAny(n,"lazim","girecegim","kullanacagim","acmak istiyorum","baslatmak istiyorum"))
+                return new Candidate("APP","OPEN",naturalApp+" aç",90);
+            if(containsAny(n,"kapat","cikmak istiyorum","sonlandir"))
+                return new Candidate("APP","CLOSE",naturalApp+" kapat",92);
+        }
+
+        if(containsAny(n,"yarim saat sonra") && containsAny(n,"uyandir","alarm")){
+            return new Candidate("ALARM","SET_RELATIVE","30 dakika sonra alarm kur",99);
+        }
+
+        Matcher rel=Pattern.compile(".*?(\\d{1,4})\\s*(?:dakika|dk)\\s*sonra.*?(?:alarm|uyandir).*").matcher(n);
         if(rel.matches()){
             int min=Integer.parseInt(rel.group(1));
             if(min>=1&&min<=1440)
                 return new Candidate("ALARM","SET_RELATIVE",min+" dakika sonra alarm kur",99);
         }
 
-        if(n.matches(".*\\b(?:alarm|alaram)\\b.*"))
+        Matcher relHour=Pattern.compile(".*?(\\d{1,2})\\s*saat\\s*sonra.*?(?:alarm|uyandir).*").matcher(n);
+        if(relHour.matches()){
+            int hour=Integer.parseInt(relHour.group(1));
+            int min=hour*60;
+            if(hour>=1&&hour<=24)
+                return new Candidate("ALARM","SET_RELATIVE",min+" dakika sonra alarm kur",99);
+        }
+
+        if(n.matches(".*\\b(?:alarm|alaram|uyandir)\\b.*"))
             return new Candidate("ALARM","ALARM_COMMAND",n,86);
 
         if(n.matches("^.+\\s+ara$")&&!n.matches(".*\\d.*"))
@@ -204,6 +224,27 @@ public final class BrainEngine {
         int minutes=-1;
     }
 
+    private static String findNaturalApp(String n){
+        String[][] apps={
+            {"instagram","instagram","insta"},
+            {"whatsapp","whatsapp","vatsap","watsap"},
+            {"telegram","telegram"},
+            {"spotify","spotify","spotifay"},
+            {"youtube","youtube","yutub"},
+            {"chrome","chrome","krom"},
+            {"kamera","kamera","camera"},
+            {"galeri","galeri","gallery"},
+            {"ayarlar","ayarlar"},
+            {"kişiler","kisiler","rehber"}
+        };
+        for(String[] row:apps){
+            for(int i=1;i<row.length;i++){
+                if((" "+n+" ").contains(" "+row[i]+" "))return row[0];
+            }
+        }
+        return "";
+    }
+
     private static Entity extractEntities(String n){
         Entity e=new Entity();
         if(containsAny(n,"spotify","spotif"))e.provider="spotify";
@@ -228,6 +269,9 @@ public final class BrainEngine {
         s=s.replaceAll("\\b(?:spotifay|spotifai|spotifiy|spotif)\\b","spotify");
         s=s.replaceAll("\\b(?:you tube|yutub|youtub)\\b","youtube");
         s=s.replaceAll("\\b(?:alaram|alarmm)\\b","alarm");
+        s=s.replaceAll("\\b(?:vatsap|watsap|vat sap)\\b","whatsapp");
+        s=s.replaceAll("\\b(?:insta gram)\\b","instagram");
+        s=s.replaceAll("\\b(?:krom)\\b","chrome");
         s=s.replaceAll("\\b(?:aktiflestir|aktiflestir)\\b","aktif et");
         s=s.replaceAll("\\s+"," ").trim();
         return s;
