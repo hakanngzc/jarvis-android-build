@@ -92,7 +92,7 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     if release not in s:
         raise SystemExit(name+': 2.0.5.1 release marker missing')
     s=s.replace(release,
-'''        View n2052=jarvisReleaseCard("JARVIS 2.0.5.3","LARGE CORE + DOUBLE MOTION",
+'''        View n2053=jarvisReleaseCard("JARVIS 2.0.5.3","LARGE CORE CRASH HOTFIX",
             "• Ana menüdeki Komut/Cevap paneli tamamen kaldırıldı.\\n• Çekirdek 292dp'den 356dp'ye büyütüldü ve boşalan alan çekirdeğe verildi.\\n• Çekirdeğin tam animasyon döngüsü 9000 ms'den 4500 ms'ye düşürüldü; orbit, pulse, elektron bulutu ve precession hareketleri gerçek 2× hızda çalışır.\\n• Ana ekran daha sade, çekirdek daha baskın hale getirildi.\\n• 2.0.5 Contact Intelligence ve tüm önceki motorlar korunur.",true);
         View n2051=jarvisReleaseCard("JARVIS 2.0.5.1","MAIN COMMAND STRIP STABILITY",''',1)
 
@@ -105,10 +105,10 @@ for name in ['HybridActivity.java','JarvisHomeActivity.java']:
     cards='View[] cards={n2051,n205,n204,n203,n2024,n2022,n2022legacy,n2021,n202,n201,n200,n199,n198,n197,n196,n195,n164};'
     if cards not in s:
         raise SystemExit(name+': release cards marker missing')
-    s=s.replace(cards,'View[] cards={n2053,n2052,n2051,n205,n204,n203,n2024,n2022,n2022legacy,n2021,n202,n201,n200,n199,n198,n197,n196,n195,n164};',1)
+    s=s.replace(cards,'View[] cards={n2053,n2051,n205,n204,n203,n2024,n2022,n2022legacy,n2021,n202,n201,n200,n199,n198,n197,n196,n195,n164};',1)
 
     s=s.replace('JARVIS 2.0.5.1  •  UI STABILITY','JARVIS 2.0.5.3  •  LARGE CORE',1)
-    s=s.replace('JARVIS 2.0.5.1  •  build 132','JARVIS 2.0.5.3  •  build 133',1)
+    s=s.replace('JARVIS 2.0.5.1  •  build 132','JARVIS 2.0.5.3  •  build 134',1)
     s=s.replace('JARVIS  •  ELITE INTERFACE  •  2.0.5.1','JARVIS  •  ELITE INTERFACE  •  2.0.5.3',1)
     p.write_text(s,encoding='utf-8')
 
