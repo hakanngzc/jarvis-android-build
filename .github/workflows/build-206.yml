@@ -1,5 +1,5 @@
-name: Build JARVIS 2.0.6 Intelligence Core Stage 1
-# intelligence-core-stage1-v1
+name: Build JARVIS 2.0.6 Brain Engine 1.0
+# brain-engine-v1
 
 on:
   workflow_dispatch:
@@ -87,7 +87,7 @@ jobs:
           cp overlay204/AppActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AppActions.java"
           python overlay204/patch_204.py "$PROJECT_DIR"
           cp overlay205/ContactCommandRouter.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContactCommandRouter.java"
-          cp overlay205/ContactActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContactActions.java"
+          cp overlay205/ContactActions.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContactActions.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SemanticCommandBrain.java"
           python overlay205/patch_205.py "$PROJECT_DIR"
           python overlay2051/patch_2051.py "$PROJECT_DIR"
           cp overlay2055/JarvisAtomCoreView.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisAtomCoreView.java"
@@ -95,6 +95,7 @@ jobs:
           python overlay2054/patch_2054.py "$PROJECT_DIR"
           python overlay2055/patch_2055.py "$PROJECT_DIR"
           cp overlay206/SemanticCommandBrain.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SemanticCommandBrain.java"
+          cp overlay206/BrainEngine.java "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
           python overlay206/patch_206.py "$PROJECT_DIR"
 
           mkdir -p "$PROJECT_DIR/app/src/main/assets" "$PROJECT_DIR/app/src/main/res/drawable-nodpi"
@@ -223,6 +224,7 @@ jobs:
           test -f work/classes/com/hakan/jarvis/ContactCommandRouter.class
           test -f work/classes/com/hakan/jarvis/ContactActions.class
           test -f work/classes/com/hakan/jarvis/SemanticCommandBrain.class
+          test -f work/classes/com/hakan/jarvis/BrainEngine.class
           test -f work/classes/com/hakan/jarvis/JarvisMediaListener.class
           test -f work/classes/com/hakan/jarvis/JarvisAtomCoreView.class
           test -f work/classes/com/hakan/jarvis/JarvisEliteBackdropView.class
@@ -234,7 +236,7 @@ jobs:
         run: |
           rm -rf work/qa && mkdir -p work/qa
           javac -encoding UTF-8 -cp "$ANDROID_JAR:work/json.jar" -d work/qa             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmTime.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AlarmPlan.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/PhoneCommand.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandLanguage.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/CommandChain.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ConversationRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContextCommandResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineQueryRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/OnlineConversationContext.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/MediaCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ExactSongResolver.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyOAuthManager.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SpotifyWebApi.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/DeviceCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/AppCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContactCommandRouter.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/ContactActions.java"             "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SemanticCommandBrain.java"             "$PROJECT_DIR/qa/AlarmPlanTest.java"             "$PROJECT_DIR/qa/PhoneCommandTest.java"             "$PROJECT_DIR/qa/UnderstandingTest.java"             "$PROJECT_DIR/qa/WakeWordTest.java"             "$PROJECT_DIR/qa/CommandChainTest.java"             overlay196/ConversationRouterTest.java             overlay197/ConversationContextTest.java             overlay198/ConversationMemoryTest.java             overlay199/ContextCommandResolverTest.java             overlay200/OnlineQueryRouterTest.java             overlay201/OnlineConversationContextTest.java             overlay204/MediaCommandRouterTest.java             overlay2023/ExactSongResolverTest.java             overlay2024/SpotifyWebApiTest.java             overlay203/DeviceCommandRouterTest.java             overlay204/AppCommandRouterTest.java             overlay205/ContactCommandRouterTest.java             overlay205/ContactActionsMatchTest.java \
-            overlay206/SemanticCommandBrainTest.java
+            overlay206/SemanticCommandBrainTest.java             overlay206/BrainEngineTest.java
 
           java -cp work/qa AlarmPlanTest | tee work/alarm-test.txt
           java -cp work/qa PhoneCommandTest | tee work/phone-test.txt
@@ -255,6 +257,7 @@ jobs:
           java -cp work/qa com.hakan.jarvis.ContactCommandRouterTest | tee work/contact-router-test.txt
           java -cp "$ANDROID_JAR:work/qa" com.hakan.jarvis.ContactActionsMatchTest | tee work/contact-match-test.txt
           java -cp work/qa com.hakan.jarvis.SemanticCommandBrainTest | tee work/semantic-brain-test.txt
+          java -cp work/qa com.hakan.jarvis.BrainEngineTest | tee work/brain-engine-test.txt
 
           grep -q "FAIL 0" work/chain-test.txt
           grep -q "FAIL 0" work/conversation-test.txt
@@ -271,6 +274,7 @@ jobs:
           grep -q "FAIL 0" work/contact-router-test.txt
           grep -q "FAIL 0" work/contact-match-test.txt
           grep -q "FAIL 0" work/semantic-brain-test.txt
+          grep -q "FAIL 0" work/brain-engine-test.txt
 
       - name: Merge legacy engine with 2.0.6 classes
         run: |
@@ -291,7 +295,7 @@ jobs:
           if [ -d work/ort/jni/armeabi-v7a ]; then cp work/ort/jni/armeabi-v7a/*.so work/apklibs/lib/armeabi-v7a/; fi
           (cd work/apklibs && zip -qr ../unsigned.apk lib)
 
-          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk
+          "$BT/zipalign" -f 4 work/unsigned.apk work/JARVIS_2.0.6_BRAIN_ENGINE_UNSIGNED.apk
           "$BT/zipalign" -c 4 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk
 
       - name: Structural QA
@@ -337,10 +341,17 @@ jobs:
           grep -q 'AUTO_THRESHOLD=88' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SemanticCommandBrain.java"
           grep -q 'CONFIRM_THRESHOLD=70' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/SemanticCommandBrain.java"
           echo "SEMANTIC BRAIN / CONFIDENCE GATE PASS"
+          grep -q 'BrainEngine.Result jarvisBrain=BrainEngine.analyze(raw)' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/JarvisHomeActivity.java"
+          grep -q 'BRAIN_ENGINE_V1' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
+          grep -q 'ASR_CORRECTION_V1' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
+          grep -q 'TURKISH_ENTITY_V2' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
+          grep -q 'CONFIDENCE_ENGINE_V1' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
+          grep -q 'LOCAL_INTENT_SIMILARITY_V1' "$PROJECT_DIR/app/src/main/java/com/hakan/jarvis/BrainEngine.java"
+          echo "BRAIN ENGINE / ASR / ENTITY / CONFIDENCE / LOCAL SIMILARITY PASS"
 
           unzip -p work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk classes.dex > work/final.dex
-          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_206',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V6_NATURAL_CONTEXT',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_WEB_API',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_OAUTH_PKCE_V1',b'SPOTIFY_WEB_API_V1',b'http://127.0.0.1:43821/callback',b'accounts.spotify.com/api/token',b'api.spotify.com/v1/search',b'user-modify-playback-state',b'DEVICE_CONTROL_V1',b'DEVICE_ACTIONS_V1',b'DeviceCommandRouter',b'DeviceActions',b'BLUETOOTH_ON',b'WIFI_ON',b'APP_CONTROL_V1',b'APP_ACTIONS_V1',b'AppCommandRouter',b'AppActions',b'CONTACT_INTELLIGENCE_V1',b'CONTACT_ACTIONS_V1',b'HOME_CORE_SMOOTH_VOICE_FOCUS_V1',b'ELITE_ATOM_V6_SMOOTH_VOICE_FOCUS',b'INTELLIGENCE_CORE_STAGE1_V1',b'SEMANTIC_COMMAND_BRAIN_V1',b'SemanticCommandBrain',b'ContactCommandRouter',b'ContactActions',b'jarvisLastContactTarget',b'WAIT_CONFIRM',b'wa.me',b'jarvisLastAppTarget',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.6',b'JarvisHomeActivity',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
-          echo "DEX INTELLIGENCE CORE STAGE 1 PASS"
+          python -c "d=open('work/final.dex','rb').read(); checks=[b'CONTEXT_MEMORY_V3',b'CONTEXTUAL_COMMANDS_V1',b'ONLINE_INTELLIGENCE_ROUTER_V1',b'ONLINE_INTELLIGENCE_ENGINE_V1',b'RELEASE_NOTES_206',b'OnlineQueryRouter',b'OnlineIntelligenceEngine',b'ONLINE_CONTEXT_V2',b'OnlineConversationContext',b'MEDIA_ENTITY_V6_NATURAL_CONTEXT',b'MEDIA_PAUSE_HOTFIX_V1',b'MEDIA_ACTIONS_V4_SPOTIFY_WEB_API',b'MEDIA_SESSION_LISTENER_V1',b'MediaCommandRouter',b'MediaActions',b'EXACT_SONG_RESOLVER_V1',b'ExactSongResolver',b'musicbrainz.org',b'playFromSearch',b'SPOTIFY_OAUTH_PKCE_V1',b'SPOTIFY_WEB_API_V1',b'http://127.0.0.1:43821/callback',b'accounts.spotify.com/api/token',b'api.spotify.com/v1/search',b'user-modify-playback-state',b'DEVICE_CONTROL_V1',b'DEVICE_ACTIONS_V1',b'DeviceCommandRouter',b'DeviceActions',b'BLUETOOTH_ON',b'WIFI_ON',b'APP_CONTROL_V1',b'APP_ACTIONS_V1',b'AppCommandRouter',b'AppActions',b'CONTACT_INTELLIGENCE_V1',b'CONTACT_ACTIONS_V1',b'HOME_CORE_SMOOTH_VOICE_FOCUS_V1',b'ELITE_ATOM_V6_SMOOTH_VOICE_FOCUS',b'INTELLIGENCE_CORE_STAGE1_V1',b'SEMANTIC_COMMAND_BRAIN_V1',b'SemanticCommandBrain',b'BRAIN_ENGINE_V1',b'ASR_CORRECTION_V1',b'TURKISH_ENTITY_V2',b'CONFIDENCE_ENGINE_V1',b'LOCAL_INTENT_SIMILARITY_V1',b'BrainEngine',b'ContactCommandRouter',b'ContactActions',b'jarvisLastContactTarget',b'WAIT_CONFIRM',b'wa.me',b'jarvisLastAppTarget',b'jarvisMediaProvider',b'jarvisRequestOnlineIntelligence',b'tr.wikipedia.org',b'searchTerms',b'JARVIS 2.0.6',b'JarvisHomeActivity',b'ELITE_BACKDROP_V1',b'jarvis_chat_history']; print({x.decode('utf-8','ignore'):(x in d) for x in checks}); assert all(x in d for x in checks)"
+          echo "DEX BRAIN ENGINE + SEMANTIC CORE PASS"
 
           unzip -Z1 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk | grep -Fxq 'assets/openwakeword/hey_jarvis_v0.1.onnx'
           unzip -Z1 work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk | grep -Fxq 'lib/arm64-v8a/libonnxruntime.so'
@@ -353,12 +364,12 @@ jobs:
           cp work/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk artifact/
           cp "$BT/lib/apksigner.jar" artifact/
           cp work/badging.txt work/manifest.txt work/wake-model-sha256.txt artifact/
-          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-web-api-test.txt work/device-control-test.txt work/app-control-test.txt work/contact-router-test.txt work/contact-match-test.txt work/semantic-brain-test.txt artifact/
+          cp work/alarm-test.txt work/phone-test.txt work/understanding-test.txt work/wake-parser-test.txt work/chain-test.txt work/conversation-test.txt work/context-test.txt work/memory-test.txt work/context-command-test.txt work/online-query-test.txt work/online-context-test.txt work/media-entity-test.txt work/exact-song-test.txt work/spotify-web-api-test.txt work/device-control-test.txt work/app-control-test.txt work/contact-router-test.txt work/contact-match-test.txt work/semantic-brain-test.txt work/brain-engine-test.txt artifact/
           sha256sum artifact/JARVIS_2.0.6_INTELLIGENCE_CORE_UNSIGNED.apk > artifact/SHA256.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-2.0.6-intelligence-core
+          name: JARVIS-2.0.6-brain-engine
           path: artifact/
           if-no-files-found: error
