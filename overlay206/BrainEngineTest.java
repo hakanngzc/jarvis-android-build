@@ -30,6 +30,11 @@ public final class BrainEngineTest {
 
         check("spotifay aç","APP","OPEN_PROVIDER","spotify aç",90);
         check("20 dk sonra alaram kur","ALARM","SET_RELATIVE","20 dakika sonra alarm kur",95);
+        check("yarım saat sonra beni uyandır","ALARM","SET_RELATIVE","30 dakika sonra alarm kur",95);
+        check("2 saat sonra uyandır","ALARM","SET_RELATIVE","120 dakika sonra alarm kur",95);
+        check("Instagram lazım","APP","OPEN","instagram aç",88);
+        check("vatsap kullanacağım","APP","OPEN","whatsapp aç",88);
+        check("yutub gireceğim","APP","OPEN","youtube aç",88);
         check("Biraderimi ara","CONTACT_CALL","CALL","",85);
         check("İkbal'e WhatsApp'tan merhaba nasılsın yaz","CONTACT_MESSAGE","MESSAGE","",85);
 
