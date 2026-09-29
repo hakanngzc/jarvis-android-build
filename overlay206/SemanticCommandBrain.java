@@ -78,7 +78,7 @@ public final class SemanticCommandBrain {
             onScore=89;reason=label+" + ihtiyaç bağlamı";
         }
 
-        if(hasAny(q,"pasif et","pasiflestir","devre disi birak","devreden cikar","kapat","sonlandir")){
+        if(hasAny(q,"pasif et","pasiflestir","devre disi birak","devreden cikar","kapat","kapa","kapansin","kapan","sonlandir")){
             offScore=96;reason=label+" + kapatma ifadesi";
         }else if(hasAny(q,"gerekmiyor","lazim degil","ihtiyacim yok","kullanmayacagim")){
             offScore=90;reason=label+" + ihtiyaç yok bağlamı";
@@ -115,7 +115,7 @@ public final class SemanticCommandBrain {
     }
 
     private static Resolution media(String q){
-        boolean music=hasAny(q,"muzik","sarki","parca","oynatma","spotify");
+        boolean music=hasAny(q,"muzik","muzigi","muzige","sarki","sarkiyi","sarkiya","parca","parcayi","parcaya","oynatma","spotify");
         if(hasAny(q,"duraklat","beklet","biraz beklet","muzigi durdur","sarkiyi durdur","oynatmayi durdur")){
             return new Resolution("MEDIA_PAUSE","müziği durdur",music?95:78,music?"medya + duraklatma":"duraklatma ifadesi");
         }
