@@ -1,4 +1,4 @@
-name: Build JARVIS 2.0.6.1.1 System Clock Alarm
+name: Build JARVIS 2.0.6.1 System Clock Alarm
 # system-clock-alarm-v1
 
 on:
@@ -38,7 +38,7 @@ jobs:
           keytool -printcert -jarfile JARVIS_v1.5.7_STABLE_VOICE_READY.apk > base-cert.txt
           grep -q "F2:4F:05:32:8D:0D:A5:5A:60:53:BD:31:22:17:40:86:42:5E:A7:3B:EC:91:76:92:2E:13:44:CD:B1:E8:30:8A" base-cert.txt
 
-      - name: Prepare JARVIS 2.0.6.1.1 source
+      - name: Prepare JARVIS 2.0.6.1 source
         run: |
           rm -rf work
           mkdir -p work/src
@@ -201,7 +201,7 @@ jobs:
           }
           JAVA
 
-      - name: Compile JARVIS 2.0.6.1.1 overlay
+      - name: Compile JARVIS 2.0.6.1 overlay
         run: |
           mkdir -p work/classes
           LIBCP="$PROJECT_DIR/app/libs/okhttp-3.12.13.jar:$PROJECT_DIR/app/libs/okio-1.17.5.jar:work/ort/classes.jar"
@@ -290,7 +290,7 @@ jobs:
           test -s work/dex/classes.dex
           test "$(find work/dex -maxdepth 1 -type f -name '*.dex' | wc -l)" -eq 1
 
-      - name: Package JARVIS 2.0.6.1.1 APK
+      - name: Package JARVIS 2.0.6.1 APK
         run: |
           "$BT/aapt" package -f             -M "$PROJECT_DIR/app/src/main/AndroidManifest.xml"             -I "$ANDROID_JAR"             -S "$PROJECT_DIR/app/src/main/res"             -A "$PROJECT_DIR/app/src/main/assets"             -F work/unsigned.apk
           (cd work/dex && zip -q ../unsigned.apk classes.dex)
