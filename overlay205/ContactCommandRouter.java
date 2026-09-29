@@ -30,7 +30,8 @@ public final class ContactCommandRouter {
     private ContactCommandRouter(){}
 
     public static Command parse(String raw,String lastContact,long ageMs){
-        String n=normalize(stripWake(raw));
+        String original=stripWake(raw).trim();
+        String n=normalize(original);
         if(n.length()==0)return null;
         boolean recent=lastContact!=null&&lastContact.trim().length()>0&&ageMs>=0&&ageMs<=CONTEXT_WINDOW_MS;
 
@@ -40,7 +41,7 @@ public final class ContactCommandRouter {
 
             Matcher ctxWaMsg=Pattern.compile("^(?:olmadi )?(?:ona )?whatsapp (?:tan|dan) (.+?) (?:yaz|gonder)$").matcher(n);
             if(ctxWaMsg.matches())
-                return new Command("MESSAGE",lastContact,cleanMessage(ctxWaMsg.group(1)),"whatsapp");
+                return new Command("MESSAGE",lastContact,recoverContextWhatsAppMessage(original,cleanMessage(ctxWaMsg.group(1))),"whatsapp");
 
             if(n.matches("^(?:olmadi )?(?:ona )?whatsapp (?:tan|dan) (?:yaz|mesaj at|mesaj gonder)$")
                     || eqAny(n,"whatsapptan yaz","ona whatsapptan yaz","olmadı whatsapptan yaz"))
@@ -48,7 +49,7 @@ public final class ContactCommandRouter {
 
             Matcher ctxSmsMsg=Pattern.compile("^(?:ona )?(?:mesaj|sms) (?:at|gonder) (.+)$").matcher(n);
             if(ctxSmsMsg.matches())
-                return new Command("MESSAGE",lastContact,cleanMessage(ctxSmsMsg.group(1)),"sms");
+                return new Command("MESSAGE",lastContact,recoverContextSmsMessage(original,cleanMessage(ctxSmsMsg.group(1))),"sms");
 
             if(n.matches("^(?:ona )?(?:mesaj|sms) (?:at|gonder)$"))
                 return new Command("MESSAGE",lastContact,"","sms");
@@ -57,7 +58,7 @@ public final class ContactCommandRouter {
         Matcher waWithText=Pattern.compile("^(.+?) (?:e|a) whatsapp (?:tan|dan) (.+?) (?:yaz|gonder)$").matcher(n);
         if(waWithText.matches()){
             String target=cleanTarget(waWithText.group(1));
-            if(validTarget(target))return new Command("MESSAGE",target,cleanMessage(waWithText.group(2)),"whatsapp");
+            if(validTarget(target))return new Command("MESSAGE",target,recoverWhatsAppMessage(original,cleanMessage(waWithText.group(2))),"whatsapp");
         }
 
         Matcher waNoText=Pattern.compile("^(.+?) (?:e|a) whatsapp (?:tan|dan) (?:yaz|mesaj at|mesaj gonder)$").matcher(n);
@@ -69,7 +70,7 @@ public final class ContactCommandRouter {
         Matcher smsWithText=Pattern.compile("^(.+?) (?:e|a) (?:mesaj|sms) (?:gonder|at) (.+)$").matcher(n);
         if(smsWithText.matches()){
             String target=cleanTarget(smsWithText.group(1));
-            if(validTarget(target))return new Command("MESSAGE",target,cleanMessage(smsWithText.group(2)),"sms");
+            if(validTarget(target))return new Command("MESSAGE",target,recoverSmsMessage(original,cleanMessage(smsWithText.group(2))),"sms");
         }
 
         Matcher smsNoText=Pattern.compile("^(.+?) (?:e|a) (?:mesaj|sms) (?:gonder|at)$").matcher(n);
@@ -86,6 +87,38 @@ public final class ContactCommandRouter {
         }
 
         return null;
+    }
+
+    static String recoverWhatsAppMessage(String original,String fallback){
+        try{
+            Matcher m=Pattern.compile("(?iu)^.+?['’]?[ea]\\s+whatsapp['’]?(?:tan|dan)\\s+(.+?)\\s+(?:yaz|gönder)$").matcher(original);
+            if(m.matches())return m.group(1).trim();
+        }catch(Exception ignored){}
+        return fallback;
+    }
+
+    static String recoverContextWhatsAppMessage(String original,String fallback){
+        try{
+            Matcher m=Pattern.compile("(?iu)^(?:olmadı\\s+)?(?:ona\\s+)?whatsapp['’]?(?:tan|dan)\\s+(.+?)\\s+(?:yaz|gönder)$").matcher(original);
+            if(m.matches())return m.group(1).trim();
+        }catch(Exception ignored){}
+        return fallback;
+    }
+
+    static String recoverSmsMessage(String original,String fallback){
+        try{
+            Matcher m=Pattern.compile("(?iu)^.+?['’]?[ea]\\s+(?:mesaj|sms)\\s+(?:gönder|at)\\s+(.+)$").matcher(original);
+            if(m.matches())return m.group(1).trim();
+        }catch(Exception ignored){}
+        return fallback;
+    }
+
+    static String recoverContextSmsMessage(String original,String fallback){
+        try{
+            Matcher m=Pattern.compile("(?iu)^(?:ona\\s+)?(?:mesaj|sms)\\s+(?:gönder|at)\\s+(.+)$").matcher(original);
+            if(m.matches())return m.group(1).trim();
+        }catch(Exception ignored){}
+        return fallback;
     }
 
     static String cleanTarget(String s){
