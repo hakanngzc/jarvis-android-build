@@ -85,7 +85,9 @@ public class ControlOverlay extends View {
             postInvalidateDelayed(250);
         }
 
-        postInvalidateDelayed(100); // HUD_LOOP\n\n        if(now < game.getStatusUntil()){
+        postInvalidateDelayed(100);
+
+        if(now < game.getStatusUntil()){
             String status=game.getStatusText();
             if(status!=null && !status.isEmpty()){
                 fill.setTextAlign(Paint.Align.CENTER); fill.setTextSize(dp(12)); fill.setColor(Color.WHITE);
