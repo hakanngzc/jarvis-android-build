@@ -34,8 +34,8 @@ public class VoxelGameView extends GLSurfaceView {
     public void breakBlock(){ queueEvent(renderer::breakBlock); }
     public void placeBlock(){ queueEvent(renderer::placeBlock); }
     public void selectBlock(int i){
-        renderer.selected=Math.max(0,Math.min(3,i));
-        showStatus(new String[]{"Çim","Toprak","Taş","Odun"}[renderer.selected]+" seçildi");
+        renderer.selected=Math.max(0,Math.min(4,i));
+        showStatus(new String[]{"Çim","Toprak","Taş","Odun","Yaprak"}[renderer.selected]+" seçildi");
     }
     public String getStatusText(){ return statusText; }
     public long getStatusUntil(){ return statusUntil; }
@@ -95,7 +95,7 @@ public class VoxelGameView extends GLSurfaceView {
         float spawnX,spawnY,spawnZ;
         boolean grounded=false;
         long lastNanos=0;
-        final int[] palette={1,2,3,4};
+        final int[] palette={1,2,3,4,5};
 
         VoxelRenderer(){
             outlineBuffer=ByteBuffer.allocateDirect(24*6*4).order(ByteOrder.nativeOrder()).asFloatBuffer();
