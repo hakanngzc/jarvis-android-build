@@ -23,14 +23,14 @@ public class VoxelGameView extends GLSurfaceView {
     public void selectBlock(int i){ renderer.selected=Math.max(0,Math.min(3,i)); }
 
     static class VoxelRenderer implements Renderer {
-        static final int SX=24,SY=12,SZ=24;
+        static final int SX=32,SY=16,SZ=32;
         final int[][][] world=new int[SX][SY][SZ];
         final float[] proj=new float[16],view=new float[16],vp=new float[16];
         FloatBuffer mesh; int vertexCount=0; boolean meshDirty=true;
         int program,aPos,aColor,uMvp;
         volatile float moveX=0,moveForward=0,yawDelta=0,pitchDelta=0;
         volatile boolean wantJump=false; volatile int selected=0;
-        float px=12.5f,py=6,pz=12.5f,yaw=0,pitch=-8,vy=0;
+        float px=16.5f,py=7,pz=16.5f,yaw=0,pitch=-8,vy=0;
         float spawnX,spawnY,spawnZ; boolean grounded=false;
         long lastNanos=0;
         final int[] palette={1,2,3,4};
@@ -40,7 +40,7 @@ public class VoxelGameView extends GLSurfaceView {
             program=createProgram(VS,FS); aPos=GLES20.glGetAttribLocation(program,"aPos"); aColor=GLES20.glGetAttribLocation(program,"aColor"); uMvp=GLES20.glGetUniformLocation(program,"uMvp");
             generateWorld(); rebuildMesh();
         }
-        @Override public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl,int width,int height){ GLES20.glViewport(0,0,width,height); Matrix.perspectiveM(proj,0,67f,width/(float)Math.max(1,height),0.08f,70f); }
+        @Override public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl,int width,int height){ GLES20.glViewport(0,0,width,height); Matrix.perspectiveM(proj,0,67f,width/(float)Math.max(1,height),0.08f,90f); }
         @Override public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl){
             long now=System.nanoTime(); float dt=lastNanos==0?0.016f:(now-lastNanos)/1_000_000_000f; lastNanos=now; if(dt>0.05f)dt=0.05f;
             update(dt); if(meshDirty)rebuildMesh();
@@ -58,11 +58,11 @@ public class VoxelGameView extends GLSurfaceView {
         void generateWorld(){
             Random rnd=new Random(3042026L); int spawnGround=0;
             for(int x=0;x<SX;x++) for(int z=0;z<SZ;z++){
-                int h=3+(int)Math.round(1.15*Math.sin(x*0.48)+0.9*Math.cos(z*0.38)+0.55*Math.sin((x+z)*0.31)); h=Math.max(2,Math.min(6,h));
+                int h=4+(int)Math.round(1.45*Math.sin(x*0.31)+1.10*Math.cos(z*0.27)+0.75*Math.sin((x+z)*0.19)+0.35*Math.cos((x-z)*0.41)); h=Math.max(2,Math.min(8,h));
                 for(int y=0;y<=h;y++){ if(y==h)world[x][y][z]=1; else if(y>=h-2)world[x][y][z]=2; else world[x][y][z]=3; }
                 if(x==SX/2&&z==SZ/2)spawnGround=h;
             }
-            for(int i=0;i<11;i++){
+            for(int i=0;i<22;i++){
                 int x=2+rnd.nextInt(SX-4), z=2+rnd.nextInt(SZ-4); if(Math.abs(x-SX/2)<3&&Math.abs(z-SZ/2)<3)continue; int y=topY(x,z)+1; if(y<2||y+4>=SY)continue;
                 for(int t=0;t<3;t++) world[x][y+t][z]=4;
                 for(int ox=-2;ox<=2;ox++)for(int oz=-2;oz<=2;oz++)for(int oy=2;oy<=4;oy++) if(Math.abs(ox)+Math.abs(oz)+(oy==4?1:0)<=3){ int xx=x+ox,zz=z+oz,yy=y+oy; if(in(xx,yy,zz)&&world[xx][yy][zz]==0)world[xx][yy][zz]=5; }
