@@ -1,7 +1,7 @@
 name: Build VoxelCraft APK
 on:
   push:
-    branches: [ "voxelcraft-v0.2" ]
+    branches: [ "voxelcraft-v0.3" ]
   workflow_dispatch:
 jobs:
   build:
@@ -29,7 +29,7 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" signing-tools/zipalign
       - uses: actions/upload-artifact@v4
         with:
-          name: voxelcraft-v0.2-unsigned
+          name: voxelcraft-v0.3-unsigned
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             signing-tools/apksigner.jar
