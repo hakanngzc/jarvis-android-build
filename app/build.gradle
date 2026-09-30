@@ -1,0 +1,20 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.hakan.voxelcraft'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.hakan.voxelcraft'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
