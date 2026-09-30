@@ -17,6 +17,7 @@ public class VoxelGameView extends GLSurfaceView {
     private final SharedPreferences prefs;
     private volatile String statusText="";
     private volatile long statusUntil=0;
+    private final int[] inventory={0,0,0,0,0};
 
     public VoxelGameView(Context context){
         super(context);
@@ -39,6 +40,7 @@ public class VoxelGameView extends GLSurfaceView {
     }
     public String getStatusText(){ return statusText; }
     public long getStatusUntil(){ return statusUntil; }
+    public int getInventoryCount(int i){ return (i>=0&&i<inventory.length)?inventory[i]:0; }
     private void showStatus(String s){ statusText=s; statusUntil=System.currentTimeMillis()+1300; }
     public void requestSave(){ queueEvent(this::saveWorld); }
 
@@ -52,6 +54,8 @@ public class VoxelGameView extends GLSurfaceView {
                 .putString("blocks",Base64.encodeToString(data,Base64.NO_WRAP))
                 .putFloat("px",renderer.px).putFloat("py",renderer.py).putFloat("pz",renderer.pz)
                 .putFloat("yaw",renderer.yaw).putFloat("pitch",renderer.pitch)
+                .putInt("inv0",inventory[0]).putInt("inv1",inventory[1]).putInt("inv2",inventory[2])
+                .putInt("inv3",inventory[3]).putInt("inv4",inventory[4])
                 .apply();
     }
 
@@ -70,6 +74,7 @@ public class VoxelGameView extends GLSurfaceView {
             renderer.pz=prefs.getFloat("pz",VoxelRenderer.SZ/2f+.5f);
             renderer.yaw=prefs.getFloat("yaw",0f);
             renderer.pitch=prefs.getFloat("pitch",-8f);
+            for(int i=0;i<inventory.length;i++) inventory[i]=prefs.getInt("inv"+i,0);
             return true;
         }catch(Exception e){
             return false;
@@ -309,10 +314,12 @@ public class VoxelGameView extends GLSurfaceView {
             int[] r=raycast();
             if(r==null){showStatus("Blok menzil dışında");return;}
             if(r[1]==0){showStatus("En alt katman kırılamaz");return;}
+            int broken=world[r[0]][r[1]][r[2]];
             world[r[0]][r[1]][r[2]]=0;
+            if(broken>=1&&broken<=5) inventory[broken-1]++;
             meshDirty=true;
             saveWorld();
-            showStatus("Blok kırıldı • kaydedildi");
+            showStatus("Blok toplandı • "+inventory[Math.max(0,Math.min(4,broken-1))]+" adet");
         }
 
         void placeBlock(){
@@ -321,17 +328,20 @@ public class VoxelGameView extends GLSurfaceView {
             int x=r[3],y=r[4],z=r[5];
             if(!in(x,y,z)||world[x][y][z]!=0)return;
 
+            if(inventory[selected]<=0){ showStatus("Bu bloktan envanterde yok"); return; }
             int old=world[x][y][z];
             world[x][y][z]=palette[selected];
+            inventory[selected]--;
             if(collides(px,py,pz)){
                 world[x][y][z]=old;
+                inventory[selected]++;
                 showStatus("Buraya blok koyamazsın");
                 return;
             }
 
             meshDirty=true;
             saveWorld();
-            showStatus("Blok yerleştirildi • kaydedildi");
+            showStatus("Blok yerleştirildi • "+inventory[selected]+" kaldı");
         }
 
         boolean in(int x,int y,int z){
