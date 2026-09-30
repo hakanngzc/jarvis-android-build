@@ -61,12 +61,35 @@ public class ControlOverlay extends View {
             c.drawText(String.valueOf(game.getInventoryCount(i)),slots[i].right-dp(5),slots[i].top+dp(12),fill);
         }
 
+        int hp=game.getHealth(), food=game.getHunger();
+        float pip=dp(13), pgap=dp(3), rowY=sy-dp(25);
+        float leftStart=w/2f-(pip+pgap)*10-dp(12);
+        for(int i=0;i<10;i++){
+            RectF p=new RectF(leftStart+i*(pip+pgap),rowY,leftStart+i*(pip+pgap)+pip,rowY+pip);
+            fill.setColor(Color.argb(165,30,30,30)); c.drawRoundRect(p,dp(3),dp(3),fill);
+            if(hp>i*2){
+                fill.setColor(Color.rgb(220,58,58));
+                float frac=hp==i*2+1?0.52f:1f;
+                c.drawRoundRect(new RectF(p.left,p.top,p.left+p.width()*frac,p.bottom),dp(3),dp(3),fill);
+            }
+        }
+        float rightStart=w/2f+dp(12);
+        for(int i=0;i<10;i++){
+            RectF p=new RectF(rightStart+i*(pip+pgap),rowY,rightStart+i*(pip+pgap)+pip,rowY+pip);
+            fill.setColor(Color.argb(165,30,30,30)); c.drawRoundRect(p,dp(3),dp(3),fill);
+            if(food>i*2){
+                fill.setColor(Color.rgb(214,138,54));
+                float frac=food==i*2+1?0.52f:1f;
+                c.drawRoundRect(new RectF(p.left,p.top,p.left+p.width()*frac,p.bottom),dp(3),dp(3),fill);
+            }
+        }
+
         stroke.setStrokeWidth(dp(2)); stroke.setColor(Color.WHITE);
         float cx=w/2f,cy=h/2f,cr=dp(8);
         c.drawLine(cx-cr,cy,cx-dp(2),cy,stroke); c.drawLine(cx+dp(2),cy,cx+cr,cy,stroke);
         c.drawLine(cx,cy-cr,cx,cy-dp(2),stroke); c.drawLine(cx,cy+dp(2),cx,cy+cr,stroke);
 
-        fill.setTextAlign(Paint.Align.LEFT); fill.setTextSize(dp(12)); fill.setColor(Color.argb(190,255,255,255)); c.drawText("VoxelCraft v0.3",dp(12),dp(22),fill);
+        fill.setTextAlign(Paint.Align.LEFT); fill.setTextSize(dp(12)); fill.setColor(Color.argb(190,255,255,255)); c.drawText("VoxelCraft v0.4",dp(12),dp(22),fill);
         fill.setTextSize(dp(9)); fill.setColor(Color.argb(150,255,255,255)); c.drawText("Dünya + envanter otomatik kaydedilir",dp(12),dp(36),fill);
 
         long now=System.currentTimeMillis();
