@@ -35,7 +35,7 @@ public class VoxelGameView extends GLSurfaceView {
         long lastNanos=0;
         final int[] palette={1,2,3,4};
 
-        @Override public void onSurfaceCreated(javax.microedition.khronos.egl.EGLConfig config){
+        @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl, javax.microedition.khronos.egl.EGLConfig config){
             GLES20.glClearColor(0.38f,0.68f,0.92f,1f); GLES20.glEnable(GLES20.GL_DEPTH_TEST); GLES20.glEnable(GLES20.GL_CULL_FACE); GLES20.glCullFace(GLES20.GL_BACK);
             program=createProgram(VS,FS); aPos=GLES20.glGetAttribLocation(program,"aPos"); aColor=GLES20.glGetAttribLocation(program,"aColor"); uMvp=GLES20.glGetUniformLocation(program,"uMvp");
             generateWorld(); rebuildMesh();
