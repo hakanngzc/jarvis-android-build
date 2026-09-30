@@ -19,7 +19,7 @@ public class ControlOverlay extends View {
     private final RectF jumpRect = new RectF();
     private final RectF breakRect = new RectF();
     private final RectF placeRect = new RectF();
-    private final RectF[] slots = { new RectF(), new RectF(), new RectF(), new RectF() };
+    private final RectF[] slots = { new RectF(), new RectF(), new RectF(), new RectF(), new RectF() };
     private int selected = 0;
     private final long started = System.currentTimeMillis();
 
@@ -50,11 +50,11 @@ public class ControlOverlay extends View {
         placeRect.set(w-bw*2.1f-dp(26), h-bh-dp(18), w-bw*1.1f-dp(26), h-dp(18));
         drawButton(c,jumpRect,"ZIPLA"); drawButton(c,breakRect,"KIR"); drawButton(c,placeRect,"KOY");
 
-        float slot=Math.min(w,h)*0.078f, gap=dp(7), total=slot*4+gap*3;
+        float slot=Math.min(w,h)*0.078f, gap=dp(7), total=slot*5+gap*4;
         float sx=(w-total)/2f, sy=h-slot-dp(15);
-        String[] names={"ÇİM","TOP","TAŞ","ODN"};
-        int[] cols={Color.rgb(92,155,67),Color.rgb(121,85,58),Color.rgb(125,125,125),Color.rgb(133,94,66)};
-        for(int i=0;i<4;i++){
+        String[] names={"ÇİM","TOP","TAŞ","ODN","YAP"};
+        int[] cols={Color.rgb(92,155,67),Color.rgb(121,85,58),Color.rgb(125,125,125),Color.rgb(133,94,66),Color.rgb(55,126,58)};
+        for(int i=0;i<5;i++){
             slots[i].set(sx+i*(slot+gap),sy,sx+i*(slot+gap)+slot,sy+slot);
             fill.setColor(Color.argb(i==selected?220:135,18,18,18)); c.drawRoundRect(slots[i],dp(8),dp(8),fill);
             stroke.setStrokeWidth(dp(i==selected?3:1.4f));
@@ -74,7 +74,7 @@ public class ControlOverlay extends View {
         c.drawLine(cx,cy-cr,cx,cy-dp(2),stroke); c.drawLine(cx,cy+dp(2),cx,cy+cr,stroke);
 
         fill.setTextAlign(Paint.Align.LEFT); fill.setTextSize(dp(12)); fill.setColor(Color.argb(190,255,255,255));
-        c.drawText("VoxelCraft v0.2",dp(12),dp(22),fill);
+        c.drawText("VoxelCraft v0.3",dp(12),dp(22),fill);
         fill.setTextSize(dp(9)); fill.setColor(Color.argb(150,255,255,255));
         c.drawText("Dünya otomatik kaydedilir",dp(12),dp(36),fill);
 
