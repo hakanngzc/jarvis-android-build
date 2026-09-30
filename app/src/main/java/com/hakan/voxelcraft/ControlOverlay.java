@@ -65,7 +65,7 @@ public class ControlOverlay extends View {
             fill.setColor(Color.WHITE); fill.setTextAlign(Paint.Align.CENTER); fill.setTextSize(Math.max(dp(8),slot*0.17f));
             c.drawText(names[i],slots[i].centerX(),slots[i].bottom-dp(7),fill);
             fill.setTextAlign(Paint.Align.RIGHT); fill.setTextSize(dp(9)); fill.setColor(Color.argb(210,255,255,255));
-            c.drawText("∞",slots[i].right-dp(5),slots[i].top+dp(12),fill);
+            c.drawText(String.valueOf(game.getInventoryCount(i)),slots[i].right-dp(5),slots[i].top+dp(12),fill);
         }
 
         stroke.setStrokeWidth(dp(2)); stroke.setColor(Color.WHITE);
