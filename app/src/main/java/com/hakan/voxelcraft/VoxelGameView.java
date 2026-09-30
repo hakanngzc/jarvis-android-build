@@ -9,18 +9,45 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Random;
+import android.content.SharedPreferences;
+import android.util.Base64;
 
 public class VoxelGameView extends GLSurfaceView {
     private final VoxelRenderer renderer;
+    private final SharedPreferences prefs;
+    private volatile String statusText="";
+    private volatile long statusUntil=0;
     public VoxelGameView(Context context){
-        super(context); setEGLContextClientVersion(2); renderer=new VoxelRenderer(); setRenderer(renderer); setRenderMode(RENDERMODE_CONTINUOUSLY); setPreserveEGLContextOnPause(true);
+        super(context); prefs=context.getSharedPreferences("voxelcraft_world_v2", Context.MODE_PRIVATE); setEGLContextClientVersion(2); renderer=new VoxelRenderer(); setRenderer(renderer); setRenderMode(RENDERMODE_CONTINUOUSLY); setPreserveEGLContextOnPause(true);
     }
     public void setMove(float x,float y){ renderer.moveX=x; renderer.moveForward=y; }
     public void look(float dx,float dy){ renderer.yawDelta+=dx; renderer.pitchDelta+=dy; }
     public void jump(){ renderer.wantJump=true; }
     public void breakBlock(){ queueEvent(renderer::breakBlock); }
     public void placeBlock(){ queueEvent(renderer::placeBlock); }
-    public void selectBlock(int i){ renderer.selected=Math.max(0,Math.min(3,i)); }
+    public void selectBlock(int i){ renderer.selected=Math.max(0,Math.min(3,i)); showStatus(new String[]{"Çim","Toprak","Taş","Odun"}[renderer.selected]); }
+    public String getStatusText(){ return statusText; }
+    public long getStatusUntil(){ return statusUntil; }
+    private void showStatus(String s){ statusText=s; statusUntil=System.currentTimeMillis()+1200; }
+    public void requestSave(){ queueEvent(this::saveWorld); }
+    private void saveWorld(){
+        byte[] data=new byte[VoxelRenderer.SX*VoxelRenderer.SY*VoxelRenderer.SZ]; int k=0;
+        for(int x=0;x<VoxelRenderer.SX;x++)for(int y=0;y<VoxelRenderer.SY;y++)for(int z=0;z<VoxelRenderer.SZ;z++) data[k++]=(byte)renderer.world[x][y][z];
+        prefs.edit().putString("blocks",Base64.encodeToString(data,Base64.NO_WRAP))
+                .putFloat("px",renderer.px).putFloat("py",renderer.py).putFloat("pz",renderer.pz)
+                .putFloat("yaw",renderer.yaw).putFloat("pitch",renderer.pitch).apply();
+        showStatus("Dünya kaydedildi");
+    }
+    private boolean loadWorld(){
+        String s=prefs.getString("blocks",null); if(s==null)return false;
+        try{
+            byte[] data=Base64.decode(s,Base64.DEFAULT);
+            if(data.length!=VoxelRenderer.SX*VoxelRenderer.SY*VoxelRenderer.SZ)return false;
+            int k=0; for(int x=0;x<VoxelRenderer.SX;x++)for(int y=0;y<VoxelRenderer.SY;y++)for(int z=0;z<VoxelRenderer.SZ;z++) renderer.world[x][y][z]=data[k++]&0xff;
+            renderer.px=prefs.getFloat("px",VoxelRenderer.SX/2f+.5f); renderer.py=prefs.getFloat("py",7f); renderer.pz=prefs.getFloat("pz",VoxelRenderer.SZ/2f+.5f);
+            renderer.yaw=prefs.getFloat("yaw",0f); renderer.pitch=prefs.getFloat("pitch",-8f); return true;
+        }catch(Exception e){ return false; }
+    }
 
     static class VoxelRenderer implements Renderer {
         static final int SX=32,SY=16,SZ=32;
@@ -38,7 +65,7 @@ public class VoxelGameView extends GLSurfaceView {
         @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl, javax.microedition.khronos.egl.EGLConfig config){
             GLES20.glClearColor(0.38f,0.68f,0.92f,1f); GLES20.glEnable(GLES20.GL_DEPTH_TEST); GLES20.glEnable(GLES20.GL_CULL_FACE); GLES20.glCullFace(GLES20.GL_BACK);
             program=createProgram(VS,FS); aPos=GLES20.glGetAttribLocation(program,"aPos"); aColor=GLES20.glGetAttribLocation(program,"aColor"); uMvp=GLES20.glGetUniformLocation(program,"uMvp");
-            generateWorld(); rebuildMesh();
+            if(!loadWorld()) generateWorld(); else { spawnX=SX/2f+.5f; spawnZ=SZ/2f+.5f; spawnY=Math.max(2,topY(SX/2,SZ/2)+1.02f); } rebuildMesh();
         }
         @Override public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl,int width,int height){ GLES20.glViewport(0,0,width,height); Matrix.perspectiveM(proj,0,67f,width/(float)Math.max(1,height),0.08f,90f); }
         @Override public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl){
@@ -95,8 +122,8 @@ public class VoxelGameView extends GLSurfaceView {
             for(float t=0.05f;t<=5.2f;t+=0.045f){ int x=(int)Math.floor(px+dx*t),y=(int)Math.floor(eyeY+dy*t),z=(int)Math.floor(pz+dz*t); if(in(x,y,z)&&world[x][y][z]!=0)return new int[]{x,y,z,pxv,pyv,pzv}; pxv=x;pyv=y;pzv=z; }
             return null;
         }
-        void breakBlock(){ int[] r=raycast(); if(r==null)return; if(r[1]==0)return; world[r[0]][r[1]][r[2]]=0; meshDirty=true; }
-        void placeBlock(){ int[] r=raycast(); if(r==null)return; int x=r[3],y=r[4],z=r[5]; if(!in(x,y,z)||world[x][y][z]!=0)return; int old=world[x][y][z]; world[x][y][z]=palette[selected]; if(collides(px,py,pz)){world[x][y][z]=old;return;} meshDirty=true; }
+        void breakBlock(){ int[] r=raycast(); if(r==null){showStatus("Blok menzil dışında");return;} if(r[1]==0)return; world[r[0]][r[1]][r[2]]=0; meshDirty=true; showStatus("Blok kırıldı"); }
+        void placeBlock(){ int[] r=raycast(); if(r==null){showStatus("Yerleştirilecek yüzey yok");return;} int x=r[3],y=r[4],z=r[5]; if(!in(x,y,z)||world[x][y][z]!=0)return; int old=world[x][y][z]; world[x][y][z]=palette[selected]; if(collides(px,py,pz)){world[x][y][z]=old;showStatus("Buraya blok koyamazsın");return;} meshDirty=true; showStatus("Blok yerleştirildi"); }
         boolean in(int x,int y,int z){ return x>=0&&y>=0&&z>=0&&x<SX&&y<SY&&z<SZ; }
 
         void rebuildMesh(){
