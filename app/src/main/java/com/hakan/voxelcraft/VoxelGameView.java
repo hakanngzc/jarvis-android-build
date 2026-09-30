@@ -18,6 +18,8 @@ public class VoxelGameView extends GLSurfaceView {
     private volatile String statusText="";
     private volatile long statusUntil=0;
     private final int[] inventory={0,0,0,0,0};
+    private volatile int health=20;
+    private volatile int hunger=20;
 
     public VoxelGameView(Context context){
         super(context);
@@ -41,6 +43,8 @@ public class VoxelGameView extends GLSurfaceView {
     public String getStatusText(){ return statusText; }
     public long getStatusUntil(){ return statusUntil; }
     public int getInventoryCount(int i){ return (i>=0&&i<inventory.length)?inventory[i]:0; }
+    public int getHealth(){ return health; }
+    public int getHunger(){ return hunger; }
     private void showStatus(String s){ statusText=s; statusUntil=System.currentTimeMillis()+1300; }
     public void requestSave(){ queueEvent(this::saveWorld); }
 
@@ -56,6 +60,7 @@ public class VoxelGameView extends GLSurfaceView {
                 .putFloat("yaw",renderer.yaw).putFloat("pitch",renderer.pitch)
                 .putInt("inv0",inventory[0]).putInt("inv1",inventory[1]).putInt("inv2",inventory[2])
                 .putInt("inv3",inventory[3]).putInt("inv4",inventory[4])
+                .putInt("health",health).putInt("hunger",hunger)
                 .apply();
     }
 
@@ -75,6 +80,8 @@ public class VoxelGameView extends GLSurfaceView {
             renderer.yaw=prefs.getFloat("yaw",0f);
             renderer.pitch=prefs.getFloat("pitch",-8f);
             for(int i=0;i<inventory.length;i++) inventory[i]=prefs.getInt("inv"+i,0);
+            health=Math.max(1,Math.min(20,prefs.getInt("health",20)));
+            hunger=Math.max(0,Math.min(20,prefs.getInt("hunger",20)));
             return true;
         }catch(Exception e){
             return false;
@@ -99,6 +106,10 @@ public class VoxelGameView extends GLSurfaceView {
         float px=16.5f,py=7,pz=16.5f,yaw=0,pitch=-8,vy=0;
         float spawnX,spawnY,spawnZ;
         boolean grounded=false;
+        float fallDistance=0f;
+        float exhaustion=0f;
+        float regenTimer=0f;
+        float starveTimer=0f;
         long lastNanos=0;
         final int[] palette={1,2,3,4,5};
 
@@ -246,22 +257,56 @@ public class VoxelGameView extends GLSurfaceView {
 
             if(wantJump){
                 wantJump=false;
-                if(grounded){vy=6.25f;grounded=false;}
+                if(grounded){
+                    vy=6.25f; grounded=false; exhaustion+=0.42f;
+                }
+            }
+
+            if(len>0.08f && grounded) exhaustion+=len*dt*0.18f;
+            while(exhaustion>=4f){
+                exhaustion-=4f;
+                if(hunger>0) hunger--;
             }
 
             vy-=18.5f*dt;
             float ny=py+vy*dt;
             if(!collides(px,ny,pz)){
                 py=ny;
+                if(vy<0) fallDistance+=(-vy)*dt;
                 grounded=false;
             }else{
-                if(vy<0)grounded=true;
+                if(vy<0){
+                    if(fallDistance>3.35f){
+                        int dmg=(int)Math.ceil(fallDistance-3.35f);
+                        damage(dmg,"Düşme hasarı");
+                    }
+                    fallDistance=0f;
+                    grounded=true;
+                }else{
+                    fallDistance=0f;
+                }
                 vy=0;
             }
 
+            if(hunger>=18 && health<20){
+                regenTimer+=dt;
+                if(regenTimer>=4f){
+                    regenTimer=0f;
+                    health=Math.min(20,health+1);
+                    exhaustion+=0.55f;
+                }
+            }else regenTimer=0f;
+
+            if(hunger==0){
+                starveTimer+=dt;
+                if(starveTimer>=7f){
+                    starveTimer=0f;
+                    damage(1,"Açlık");
+                }
+            }else starveTimer=0f;
+
             if(py<-3){
-                px=spawnX;py=spawnY;pz=spawnZ;vy=0;
-                showStatus("Başlangıç noktasına döndün");
+                damage(20,"Boşluğa düştün");
             }
         }
 
@@ -270,6 +315,18 @@ public class VoxelGameView extends GLSurfaceView {
             float nx=px+dx,nz=pz+dz;
             if(!collides(nx,py,nz)){px=nx;pz=nz;}
         }
+        void damage(int amount,String reason){
+            if(amount<=0)return;
+            health=Math.max(0,health-amount);
+            showStatus(reason+" • Can "+health+"/20");
+            if(health<=0){
+                health=20; hunger=20; exhaustion=0f; fallDistance=0f;
+                px=spawnX; py=spawnY; pz=spawnZ; vy=0f; yaw=0f; pitch=-8f;
+                showStatus("Öldün • başlangıç noktasında yeniden doğdun");
+            }
+            saveWorld();
+        }
+
 
         boolean collides(float x,float y,float z){
             float r=0.29f,h=1.78f;
