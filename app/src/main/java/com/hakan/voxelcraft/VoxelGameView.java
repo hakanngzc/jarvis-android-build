@@ -49,7 +49,7 @@ public class VoxelGameView extends GLSurfaceView {
         }catch(Exception e){ return false; }
     }
 
-    static class VoxelRenderer implements Renderer {
+    class VoxelRenderer implements Renderer {
         static final int SX=32,SY=16,SZ=32;
         final int[][][] world=new int[SX][SY][SZ];
         final float[] proj=new float[16],view=new float[16],vp=new float[16];
