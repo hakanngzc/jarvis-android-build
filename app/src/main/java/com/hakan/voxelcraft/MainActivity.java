@@ -36,6 +36,17 @@ public class MainActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
-    @Override protected void onResume() { super.onResume(); hideSystemUi(); if (gameView != null) gameView.onResume(); }
-    @Override protected void onPause() { if (gameView != null) gameView.onPause(); super.onPause(); }
+    @Override protected void onResume() {
+        super.onResume();
+        hideSystemUi();
+        if (gameView != null) gameView.onResume();
+    }
+
+    @Override protected void onPause() {
+        if (gameView != null) {
+            gameView.requestSave();
+            gameView.onPause();
+        }
+        super.onPause();
+    }
 }
