@@ -1,0 +1,51 @@
+name: NSS Runtime Bypass
+
+on:
+  push:
+    paths:
+      - '.github/workflows/nss-runtime-bypass.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe exact public NSS 4.31 source
+        shell: bash
+        env:
+          EXPECTED_GIT_BLOB_SHA1: 0d7a2ae9b0b6e77155a77c0770be022771782bd0
+        run: |
+          set -u
+          mkdir -p /tmp/nss-probe
+          urls=(
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=4.31'
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=139'
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=latest'
+            'https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          )
+          i=0
+          for url in "${urls[@]}"; do
+            i=$((i+1))
+            out="/tmp/nss-probe/candidate-$i"
+            echo "=== candidate $i ==="
+            echo "url=$url"
+            code=$(curl -L --retry 2 --connect-timeout 20 --max-time 180 -A 'Mozilla/5.0' -sS -w '%{http_code}' -o "$out" "$url" || true)
+            echo "http=$code"
+            [ -f "$out" ] || { echo 'no_file=1'; continue; }
+            size=$(stat -c '%s' "$out")
+            echo "size=$size"
+            file "$out" || true
+            sha256sum "$out" || true
+            python3 - "$out" "$EXPECTED_GIT_BLOB_SHA1" <<'PY'
+import hashlib, pathlib, sys
+p=pathlib.Path(sys.argv[1]); expected=sys.argv[2]
+data=p.read_bytes()
+h=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+print('git_blob_sha1='+h)
+print('exact_private_base_match='+str(h==expected).upper())
+print('head='+data[:16].hex())
+PY
+          done
