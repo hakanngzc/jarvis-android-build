@@ -14,22 +14,24 @@ permissions:
 jobs:
   export-sdk:
     runs-on: ubuntu-latest
+    env:
+      SDK_ROOT: /usr/local/lib/android/sdk
+      SDKMANAGER: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
     steps:
       - name: Verify preinstalled Android SDK
         shell: bash
         run: |
           set -euo pipefail
-          command -v sdkmanager
-          sdkmanager --version
-          echo "ANDROID_HOME=${ANDROID_HOME:-}"
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-}"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --version
+          echo "sdk_root=$SDK_ROOT"
 
       - name: Install minimal API 29 emulator SDK
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install \
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
             platform-tools \
             emulator \
             'build-tools;37.0.0' \
@@ -39,8 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          echo "sdk_root=$SDK"
+          SDK="$SDK_ROOT"
           rm -rf /tmp/nss-android-sdk
           mkdir -p /tmp/nss-android-sdk
           cp -a "$SDK/platform-tools" /tmp/nss-android-sdk/
@@ -49,8 +50,8 @@ jobs:
           cp -a "$SDK/build-tools/37.0.0" /tmp/nss-android-sdk/build-tools/
           mkdir -p /tmp/nss-android-sdk/system-images/android-29/default
           cp -a "$SDK/system-images/android-29/default/x86_64" /tmp/nss-android-sdk/system-images/android-29/default/
-          if [ -d "$SDK/cmdline-tools" ]; then cp -a "$SDK/cmdline-tools" /tmp/nss-android-sdk/; fi
-          if [ -d "$SDK/licenses" ]; then cp -a "$SDK/licenses" /tmp/nss-android-sdk/; fi
+          cp -a "$SDK/cmdline-tools" /tmp/nss-android-sdk/
+          [ ! -d "$SDK/licenses" ] || cp -a "$SDK/licenses" /tmp/nss-android-sdk/
           tar -cf "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar" -C /tmp nss-android-sdk
           du -h "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar"
 
