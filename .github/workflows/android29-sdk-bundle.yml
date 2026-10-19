@@ -16,10 +16,12 @@ jobs:
         run: |
           set -euxo pipefail
           ROOT="$ANDROID_HOME"
-          mkdir -p /tmp/android-sdk-lite/system-images/android-29/google_apis
+          BT="$(find "$ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p /tmp/android-sdk-lite/system-images/android-29/google_apis /tmp/android-sdk-lite/build-tools
           cp -a "$ROOT/emulator" /tmp/android-sdk-lite/
           cp -a "$ROOT/platform-tools" /tmp/android-sdk-lite/
           cp -a "$ROOT/system-images/android-29/google_apis/x86_64" /tmp/android-sdk-lite/system-images/android-29/google_apis/
+          cp -a "$BT" /tmp/android-sdk-lite/build-tools/
           tar -C /tmp -I 'zstd -T0 -10' -cf android29-softemu.tar.zst android-sdk-lite
           ls -lh android29-softemu.tar.zst
           sha256sum android29-softemu.tar.zst > android29-softemu.tar.zst.sha256
