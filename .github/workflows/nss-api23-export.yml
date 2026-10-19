@@ -1,0 +1,43 @@
+name: NSS Android 6 Runtime Export
+
+on:
+  push:
+    branches:
+      - nss-sdk-export
+    paths:
+      - '.github/workflows/nss-api23-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-image:
+    runs-on: ubuntu-latest
+    env:
+      SDK_ROOT: /usr/local/lib/android/sdk
+      SDKMANAGER: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
+    steps:
+      - name: Install Android 6 x86_64 system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install 'system-images;android-23;default;x86_64'
+      - name: Package and split image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDK_ROOT"
+          tar --sparse -I 'zstd -T0 -6' -cf "$GITHUB_WORKSPACE/nss-android23-image.tar.zst" system-images/android-23/default/x86_64
+          cd "$GITHUB_WORKSPACE"
+          split -b 200M nss-android23-image.tar.zst nss-api23.part-
+          ls -lh nss-api23.part-*
+      - name: Upload parts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api23-image-parts
+          path: nss-api23.part-*
+          compression-level: 0
+          retention-days: 1
