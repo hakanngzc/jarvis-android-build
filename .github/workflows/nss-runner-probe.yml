@@ -1,0 +1,14 @@
+name: NSS Runner Probe
+on:
+  push:
+    branches:
+      - nss-runner-probe-20261019
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner alive
+        run: |
+          echo "runner=alive"
+          uname -a
+          python3 --version
