@@ -39,13 +39,5 @@ jobs:
             echo "size=$size"
             file "$out" || true
             sha256sum "$out" || true
-            python3 - "$out" "$EXPECTED_GIT_BLOB_SHA1" <<'PY'
-import hashlib, pathlib, sys
-p=pathlib.Path(sys.argv[1]); expected=sys.argv[2]
-data=p.read_bytes()
-h=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
-print('git_blob_sha1='+h)
-print('exact_private_base_match='+str(h==expected).upper())
-print('head='+data[:16].hex())
-PY
+            python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); d=p.read_bytes(); h=hashlib.sha1(b"blob "+str(len(d)).encode()+b"\0"+d).hexdigest(); print("git_blob_sha1="+h); print("exact_private_base_match="+str(h==sys.argv[2]).upper()); print("head="+d[:16].hex())' "$out" "$EXPECTED_GIT_BLOB_SHA1"
           done
