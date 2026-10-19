@@ -12,7 +12,8 @@ jobs:
           set -euxo pipefail
           mkdir -p "$PWD/probe-out"
           docker run --rm -v "$PWD/probe-out:/output" ghcr.io/efforg/apkeep:stable \
-            -d apk-pure -a com.newstargames.newstarsoccer@4.31 /output
+            -d apk-pure -o 'acknowledge_dangers=true' \
+            -a com.newstargames.newstarsoccer@4.31 /output
       - name: Fingerprint candidate
         run: |
           set -euxo pipefail
