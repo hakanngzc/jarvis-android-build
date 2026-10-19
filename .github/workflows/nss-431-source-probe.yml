@@ -1,0 +1,26 @@
+name: NSS 4.31 Source Probe
+on:
+  push:
+    branches:
+      - nss-runner-probe-20261019
+jobs:
+  source-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download public NSS 4.31 candidate
+        run: |
+          set -euxo pipefail
+          mkdir -p "$PWD/probe-out"
+          docker run --rm -v "$PWD/probe-out:/output" ghcr.io/efforg/apkeep:stable \
+            -a com.newstargames.newstarsoccer@4.31 /output
+      - name: Fingerprint candidate
+        run: |
+          set -euxo pipefail
+          find probe-out -maxdepth 3 -type f -printf '%p %s bytes\n' | sort
+          while IFS= read -r f; do
+            echo "FILE=$f"
+            sha256sum "$f"
+            git hash-object "$f"
+            file "$f"
+            unzip -l "$f" 2>/dev/null | head -80 || true
+          done < <(find probe-out -type f | sort)
