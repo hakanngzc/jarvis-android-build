@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
+      - 'nss_source_discovery.py'
   workflow_dispatch:
 
 permissions:
@@ -13,24 +14,6 @@ jobs:
   source-discovery:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Discover public NSS 4.31 download links
-        shell: bash
-        run: |
-          set -euo pipefail
-          for spec in \
-            'tamindir|https://www.tamindir.com/indir/new-star-soccer-apk/' \
-            'uptodown|https://new-star-soccer.en.uptodown.com/android' \
-            'apkcombo|https://apkcombo.com/nss/com.newstargames.newstarsoccer/'; do
-            name=${spec%%|*}
-            url=${spec#*|}
-            out="/tmp/$name.html"
-            echo "===== $name ====="
-            curl -L --retry 2 --connect-timeout 20 --max-time 90 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -sS "$url" -o "$out" || true
-            echo "bytes=$(stat -c '%s' "$out" 2>/dev/null || echo 0)"
-            echo '-- 4.31 context --'
-            grep -ioE '.{0,250}4\.31.{0,500}' "$out" | head -20 || true
-            echo '-- candidate href/src urls --'
-            grep -oE '(href|src|data-url|data-href)=["'"''][^"'"'']+["'"'']' "$out" | sed -E 's/^[^=]+=//; s/^["'"'']|["'"'']$//g' | grep -Ei 'download|indir|apk|xapk|new-star|newstargames' | head -100 || true
-            echo '-- absolute URLs mentioning package/download --'
-            grep -oE 'https?://[^"'"'<> ]+' "$out" | grep -Ei 'newstar|new-star|newstargames|download|indir|apk|xapk' | sort -u | head -100 || true
-          done
+        run: python3 nss_source_discovery.py
