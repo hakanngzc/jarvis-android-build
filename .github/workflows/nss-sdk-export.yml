@@ -37,7 +37,7 @@ jobs:
             'build-tools;37.0.0' \
             'system-images;android-29;default;x86_64'
 
-      - name: Package sparse portable SDK subset
+      - name: Package and split sparse portable SDK
         shell: bash
         run: |
           set -euo pipefail
@@ -50,12 +50,42 @@ jobs:
             system-images/android-29/default/x86_64 \
             cmdline-tools \
             licenses
-          ls -lh "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar.zst"
+          cd "$GITHUB_WORKSPACE"
+          split -b 300M nss-android-sdk-api29.tar.zst nss-sdk.part-
+          ls -lh nss-sdk.part-*
+          test -f nss-sdk.part-aa
+          test -f nss-sdk.part-ab
+          test -f nss-sdk.part-ac
+          test -f nss-sdk.part-ad
 
-      - name: Upload portable SDK
+      - name: Upload SDK part aa
         uses: actions/upload-artifact@v4
         with:
-          name: nss-android-sdk-api29-zstd
-          path: nss-android-sdk-api29.tar.zst
+          name: nss-sdk-part-aa
+          path: nss-sdk.part-aa
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload SDK part ab
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-sdk-part-ab
+          path: nss-sdk.part-ab
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload SDK part ac
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-sdk-part-ac
+          path: nss-sdk.part-ac
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload SDK part ad
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-sdk-part-ad
+          path: nss-sdk.part-ad
           compression-level: 0
           retention-days: 1
