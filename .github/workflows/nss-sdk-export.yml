@@ -1,0 +1,56 @@
+name: NSS Android SDK Export
+
+on:
+  push:
+    branches:
+      - nss-sdk-export
+    paths:
+      - '.github/workflows/nss-sdk-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Android command-line tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install minimal API 29 emulator SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            platform-tools \
+            emulator \
+            'build-tools;37.0.0' \
+            'system-images;android-29;google_apis;x86_64'
+
+      - name: Package portable SDK subset
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "sdk_root=$SDK"
+          mkdir -p /tmp/nss-android-sdk
+          cp -a "$SDK/platform-tools" /tmp/nss-android-sdk/
+          cp -a "$SDK/emulator" /tmp/nss-android-sdk/
+          mkdir -p /tmp/nss-android-sdk/build-tools
+          cp -a "$SDK/build-tools/37.0.0" /tmp/nss-android-sdk/build-tools/
+          mkdir -p /tmp/nss-android-sdk/system-images/android-29/google_apis
+          cp -a "$SDK/system-images/android-29/google_apis/x86_64" /tmp/nss-android-sdk/system-images/android-29/google_apis/
+          if [ -d "$SDK/cmdline-tools" ]; then cp -a "$SDK/cmdline-tools" /tmp/nss-android-sdk/; fi
+          if [ -d "$SDK/licenses" ]; then cp -a "$SDK/licenses" /tmp/nss-android-sdk/; fi
+          tar -cf "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar" -C /tmp nss-android-sdk
+          du -h "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar"
+
+      - name: Upload portable SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-android-sdk-api29
+          path: nss-android-sdk-api29.tar
+          compression-level: 0
+          retention-days: 1
