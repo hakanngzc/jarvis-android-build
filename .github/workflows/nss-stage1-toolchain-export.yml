@@ -13,10 +13,14 @@ jobs:
   export-toolchain:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Android SDK tools
+      - name: Install required Android tools
         shell: bash
         run: |
           set -euxo pipefail
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "emulator"
           test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
           test -x "$ANDROID_SDK_ROOT/emulator/emulator"
           "$ANDROID_SDK_ROOT/platform-tools/adb" version
