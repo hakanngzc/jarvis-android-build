@@ -15,7 +15,7 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" 'platform-tools' 'emulator' 'system-images;android-29;google_apis;x86_64'
-      - name: Package minimal software-emulator SDK
+      - name: Package and split minimal software-emulator SDK
         run: |
           set -euxo pipefail
           ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
@@ -27,13 +27,36 @@ jobs:
           cp -a "$ROOT/system-images/android-29/google_apis/x86_64" /tmp/android-sdk-lite/system-images/android-29/google_apis/
           cp -a "$BT" /tmp/android-sdk-lite/build-tools/
           tar -C /tmp -I 'zstd -T0 -10' -cf android29-softemu.tar.zst android-sdk-lite
-          ls -lh android29-softemu.tar.zst
           sha256sum android29-softemu.tar.zst > android29-softemu.tar.zst.sha256
-      - name: Upload Android 29 SDK bundle
+          split -b 450M -d -a 2 android29-softemu.tar.zst android29-softemu.part-
+          ls -lh android29-softemu.part-* android29-softemu.tar.zst.sha256
+          test -f android29-softemu.part-00
+          test -f android29-softemu.part-01
+          test -f android29-softemu.part-02
+          test -f android29-softemu.part-03
+      - name: Upload SDK part 00
         uses: actions/upload-artifact@v4
         with:
-          name: android29-softemu
+          name: android29-softemu-part-00
           path: |
-            android29-softemu.tar.zst
+            android29-softemu.part-00
             android29-softemu.tar.zst.sha256
+          compression-level: 0
+      - name: Upload SDK part 01
+        uses: actions/upload-artifact@v4
+        with:
+          name: android29-softemu-part-01
+          path: android29-softemu.part-01
+          compression-level: 0
+      - name: Upload SDK part 02
+        uses: actions/upload-artifact@v4
+        with:
+          name: android29-softemu-part-02
+          path: android29-softemu.part-02
+          compression-level: 0
+      - name: Upload SDK part 03
+        uses: actions/upload-artifact@v4
+        with:
+          name: android29-softemu-part-03
+          path: android29-softemu.part-03
           compression-level: 0
