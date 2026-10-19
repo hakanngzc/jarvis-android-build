@@ -37,28 +37,25 @@ jobs:
             'build-tools;37.0.0' \
             'system-images;android-29;default;x86_64'
 
-      - name: Package portable SDK subset
+      - name: Package sparse portable SDK subset
         shell: bash
         run: |
           set -euo pipefail
-          SDK="$SDK_ROOT"
-          rm -rf /tmp/nss-android-sdk
-          mkdir -p /tmp/nss-android-sdk
-          cp -a "$SDK/platform-tools" /tmp/nss-android-sdk/
-          cp -a "$SDK/emulator" /tmp/nss-android-sdk/
-          mkdir -p /tmp/nss-android-sdk/build-tools
-          cp -a "$SDK/build-tools/37.0.0" /tmp/nss-android-sdk/build-tools/
-          mkdir -p /tmp/nss-android-sdk/system-images/android-29/default
-          cp -a "$SDK/system-images/android-29/default/x86_64" /tmp/nss-android-sdk/system-images/android-29/default/
-          cp -a "$SDK/cmdline-tools" /tmp/nss-android-sdk/
-          [ ! -d "$SDK/licenses" ] || cp -a "$SDK/licenses" /tmp/nss-android-sdk/
-          tar -cf "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar" -C /tmp nss-android-sdk
-          du -h "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar"
+          command -v zstd
+          cd "$SDK_ROOT"
+          tar --sparse -I 'zstd -T0 -6' -cf "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar.zst" \
+            platform-tools \
+            emulator \
+            build-tools/37.0.0 \
+            system-images/android-29/default/x86_64 \
+            cmdline-tools \
+            licenses
+          ls -lh "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar.zst"
 
       - name: Upload portable SDK
         uses: actions/upload-artifact@v4
         with:
-          name: nss-android-sdk-api29
-          path: nss-android-sdk-api29.tar
+          name: nss-android-sdk-api29-zstd
+          path: nss-android-sdk-api29.tar.zst
           compression-level: 0
           retention-days: 1
