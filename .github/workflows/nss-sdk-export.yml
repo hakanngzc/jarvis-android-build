@@ -1,4 +1,4 @@
-name: NSS Android SDK Export
+name: NSS Android Runtime Bypass Probe
 
 on:
   push:
@@ -12,80 +12,42 @@ permissions:
   contents: read
 
 jobs:
-  export-sdk:
+  source-probe:
     runs-on: ubuntu-latest
-    env:
-      SDK_ROOT: /usr/local/lib/android/sdk
-      SDKMANAGER: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
     steps:
-      - name: Verify preinstalled Android SDK
+      - name: Probe exact public NSS 4.31 source
         shell: bash
+        env:
+          EXPECTED_GIT_BLOB_SHA1: 0d7a2ae9b0b6e77155a77c0770be022771782bd0
         run: |
-          set -euo pipefail
-          test -x "$SDKMANAGER"
-          "$SDKMANAGER" --version
-          echo "sdk_root=$SDK_ROOT"
-
-      - name: Install minimal API 29 emulator SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
-            platform-tools \
-            emulator \
-            'build-tools;37.0.0' \
-            'system-images;android-29;default;x86_64'
-
-      - name: Package and split sparse portable SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v zstd
-          cd "$SDK_ROOT"
-          tar --sparse -I 'zstd -T0 -6' -cf "$GITHUB_WORKSPACE/nss-android-sdk-api29.tar.zst" \
-            platform-tools \
-            emulator \
-            build-tools/37.0.0 \
-            system-images/android-29/default/x86_64 \
-            cmdline-tools \
-            licenses
-          cd "$GITHUB_WORKSPACE"
-          split -b 300M nss-android-sdk-api29.tar.zst nss-sdk.part-
-          ls -lh nss-sdk.part-*
-          test -f nss-sdk.part-aa
-          test -f nss-sdk.part-ab
-          test -f nss-sdk.part-ac
-          test -f nss-sdk.part-ad
-
-      - name: Upload SDK part aa
-        uses: actions/upload-artifact@v4
-        with:
-          name: nss-sdk-part-aa
-          path: nss-sdk.part-aa
-          compression-level: 0
-          retention-days: 1
-
-      - name: Upload SDK part ab
-        uses: actions/upload-artifact@v4
-        with:
-          name: nss-sdk-part-ab
-          path: nss-sdk.part-ab
-          compression-level: 0
-          retention-days: 1
-
-      - name: Upload SDK part ac
-        uses: actions/upload-artifact@v4
-        with:
-          name: nss-sdk-part-ac
-          path: nss-sdk.part-ac
-          compression-level: 0
-          retention-days: 1
-
-      - name: Upload SDK part ad
-        uses: actions/upload-artifact@v4
-        with:
-          name: nss-sdk-part-ad
-          path: nss-sdk.part-ad
-          compression-level: 0
-          retention-days: 1
+          set -u
+          mkdir -p /tmp/nss-probe
+          urls=(
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=4.31'
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=139'
+            'https://d.apkpure.com/b/XAPK/com.newstargames.newstarsoccer?version=latest'
+            'https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          )
+          i=0
+          for url in "${urls[@]}"; do
+            i=$((i+1))
+            out="/tmp/nss-probe/candidate-$i"
+            echo "=== candidate $i ==="
+            echo "url=$url"
+            code=$(curl -L --retry 2 --connect-timeout 20 --max-time 180 -A 'Mozilla/5.0' -sS -w '%{http_code}' -o "$out" "$url" || true)
+            echo "http=$code"
+            [ -f "$out" ] || { echo 'no_file=1'; continue; }
+            size=$(stat -c '%s' "$out")
+            echo "size=$size"
+            file "$out" || true
+            sha256sum "$out" || true
+            python3 - "$out" "$EXPECTED_GIT_BLOB_SHA1" <<'PY'
+import hashlib, pathlib, sys
+p=pathlib.Path(sys.argv[1]); expected=sys.argv[2]
+data=p.read_bytes()
+h=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+print('git_blob_sha1='+h)
+print('exact_private_base_match='+str(h==expected).upper())
+print('head='+data[:16].hex())
+PY
+          done
