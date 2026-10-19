@@ -1,0 +1,36 @@
+name: NSS Stage1 Toolchain Export
+
+on:
+  push:
+    paths:
+      - '.github/workflows/nss-stage1-toolchain-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-toolchain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Android SDK tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
+          test -x "$ANDROID_SDK_ROOT/emulator/emulator"
+          "$ANDROID_SDK_ROOT/platform-tools/adb" version
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version || true
+      - name: Pack emulator and platform-tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          tar -C "$ANDROID_SDK_ROOT" -czf "$RUNNER_TEMP/nss-stage1-toolchain.tar.gz" emulator platform-tools
+          ls -lh "$RUNNER_TEMP/nss-stage1-toolchain.tar.gz"
+      - name: Upload toolchain
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-stage1-toolchain
+          path: ${{ runner.temp }}/nss-stage1-toolchain.tar.gz
+          compression-level: 0
+          retention-days: 2
