@@ -1,0 +1,33 @@
+name: Android 29 SDK Bundle
+on:
+  push:
+    branches:
+      - nss-runner-probe-20261019
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Android 29 emulator image
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-29;google_apis;x86_64'
+      - name: Package minimal software-emulator SDK
+        run: |
+          set -euxo pipefail
+          ROOT="$ANDROID_HOME"
+          mkdir -p /tmp/android-sdk-lite/system-images/android-29/google_apis
+          cp -a "$ROOT/emulator" /tmp/android-sdk-lite/
+          cp -a "$ROOT/platform-tools" /tmp/android-sdk-lite/
+          cp -a "$ROOT/system-images/android-29/google_apis/x86_64" /tmp/android-sdk-lite/system-images/android-29/google_apis/
+          tar -C /tmp -I 'zstd -T0 -10' -cf android29-softemu.tar.zst android-sdk-lite
+          ls -lh android29-softemu.tar.zst
+          sha256sum android29-softemu.tar.zst > android29-softemu.tar.zst.sha256
+      - name: Upload Android 29 SDK bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: android29-softemu
+          path: |
+            android29-softemu.tar.zst
+            android29-softemu.tar.zst.sha256
+          compression-level: 0
