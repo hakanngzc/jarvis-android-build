@@ -6,9 +6,12 @@ on:
       - '.github/workflows/nss-runtime-bypass.yml'
       - 'aosp_artifact_chunks.py'
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: read
 
 jobs:
   aosp29-chunks:
