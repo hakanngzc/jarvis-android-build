@@ -5,48 +5,37 @@ on:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
   workflow_dispatch:
-  issues:
-    types: [opened]
 
 permissions:
   contents: read
-  issues: read
 
 jobs:
-  aosp29-runtime-payload:
+  aosp29-system-image:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - name: Install clean AOSP Android 10 runtime
+      - name: Install clean AOSP Android 10 image
         shell: bash
         run: |
           set -euo pipefail
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platform-tools" \
-            "emulator" \
-            "system-images;android-29;default;x86_64"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "system-images;android-29;default;x86_64"
 
-      - name: Build portable payload
+      - name: Pack only the system image
         shell: bash
         run: |
           set -euo pipefail
-          ROOT="$RUNNER_TEMP/aosp29-payload/android-sdk"
-          mkdir -p "$ROOT/system-images/android-29/default"
-          cp -a "$ANDROID_HOME/emulator" "$ROOT/"
-          cp -a "$ANDROID_HOME/platform-tools" "$ROOT/"
-          cp -a "$ANDROID_HOME/system-images/android-29/default/x86_64" "$ROOT/system-images/android-29/default/"
-          tar -C "$RUNNER_TEMP/aosp29-payload" -czf "$RUNNER_TEMP/aosp29-runtime.tgz" android-sdk
-          sha256sum "$RUNNER_TEMP/aosp29-runtime.tgz" | tee "$RUNNER_TEMP/aosp29-runtime.sha256"
-          du -h "$RUNNER_TEMP/aosp29-runtime.tgz"
+          tar -C "$ANDROID_HOME/system-images/android-29/default" -czf "$RUNNER_TEMP/aosp29-system-image.tgz" x86_64
+          sha256sum "$RUNNER_TEMP/aosp29-system-image.tgz" | tee "$RUNNER_TEMP/aosp29-system-image.sha256"
+          du -h "$RUNNER_TEMP/aosp29-system-image.tgz"
 
-      - name: Upload portable AOSP runtime
+      - name: Upload AOSP image
         uses: actions/upload-artifact@v4
         with:
-          name: nss-aosp29-runtime
+          name: nss-aosp29-system-image
           path: |
-            ${{ runner.temp }}/aosp29-runtime.tgz
-            ${{ runner.temp }}/aosp29-runtime.sha256
+            ${{ runner.temp }}/aosp29-system-image.tgz
+            ${{ runner.temp }}/aosp29-system-image.sha256
           retention-days: 1
           compression-level: 0
           if-no-files-found: error
