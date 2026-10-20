@@ -40,10 +40,8 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -eu
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            IMG="$ANDROID_HOME/system-images/android-29/default/x86_64"
-            test -f "$IMG/system.img"
+            test -f "$ANDROID_HOME/system-images/android-29/default/x86_64/system.img"
             mkdir -p "$RUNNER_TEMP/aosp-parts"
             tar -C "$ANDROID_HOME/system-images/android-29/default" -czf "$RUNNER_TEMP/aosp29-system-image.tgz" x86_64
             python3 aosp_artifact_chunks.py "$RUNNER_TEMP/aosp29-system-image.tgz" "$RUNNER_TEMP/aosp-parts"
