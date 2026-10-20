@@ -1,1 +1,2 @@
 Temporary trigger for NSS REBORN Stage 3 AOSP Android 10 runtime artifact.
+retry=2
