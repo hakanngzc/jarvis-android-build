@@ -17,3 +17,31 @@ jobs:
       - uses: actions/checkout@v4
       - name: Discover public NSS 4.31 download links
         run: python3 nss_source_discovery.py
+
+  android-runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot Android 10 and verify ADB
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 4096M
+          heap-size: 512M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            adb shell getprop ro.build.version.release
+            adb shell getprop ro.product.cpu.abi
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            adb shell 'echo NSS_PUBLIC_RUNTIME_OK'
