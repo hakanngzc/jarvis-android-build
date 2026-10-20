@@ -37,13 +37,15 @@ jobs:
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             adb shell 'echo NSS_PUBLIC_RUNTIME_OK'
 
-      - name: Build split API29 payload
+      - name: Build portable API29 payload
         shell: bash
         run: |
           set -euo pipefail
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           BUILD_TOOLS="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           [ -d "$SDK/system-images/android-29/google_apis/x86_64" ]
+          [ -d "$SDK/emulator" ]
+          [ -x "$SDK/platform-tools/adb" ]
           [ -x "$BUILD_TOOLS/apksigner" ]
           [ -x "$BUILD_TOOLS/zipalign" ]
 
@@ -56,6 +58,8 @@ jobs:
 
           cp -a "$SDK/system-images/android-29/google_apis/x86_64" \
             "$ROOT/android-sdk/system-images/android-29/google_apis/"
+          cp -a "$SDK/emulator" "$ROOT/android-sdk/"
+          cp -a "$SDK/platform-tools" "$ROOT/android-sdk/"
           cp -a "$BUILD_TOOLS" "$ROOT/android-sdk/build-tools/"
 
           cat > "$ROOT/PAYLOAD_INFO.txt" <<EOF
@@ -63,8 +67,8 @@ jobs:
           android=10
           abi=x86_64
           build_tools=$(basename "$BUILD_TOOLS")
-          emulator_included=NO
-          platform_tools_included=NO
+          emulator_included=YES
+          platform_tools_included=YES
           game_payload_included=NO
           EOF
 
