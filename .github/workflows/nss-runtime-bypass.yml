@@ -4,38 +4,55 @@ on:
   push:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
+      - 'aosp_artifact_chunks.py'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  aosp29-system-image:
+  aosp29-chunks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Install clean AOSP Android 10 image
-        shell: bash
+      - uses: actions/checkout@v4
+      - name: Install AOSP Android 10 image
         run: |
           set -euo pipefail
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "system-images;android-29;default;x86_64"
-
-      - name: Pack only the system image
-        shell: bash
+      - name: Pack and chunk image
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/aosp-parts"
           tar -C "$ANDROID_HOME/system-images/android-29/default" -czf "$RUNNER_TEMP/aosp29-system-image.tgz" x86_64
-          sha256sum "$RUNNER_TEMP/aosp29-system-image.tgz" | tee "$RUNNER_TEMP/aosp29-system-image.sha256"
-          du -h "$RUNNER_TEMP/aosp29-system-image.tgz"
-
-      - name: Upload AOSP image
-        uses: actions/upload-artifact@v4
+          python3 aosp_artifact_chunks.py "$RUNNER_TEMP/aosp29-system-image.tgz" "$RUNNER_TEMP/aosp-parts"
+      - uses: actions/upload-artifact@v4
         with:
-          name: nss-aosp29-system-image
-          path: |
-            ${{ runner.temp }}/aosp29-system-image.tgz
-            ${{ runner.temp }}/aosp29-system-image.sha256
-          retention-days: 1
+          name: nss-aosp29-part-00
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-00
           compression-level: 0
-          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-01
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-01
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-02
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-02
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-03
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-03
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-checksums
+          path: ${{ runner.temp }}/aosp-parts/SHA256SUMS.txt
+          compression-level: 0
+          retention-days: 1
