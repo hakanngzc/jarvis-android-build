@@ -40,7 +40,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             IMG="$ANDROID_HOME/system-images/android-29/default/x86_64"
             test -f "$IMG/system.img"
