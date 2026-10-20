@@ -20,13 +20,14 @@ jobs:
 
   android-runtime-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Enable KVM access
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
       - name: Boot Android 10 and verify ADB
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -45,3 +46,63 @@ jobs:
             adb shell getprop ro.product.cpu.abi
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             adb shell 'echo NSS_PUBLIC_RUNTIME_OK'
+
+      - name: Build portable Android 10 runtime bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          AVDMANAGER="$(find "$SDK/cmdline-tools" -type f -path '*/bin/avdmanager' | sort -V | tail -1)"
+          BUILD_TOOLS="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          [ -x "$AVDMANAGER" ]
+          [ -d "$SDK/system-images/android-29/google_apis/x86_64" ]
+          [ -x "$SDK/emulator/emulator" ]
+          [ -x "$SDK/platform-tools/adb" ]
+          [ -x "$BUILD_TOOLS/apksigner" ]
+          [ -x "$BUILD_TOOLS/zipalign" ]
+
+          rm -rf "$HOME/.android/avd/nss-api29-portable.avd" "$HOME/.android/avd/nss-api29-portable.ini"
+          echo no | "$AVDMANAGER" create avd \
+            -n nss-api29-portable \
+            -k 'system-images;android-29;google_apis;x86_64' \
+            --device pixel_4 \
+            --force
+
+          ROOT="$RUNNER_TEMP/nss-android10-portable"
+          rm -rf "$ROOT"
+          mkdir -p \
+            "$ROOT/android-sdk/system-images/android-29/google_apis" \
+            "$ROOT/android-sdk/build-tools" \
+            "$ROOT/avd"
+
+          cp -a "$SDK/emulator" "$ROOT/android-sdk/"
+          cp -a "$SDK/platform-tools" "$ROOT/android-sdk/"
+          cp -a "$SDK/system-images/android-29/google_apis/x86_64" \
+            "$ROOT/android-sdk/system-images/android-29/google_apis/"
+          cp -a "$BUILD_TOOLS" "$ROOT/android-sdk/build-tools/"
+          cp -a "$HOME/.android/avd/nss-api29-portable.avd" "$ROOT/avd/"
+          cp -a "$HOME/.android/avd/nss-api29-portable.ini" "$ROOT/avd/"
+
+          cat > "$ROOT/README-runtime.txt" <<EOF
+          NSS Android 10 portable runtime
+          api=29
+          android=10
+          abi=x86_64
+          avd=nss-api29-portable
+          build_tools=$(basename "$BUILD_TOOLS")
+          game_payload_included=NO
+          EOF
+
+          du -sh "$ROOT" | tee "$ROOT/BUNDLE_SIZE.txt"
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/nss-android10-portable.tgz" nss-android10-portable
+          sha256sum "$RUNNER_TEMP/nss-android10-portable.tgz" | tee "$RUNNER_TEMP/nss-android10-portable.sha256"
+
+      - name: Upload portable Android 10 runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-android10-portable
+          path: |
+            ${{ runner.temp }}/nss-android10-portable.tgz
+            ${{ runner.temp }}/nss-android10-portable.sha256
+          compression-level: 0
+          retention-days: 1
