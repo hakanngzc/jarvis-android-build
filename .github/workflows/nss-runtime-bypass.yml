@@ -5,11 +5,22 @@ on:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: read
 
 jobs:
+  source-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe public NSS 4.31 source
+        run: python3 nss_source_discovery.py
+
   android-runtime-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -36,16 +47,3 @@ jobs:
             adb wait-for-device
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             adb shell 'echo NSS_PUBLIC_RUNTIME_OK'
-
-      - name: Dump canonical AVD metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo '===== AVD FILES ====='
-          find "$HOME/.android/avd" -maxdepth 2 -type f -printf '%p %s\n' | sort
-          echo '===== test.ini ====='
-          cat "$HOME/.android/avd/test.ini"
-          echo '===== config.ini ====='
-          cat "$HOME/.android/avd/test.avd/config.ini"
-          echo '===== hardware-qemu.ini ====='
-          cat "$HOME/.android/avd/test.avd/hardware-qemu.ini" 2>/dev/null || true
