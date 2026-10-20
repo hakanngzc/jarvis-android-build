@@ -47,7 +47,31 @@ jobs:
             python3 aosp_artifact_chunks.py "$RUNNER_TEMP/aosp29-system-image.tgz" "$RUNNER_TEMP/aosp-parts"
       - uses: actions/upload-artifact@v4
         with:
-          name: nss-aosp29-parts
-          path: ${{ runner.temp }}/aosp-parts/
+          name: nss-aosp29-part-00
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-00
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-01
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-01
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-02
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-02
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-part-03
+          path: ${{ runner.temp }}/aosp-parts/aosp29.part-03
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nss-aosp29-checksums
+          path: ${{ runner.temp }}/aosp-parts/SHA256SUMS.txt
           compression-level: 0
           retention-days: 1
