@@ -7,10 +7,13 @@ on:
   workflow_dispatch:
   issues:
     types: [opened]
+  pull_request:
+    types: [opened]
 
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 jobs:
   source-discovery:
