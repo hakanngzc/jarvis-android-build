@@ -5,9 +5,12 @@ on:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: read
 
 jobs:
   aosp29-runtime-payload:
