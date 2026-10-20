@@ -4,20 +4,12 @@ on:
   push:
     paths:
       - '.github/workflows/nss-runtime-bypass.yml'
-      - 'nss_source_discovery.py'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  source-discovery:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Discover public NSS 4.31 download links
-        run: python3 nss_source_discovery.py
-
   android-runtime-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -42,67 +34,125 @@ jobs:
           disable-animations: true
           script: |
             adb wait-for-device
-            adb shell getprop ro.build.version.release
-            adb shell getprop ro.product.cpu.abi
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             adb shell 'echo NSS_PUBLIC_RUNTIME_OK'
 
-      - name: Build portable Android 10 runtime bundle
+      - name: Build split API29 payload
         shell: bash
         run: |
           set -euo pipefail
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          AVDMANAGER="$(find "$SDK/cmdline-tools" -type f -path '*/bin/avdmanager' | sort -V | tail -1)"
           BUILD_TOOLS="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          [ -x "$AVDMANAGER" ]
           [ -d "$SDK/system-images/android-29/google_apis/x86_64" ]
-          [ -x "$SDK/emulator/emulator" ]
-          [ -x "$SDK/platform-tools/adb" ]
           [ -x "$BUILD_TOOLS/apksigner" ]
           [ -x "$BUILD_TOOLS/zipalign" ]
 
-          rm -rf "$HOME/.android/avd/nss-api29-portable.avd" "$HOME/.android/avd/nss-api29-portable.ini"
-          echo no | "$AVDMANAGER" create avd \
-            -n nss-api29-portable \
-            -k 'system-images;android-29;google_apis;x86_64' \
-            --device pixel_4 \
-            --force
-
-          ROOT="$RUNNER_TEMP/nss-android10-portable"
-          rm -rf "$ROOT"
+          ROOT="$RUNNER_TEMP/nss-api29-payload"
+          rm -rf "$ROOT" portable-chunks
           mkdir -p \
             "$ROOT/android-sdk/system-images/android-29/google_apis" \
             "$ROOT/android-sdk/build-tools" \
-            "$ROOT/avd"
+            portable-chunks
 
-          cp -a "$SDK/emulator" "$ROOT/android-sdk/"
-          cp -a "$SDK/platform-tools" "$ROOT/android-sdk/"
           cp -a "$SDK/system-images/android-29/google_apis/x86_64" \
             "$ROOT/android-sdk/system-images/android-29/google_apis/"
           cp -a "$BUILD_TOOLS" "$ROOT/android-sdk/build-tools/"
-          cp -a "$HOME/.android/avd/nss-api29-portable.avd" "$ROOT/avd/"
-          cp -a "$HOME/.android/avd/nss-api29-portable.ini" "$ROOT/avd/"
 
-          cat > "$ROOT/README-runtime.txt" <<EOF
-          NSS Android 10 portable runtime
+          cat > "$ROOT/PAYLOAD_INFO.txt" <<EOF
           api=29
           android=10
           abi=x86_64
-          avd=nss-api29-portable
           build_tools=$(basename "$BUILD_TOOLS")
+          emulator_included=NO
+          platform_tools_included=NO
           game_payload_included=NO
           EOF
 
-          du -sh "$ROOT" | tee "$ROOT/BUNDLE_SIZE.txt"
-          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/nss-android10-portable.tgz" nss-android10-portable
-          sha256sum "$RUNNER_TEMP/nss-android10-portable.tgz" | tee "$RUNNER_TEMP/nss-android10-portable.sha256"
+          du -sh "$ROOT" | tee "$ROOT/PAYLOAD_SIZE.txt"
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/nss-api29-payload.tgz" nss-api29-payload
+          sha256sum "$RUNNER_TEMP/nss-api29-payload.tgz" | tee portable-chunks/payload.sha256
+          split -b 256M -d -a 2 "$RUNNER_TEMP/nss-api29-payload.tgz" portable-chunks/payload.part-
+          ls -lh portable-chunks/
 
-      - name: Upload portable Android 10 runtime
+      - name: Upload payload part 00
+        if: ${{ hashFiles('portable-chunks/payload.part-00') != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: nss-android10-portable
+          name: nss-api29-payload-00
           path: |
-            ${{ runner.temp }}/nss-android10-portable.tgz
-            ${{ runner.temp }}/nss-android10-portable.sha256
+            portable-chunks/payload.part-00
+            portable-chunks/payload.sha256
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 01
+        if: ${{ hashFiles('portable-chunks/payload.part-01') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-01
+          path: portable-chunks/payload.part-01
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 02
+        if: ${{ hashFiles('portable-chunks/payload.part-02') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-02
+          path: portable-chunks/payload.part-02
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 03
+        if: ${{ hashFiles('portable-chunks/payload.part-03') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-03
+          path: portable-chunks/payload.part-03
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 04
+        if: ${{ hashFiles('portable-chunks/payload.part-04') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-04
+          path: portable-chunks/payload.part-04
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 05
+        if: ${{ hashFiles('portable-chunks/payload.part-05') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-05
+          path: portable-chunks/payload.part-05
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 06
+        if: ${{ hashFiles('portable-chunks/payload.part-06') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-06
+          path: portable-chunks/payload.part-06
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 07
+        if: ${{ hashFiles('portable-chunks/payload.part-07') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-07
+          path: portable-chunks/payload.part-07
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 08
+        if: ${{ hashFiles('portable-chunks/payload.part-08') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-08
+          path: portable-chunks/payload.part-08
+          compression-level: 0
+          retention-days: 1
+      - name: Upload payload part 09
+        if: ${{ hashFiles('portable-chunks/payload.part-09') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-api29-payload-09
+          path: portable-chunks/payload.part-09
           compression-level: 0
           retention-days: 1
