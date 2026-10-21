@@ -22,10 +22,11 @@ new_career = '''press_career(){
   size="$(adb shell wm size 2>/dev/null | tr -d '\\r')"
   case "$size" in
     *1080x2280*)
-      # Stock mainmenu.uis: CareerButton press rect is X=339..603 and
-      # Y=(505-0.8*@T)..(577-0.8*@T). Verified on API29 Pixel 4.
+      # Stock mainmenu.uis M_StandardButton centre on API29 Pixel 4.
+      # Use a normal tap here; the REBORN hold gesture is not equivalent for stock M_StandardButton.
       echo 'Career target (stock API29 Pixel 4): 795,1399'
-      press_physical 795 1399 "${1:-3}"
+      adb shell input touchscreen tap 795 1399 </dev/null || true
+      sleep "${1:-3}"
       ;;
     *)
       echo "Unsupported Stage3 MainMenu geometry: $size" >&2
@@ -88,4 +89,4 @@ elif 'Root is required only for direct save-file evidence' not in s:
     raise SystemExit('deferred-root anchor not found')
 
 p.write_text(s, encoding='utf-8')
-print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + verified Career/footer targets + render gate + deterministic first launch + stock webpagenews continuation + deferred root')
+print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + stock Career tap + footer target + render gate + deterministic first launch + stock webpagenews continuation + deferred root')
