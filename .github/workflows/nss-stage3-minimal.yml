@@ -23,11 +23,11 @@ jobs:
         run: |
           python3 stage3_runtime_hotfix.py
           python3 -m unittest test_stage3_weeklyreview_state.py -v
-      - name: Stage3 AdMob overlay state regression
+      - name: Stage3 AdMob overlay regression
         run: |
+          python3 -m unittest test_stage3_ad_overlay_flow.py -v
           python3 stage3_runtime_hotfix.py
           python3 -m unittest test_stage3_ad_overlay_state.py -v
-          python3 -m unittest test_stage3_ad_overlay_flow.py -v
       - name: Enable KVM access
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
