@@ -66,8 +66,16 @@ done
   exit 208
 }
 
-# m_SimulateMatch writes score/temp stats and sets Match/FastForward. Wait for the
-# stock fast-forwarded match to hand off to MatchStats; do not call MatchOver here.
+# m_SimulateMatch prepares the fixture/temp stats and sets Match/FastForward,
+# but leaves the screen in the pre-kickoff Match state. Start the normal stock
+# match loop with Play; m_UpdateClock -> m_CheckFastForward then consumes the
+# FastForward tweak, jumps minutes, depletes energy and calls m_DoHalfEnds at
+# 45/90/105/120. Do not call MatchOver manually.
+clear_log
+press_play 2
+capture_log 'stock neutral simulation -> StartMatch/FastForward'
+fatal_check
+
 MATCHSTATS_REACHED=0
 for i in $(seq 0 90); do
   fatal_check || exit 209
@@ -106,6 +114,8 @@ echo 'STAGE3_STOCK_SIMULATION_RUNTIME_PASS' '''.rstrip()
         'press_logical 361 53',
         'match\\.autoplayAverage',
         'SIMULATING MATCH',
+        'press_play 2',
+        "capture_log 'stock neutral simulation -> StartMatch/FastForward'",
         'verify_stage3_simulation.py',
         'STAGE3_SIMULATION_GATE_PASS',
     ]
