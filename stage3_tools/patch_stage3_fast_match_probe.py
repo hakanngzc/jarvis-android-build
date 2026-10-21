@@ -29,7 +29,7 @@ def build_probe_units(fixture_id,score1_id,score2_id,over_id,matchstate_id,half_
     # - keep the real selected fixture
     # - force a deterministic 1-0
     # - reproduce the stock full-time boundary used by m_DoHalfEnds:
-    #   minute=90, half=2, real m_MatchOver(true), then state=5 when it succeeds
+    #   minute=90, half=3, real m_MatchOver(true), then state=5 when it succeeds
     # - run the stock GS match-over hook
     # - restore the stock TScreen_Match.m_DoHalfEnd() UI handoff so the normal
     #   navigation panel/Play button owns the next input and can call m_EndMatch.
@@ -42,7 +42,7 @@ def build_probe_units(fixture_id,score1_id,score2_id,over_id,matchstate_id,half_
         0x0159,score2_id,               # iput v1, v0, m_score2
         0x0113,0x005a,                  # const/16 v1, #90
         0x0167,matchmin_id,             # sput v1, m_matchmin
-        0x2112,                         # const/4 v1, #2
+        0x3112,                         # const/4 v1, #3 (stock full-time half)
         0x0167,half_id,                 # sput v1, m_half
         0x1112,                         # const/4 v1, #1 (true)
         0x1071,over_id,0x0001,          # invoke-static {v1}, m_MatchOver(Z)I
@@ -97,7 +97,7 @@ def patch_dex(data,dex_name):
         replacement=units+[0]*(size-len(units)); struct.pack_into(f'<{size}H',blob,off,*replacement)
         blob[12:32]=hashlib.sha1(blob[32:]).digest(); struct.pack_into('<I',blob,8,zlib.adler32(blob[12:]) & 0xffffffff)
         ev=(f'STAGE3 fast-match probe: {dex_name} m_StartMatch()I method@{method_id} code=0x{code:x}; '
-            f'selected m_fixture -> 1-0 -> minute90/half2 -> real m_MatchOver(true)I method@{over_id} '
+            f'selected m_fixture -> 1-0 -> minute90/half3 -> real m_MatchOver(true)I method@{over_id} '
             f'-> stock full-time state5 -> g_GSOnMatchOver method@{gs_over_id} '
             f'-> TScreen_Match.m_DoHalfEnd method@{do_half_end_id} -> return result')
         return bytes(blob),True,ev
