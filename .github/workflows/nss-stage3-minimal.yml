@@ -32,7 +32,10 @@ jobs:
           heap-size: 384M
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: bash stage3_minimal_gate.sh
+          script: |
+            sed -i 's|sign_one(){ local src="$1" dst="$2" tmp="$WORK/aligned-$(basename "$dst")";|sign_one(){ local src="$1" dst="$2"; local tmp="$WORK/aligned-$(basename "$dst")";|' stage3_minimal_gate.sh
+            bash -n stage3_minimal_gate.sh
+            bash stage3_minimal_gate.sh
       - name: Upload Stage3 evidence
         if: always()
         uses: actions/upload-artifact@v4
