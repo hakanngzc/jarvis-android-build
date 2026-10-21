@@ -29,23 +29,75 @@ def proto_signature(d: Dex, method_id: int):
     return d.types[return_type_idx], params, d.strings[shorty_idx]
 
 
+def all_defined_methods(d: Dex):
+    b = d.b
+    for j in range(d.class_n):
+        vals = struct.unpack_from('<8I', b, d.class_off + 32 * j)
+        class_idx, data_off = vals[0], vals[6]
+        if not data_off:
+            continue
+        desc = d.types[class_idx]
+        o = data_off
+        sf, o = d.uleb(o)
+        inf, o = d.uleb(o)
+        dm, o = d.uleb(o)
+        vm, o = d.uleb(o)
+        for _ in range(sf + inf):
+            _, o = d.uleb(o)
+            _, o = d.uleb(o)
+        for kind, count in (('direct', dm), ('virtual', vm)):
+            mid = 0
+            for _ in range(count):
+                diff, o = d.uleb(o)
+                mid += diff
+                access, o = d.uleb(o)
+                code, o = d.uleb(o)
+                yield desc, kind, mid, d.methods[mid], access, code
+
+
 def inspect_dex(path: Path, label: str):
     d = Dex(path)
     found_sim = []
     lines = []
+    simulate_mid = None
 
     for kind, mid, method, access, code in d.class_methods(SCREEN_MATCH) or []:
         if method[1] != 'm_SimulateMatch':
             continue
         ret, params, shorty = proto_signature(d, mid)
         found_sim.append((mid, access, code, ret, params, shorty))
+        simulate_mid = mid
         lines.append(f'SIMULATE dex={label} kind={kind} method_id={mid} access=0x{access:x} code=0x{code:x} proto={params}->{ret} shorty={shorty}')
         if code:
             regs, ins, outs, tries, size, items = d.disasm(code)
             lines.append(f'SIMULATE_CODE regs={regs} ins={ins} outs={outs} tries={tries} units={size}')
             for off, op, args, raw in items:
                 if args or op.startswith(('invoke-', 'sput', 'iput', 'aput', 'sget', 'iget')):
-                    lines.append(f'  {off:05x} {op:<24} {args}')
+                    lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+
+    if simulate_mid is not None:
+        needle = f'[method@{simulate_mid}]'
+        caller_count = 0
+        for desc, kind, mid, method, access, code in all_defined_methods(d):
+            if not code or mid == simulate_mid:
+                continue
+            _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
+            hit_indexes = [i for i, item in enumerate(items) if needle in item[2]]
+            if not hit_indexes:
+                continue
+            caller_count += 1
+            ret, params, shorty = proto_signature(d, mid)
+            lines.append(
+                f'SIMULATE_CALLER dex={label} caller={desc}->{method[1]} method_id={mid} '
+                f'kind={kind} access=0x{access:x} proto={params}->{ret} shorty={shorty}'
+            )
+            for hit_index in hit_indexes:
+                start = max(0, hit_index - 45)
+                end = min(len(items), hit_index + 12)
+                lines.append(f'  CALL_CONTEXT hit_offset={items[hit_index][0]:05x}')
+                for off, op, args, raw in items[start:end]:
+                    lines.append(f'    {off:05x} {raw:<28} {op:<24} {args}')
+        lines.append(f'SIMULATE_CALLER_COUNT dex={label} count={caller_count}')
 
     for cls in TARGET_CLASSES:
         methods = d.class_methods(cls) or []
