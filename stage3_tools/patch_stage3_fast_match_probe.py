@@ -13,6 +13,30 @@ def unique_index(items,owner,name,kind):
     if len(hits)!=1: raise ValueError(f'expected exactly one {kind} {owner}->{name}, found {hits}')
     return hits[0]
 
+def proto_signature(d, method_id):
+    _owner,_name,proto_id=d.methods[method_id]
+    shorty_idx,return_type_idx,params_off=struct.unpack_from('<III',d.b,d.proto_off+12*proto_id)
+    params=[]
+    if params_off:
+        count=struct.unpack_from('<I',d.b,params_off)[0]
+        params=[d.types[struct.unpack_from('<H',d.b,params_off+4+2*i)[0]] for i in range(count)]
+    return d.types[return_type_idx],params,d.strings[shorty_idx]
+
+def build_probe_units(fixture_id,score1_id,score2_id,over_id):
+    # m_StartMatch()I: select the real fixture, force 1-0, then follow the stock
+    # match-end contract: m_MatchOver(true)I and return its int result.
+    return [
+        0x0062,fixture_id,       # sget-object v0, m_fixture
+        0x1112,                  # const/4 v1, #1
+        0x0159,score1_id,        # iput v1, v0, m_score1
+        0x0112,                  # const/4 v1, #0
+        0x0159,score2_id,        # iput v1, v0, m_score2
+        0x1112,                  # const/4 v1, #1 (true)
+        0x1071,over_id,0x0001,   # invoke-static {v1}, m_MatchOver(Z)I
+        0x000a,                  # move-result v0
+        0x000f,                  # return v0
+    ]
+
 def patch_dex(data,dex_name):
     with tempfile.NamedTemporaryFile(suffix='.dex',delete=False) as f: f.write(data); tmp=f.name
     try:
@@ -21,19 +45,27 @@ def patch_dex(data,dex_name):
         if len(starts)!=1: raise ValueError(f'expected one m_StartMatch, found {len(starts)}')
         _kind,method_id,_mt,access,code=starts[0]
         if not (access & 0x8): raise ValueError('m_StartMatch is not static')
+        start_ret,start_params,start_shorty=proto_signature(d,method_id)
+        if (start_ret,start_params)!=('I',[]):
+            raise ValueError(f'unexpected m_StartMatch proto: shorty={start_shorty} return={start_ret} params={start_params}')
         fixture_id=unique_index(d.fields,MATCH,'m_fixture','field')
         score1_id=unique_index(d.fields,FIXTURE,'m_score1','field')
         score2_id=unique_index(d.fields,FIXTURE,'m_score2','field')
         over_id=unique_index(d.methods,MATCH,'m_MatchOver','method')
+        over_ret,over_params,over_shorty=proto_signature(d,over_id)
+        if (over_ret,over_params)!=('I',['Z']):
+            raise ValueError(f'unexpected m_MatchOver proto: shorty={over_shorty} return={over_ret} params={over_params}')
         regs,ins,outs,tries,size,_=d.disasm(code)
         if tries: raise ValueError('m_StartMatch has try handlers')
         if regs<2: raise ValueError('m_StartMatch needs 2 registers')
-        units=[0x0062,fixture_id,0x1112,0x0159,score1_id,0x0112,0x0159,score2_id,0x0071,over_id,0x0000,0x000E]
+        if outs<1: raise ValueError('m_StartMatch needs at least one outgoing argument register')
+        units=build_probe_units(fixture_id,score1_id,score2_id,over_id)
         if size<len(units): raise ValueError(f'm_StartMatch too small: {size}')
         blob=bytearray(data); off=code+16
         replacement=units+[0]*(size-len(units)); struct.pack_into(f'<{size}H',blob,off,*replacement)
         blob[12:32]=hashlib.sha1(blob[32:]).digest(); struct.pack_into('<I',blob,8,zlib.adler32(blob[12:]) & 0xffffffff)
-        ev=f'STAGE3 fast-match probe: {dex_name} m_StartMatch method@{method_id} code=0x{code:x}; selected m_fixture -> 1-0 -> real m_MatchOver method@{over_id}'
+        ev=(f'STAGE3 fast-match probe: {dex_name} m_StartMatch()I method@{method_id} code=0x{code:x}; '
+            f'selected m_fixture -> 1-0 -> real m_MatchOver(true)I method@{over_id} -> return result')
         return bytes(blob),True,ev
     finally: Path(tmp).unlink(missing_ok=True)
 
