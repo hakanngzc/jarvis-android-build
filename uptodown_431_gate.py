@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import hashlib, json, sys, urllib.request
+import hashlib, json, sys, urllib.parse, urllib.request
 from pathlib import Path
 PKG='com.newstargames.newstarsoccer'; VCODE=137; VNAME='4.31'
 EXPECTED='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
@@ -18,13 +18,18 @@ def walk(o):
   for v in o: yield from walk(v)
 try:
  candidates=[]
+ urls=[]
  for host in ('ws75.aptoide.com','ws2.aptoide.com'):
-  url=f'https://{host}/api/7/app/get/package_name={PKG}/nodes=meta,versions'
+  urls += [
+   f'https://{host}/api/7/app/get/package_name={PKG}',
+   f'https://{host}/api/7/app/get?package_name={urllib.parse.quote(PKG)}',
+  ]
+ for url in urls:
   try:
    raw,final,h,s=fetch(url); print('API',s,final,h.get('Content-Type'),'bytes=',len(raw))
    obj=json.loads(raw.decode('utf-8','replace'))
   except Exception as e:
-   print('API_ERROR',host,type(e).__name__,e); continue
+   print('API_ERROR',url,type(e).__name__,e); continue
   print('API_STATUS',obj.get('info',{}).get('status'))
   for f in walk(obj):
    try: code=int(f.get('vercode'))
