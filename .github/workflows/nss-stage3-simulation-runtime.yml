@@ -40,6 +40,7 @@ jobs:
             test_stage3_ad_overlay_state.py \
             test_stage3_dilemma_state.py \
             test_stage3_dilemma_flow.py \
+            test_stage3_starman_state.py \
             test_stage3_readiness_render_gate.py \
             -v
 
