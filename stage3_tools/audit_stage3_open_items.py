@@ -19,6 +19,7 @@ TARGET_CLASSES = (SCREEN_MATCH, MATCH, PLAYER, FIXTURE)
 SIDE_RE = re.compile(r'injur|card|fitness|energy|skill|fatigue|tired|rating|stat', re.I)
 SPECIAL_CLASS_RE = re.compile(r'Dilemma|SplashMessage', re.I)
 SIM_STRING_RE = re.compile(r'Simulate(?:Negative|Neutral|Positive)', re.I)
+DEBUG_TWEAK_RE = re.compile(r"['\"]DebugEnabled['\"]|DebugEnabled", re.I)
 
 
 def proto_signature(d: Dex, method_id: int):
@@ -108,7 +109,9 @@ def inspect_dex(path: Path, label: str):
         trace_method_callers(d, simulate_helpers, 'SIM_HELPER', lines)
 
     # Find string-dispatch references because Monkey/X screen callbacks can invoke
-    # named functions without a direct DEX invoke to the helper method.
+    # named functions without a direct DEX invoke to the helper method. Also trace
+    # the exact DebugEnabled tweak so the simulation gate can expose only the stock
+    # debug autoplay gadget in a test build instead of inventing a new code path.
     for desc, kind, mid, method, access, code in all_defined_methods(d):
         if not code:
             continue
@@ -117,6 +120,12 @@ def inspect_dex(path: Path, label: str):
         for hit_index, item in hits:
             lines.append(f'SIM_STRING_REF caller={desc}->{method[1]} method_id={mid} hit={item[2]}')
             for off, op, args, raw in items[max(0, hit_index-12):min(len(items), hit_index+16)]:
+                lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+
+        debug_hits = [(i, item) for i, item in enumerate(items) if DEBUG_TWEAK_RE.search(item[2] or '')]
+        for hit_index, item in debug_hits:
+            lines.append(f'DEBUG_TWEAK_REF dex={label} caller={desc}->{method[1]} method_id={mid} hit={item[2]}')
+            for off, op, args, raw in items[max(0, hit_index-18):min(len(items), hit_index+22)]:
                 lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
 
     # Map post-match optional dilemma/splash screens so the runtime harness can
