@@ -36,6 +36,7 @@ jobs:
             python3 stage3_runtime_hotfix.py
             python3 stage3_career_input_retry_patch.py
             python3 stage3_readiness_patch.py
+            python3 stage3_match_flow_patch.py
             bash -n stage3_minimal_gate.sh
             bash stage3_minimal_gate.sh
       - name: Upload Stage3 full lifecycle evidence
