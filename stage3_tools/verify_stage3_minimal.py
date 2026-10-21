@@ -21,9 +21,13 @@ def ident(f): return tuple(f[k] for k in IDENTITY)
 def state_xml(p): return extract_monkeystate_from_prefs_xml(Path(p).read_text(encoding='utf-8'))
 
 def main():
-    if len(sys.argv)!=6:
-        raise SystemExit('usage: verify_stage3_minimal.py PRE_XML POST_XML RESTART_XML FLOW REPORT')
-    pre,post,restart,flow_path,report_path=sys.argv[1:]
+    if len(sys.argv)==5:
+        pre,post,restart,flow_path=sys.argv[1:]
+        report_path=None
+    elif len(sys.argv)==6:
+        pre,post,restart,flow_path,report_path=sys.argv[1:]
+    else:
+        raise SystemExit('usage: verify_stage3_minimal.py PRE_XML POST_XML RESTART_XML FLOW [REPORT]')
     a,b,c=state_xml(pre),state_xml(post),state_xml(restart)
     cp0=extract_checkpoint(a,0); cp1=extract_checkpoint(b,0); cp2=extract_checkpoint(c,0)
     flow=Path(flow_path).read_text(encoding='utf-8',errors='replace')
@@ -55,6 +59,9 @@ def main():
     lines.append(f"selected_fixture=date:{sdate} club:{club} home:{af['home']} away:{af['away']} score:{af['score1']}-{af['score2']} result:{af['result']} resulttype:{af['resulttype']}")
     lines.append(f"PASS_COUNT={sum(x for x,_ in checks)}/{len(checks)}")
     lines.append('VERDICT='+('STAGE3_FULL_GATE_PASS' if all(x for x,_ in checks) else 'STAGE3_FULL_GATE_FAIL'))
-    report='\n'.join(lines)+'\n'; Path(report_path).write_text(report,encoding='utf-8'); print(report,end='')
+    report='\n'.join(lines)+'\n'
+    if report_path is not None:
+        Path(report_path).write_text(report,encoding='utf-8')
+    print(report,end='')
     if not all(x for x,_ in checks): raise SystemExit(1)
 if __name__=='__main__': main()
