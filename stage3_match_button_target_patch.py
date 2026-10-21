@@ -31,13 +31,17 @@ shot stage3-matchstats
 '''
 
 new = r'''# The first Career match shows a tutorial overlay on top of the prematch screen.
-# Evidence from the previous runtime run proved that once the real match starts,
-# the footer no longer contains PLAY: it contains Work Rate / Focus, while the
-# stock continuation control is the green button at the upper-right. Therefore
-# use each verified control only in the state where it actually exists.
-press_match_next(){
-  echo 'Match tutorial/next target (stock API29 Pixel 4): 1005,400'
+# Runtime evidence proves two different controls are involved here:
+# - the tutorial overlay is dismissed by the previously proven 1005,400 tap;
+# - after StartMatch, the real green >> continuation button is centred at ~984,141
+#   on the stock API29 Pixel 4 screenshot. Keep those targets separate.
+press_match_tutorial_close(){
+  echo 'Match tutorial close target (stock API29 Pixel 4): 1005,400'
   press_physical 1005 400 "${1:-2}"
+}
+press_match_next(){
+  echo 'Match continuation target (stock API29 Pixel 4): 985,165'
+  press_physical 985 165 "${1:-2}"
 }
 matchstats_seen(){
   adb logcat -d -v brief > "$WORK/match-ingress.log" 2>/dev/null || true
@@ -47,9 +51,9 @@ matchstats_seen(){
 MATCHSTATS_REACHED=0
 clear_log
 
-# Deterministic fresh-Career tutorial: close its X at the verified upper-right
-# location. Do not hit the footer while the overlay owns input.
-press_match_next 2
+# Deterministic fresh-Career tutorial: dismiss the overlay using the target that
+# was proven to close it in the previous runtime artifact.
+press_match_tutorial_close 2
 capture_log 'match tutorial closed'
 shot stage3-match-tutorial-closed
 fatal_check
@@ -62,10 +66,9 @@ capture_log 'probe StartMatch -> stock MatchOver'
 shot stage3-match-after-probe
 if matchstats_seen; then MATCHSTATS_REACHED=1; fi
 
-# After StartMatch the match screen footer is Work Rate / Focus. A screen can stay
-# active without emitting another SetActive/Create Screen line, so do not treat
-# the absence of a fresh transition log as an unknown state. Advance only with
-# the verified stock upper-right continuation target and keep the loop bounded.
+# After StartMatch the footer is Work Rate / Focus and the green >> button is the
+# stock continuation control. A screen can stay active without a fresh SetActive
+# line, so advance using the screenshot-backed >> target and keep the loop bounded.
 for i in $(seq 1 6); do
   [ "$MATCHSTATS_REACHED" -eq 1 ] && break
   clear_log
@@ -90,6 +93,7 @@ if count != 1:
 s = s.replace(old, new, 1)
 
 required = [
+    'press_match_tutorial_close(){',
     'press_match_next(){',
     "capture_log 'match tutorial closed'",
     "capture_log 'probe StartMatch -> stock MatchOver'",
