@@ -49,8 +49,11 @@ jobs:
             python3 stage3_match_flow_patch.py
             python3 stage3_match_button_target_patch.py
             python3 stage3_reload_autoload_patch.py
+            python3 stage3_runtime_state_patch.py
             bash -n stage3_minimal_gate.sh
             bash stage3_minimal_gate.sh
+            grep -qiE 'USE player\.matchReviewBuxAwarded|Award Currency' "$RUNNER_TEMP/stage3-minimal/STAGE3_RUNTIME_FLOW.log"
+            echo 'STAGE3_WEEKLY_REPORT_SIGNAL_PASS'
       - name: Upload Stage3 hardening evidence
         if: always()
         uses: actions/upload-artifact@v4
