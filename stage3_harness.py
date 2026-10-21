@@ -7,6 +7,7 @@ import sys
 SCREEN_RE = re.compile(r'(?:SETTING ACTIVE:|SetActive:|Create Screen:)\s*([A-Za-z0-9_]+)', re.I)
 
 SCREEN_STATES = {
+    'mainmenu': ('mainmenu', 'mainmenu'),
     'matchstats': ('matchstats', 'matchstats'),
     'matchreview': ('matchreview', 'matchreview'),
     'leaguefixtures': ('leaguefixtures', 'prematch'),
