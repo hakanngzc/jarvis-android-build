@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -34,11 +33,8 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 try:
-    run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "goopdl==1.0.0"])
+    run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "goopdl==1.2.1"])
 
-    # First prove Google Play still exposes exact versionCode 137 to an anonymous
-    # x86_64 device profile; this avoids downloading anything if the old delivery
-    # has already disappeared from Play.
     delivery = WORK / "delivery.json"
     run([
         "goopdl", "inspect-delivery", PKG,
@@ -71,7 +67,6 @@ try:
     for p in files:
         print(p.name, p.stat().st_size, sha256(p))
 
-    # goopdl documents the base naming as {package}-{versionCode}.apk.
     base_candidates = [
         p for p in files
         if p.name == f"{PKG}-{VERSION_CODE}.apk"
@@ -86,9 +81,6 @@ try:
             f"base APK hash mismatch: got {base_hash}, expected {EXPECTED_BASE_SHA256}"
         )
 
-    # This gate deliberately does NOT upload or commit Google Play APK bytes.
-    # The source proof records only metadata + hashes. Stage3 runtime will repeat
-    # the same fetch inside its ephemeral KVM runner.
     REPORT.write_text(
         "SOURCE_GATE=PASS\n"
         "source=google-play-via-goopdl\n"
