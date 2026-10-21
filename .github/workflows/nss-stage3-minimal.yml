@@ -34,16 +34,7 @@ jobs:
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
-            python3 - <<'PY'
-            from pathlib import Path
-            p = Path('stage3_minimal_gate.sh')
-            s = p.read_text(encoding='utf-8')
-            anchor = '''# Fresh stock Career creation.\nstart_game fresh\nopen_slot0 fresh\nwait_log 'Create Screen:[[:space:]]*chooseclub|SETTING ACTIVE:[[:space:]]*chooseclub|SetActive:[[:space:]]*chooseclub' 30 chooseclub'''
-            replacement = '''# Fresh stock Career creation.\nstart_game fresh\nopen_slot0 fresh\ncapture_log 'ui-entry probe after slot0 tap'\nshot ui-entry-after-slot0\necho 'STAGE3_UI_ENTRY_PROBE=PASS'\nexit 0\nwait_log 'Create Screen:[[:space:]]*chooseclub|SETTING ACTIVE:[[:space:]]*chooseclub|SetActive:[[:space:]]*chooseclub' 30 chooseclub'''
-            if anchor not in s:
-                raise SystemExit('UI-entry probe anchor not found')
-            p.write_text(s.replace(anchor, replacement, 1), encoding='utf-8')
-            PY
+            python3 stage3_ui_entry_probe_patch.py
             bash -n stage3_minimal_gate.sh
             bash stage3_minimal_gate.sh
       - name: Upload Stage3 UI-entry evidence
