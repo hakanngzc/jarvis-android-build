@@ -15,8 +15,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Stage3 harness regression
-        run: python3 -m unittest test_stage3_harness_hardening.py -v
+      - name: Stage3 harness regressions
+        run: |
+          python3 -m unittest \
+            test_stage3_harness_hardening.py \
+            test_stage3_runtime_state_patch.py -v
       - name: Existing Stage3 unit regressions
         run: |
           python3 -m unittest \
