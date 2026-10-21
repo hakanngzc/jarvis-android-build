@@ -6,6 +6,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / 'stage3_harness.py'
 READINESS = ROOT / 'stage3_readiness_patch.py'
 RETRY = ROOT / 'stage3_career_input_retry_patch.py'
+RUNTIME = ROOT / 'stage3_runtime_state_patch.py'
 
 
 class Stage3RestartHardeningTests(unittest.TestCase):
@@ -36,6 +37,19 @@ class Stage3RestartHardeningTests(unittest.TestCase):
         self.assertIn('aborting Career retry', src)
         self.assertIn('current_state', src)
         self.assertIn('mainmenu', src)
+
+    def test_career_retry_handles_one_transient_ad_overlay(self):
+        retry = RETRY.read_text(encoding='utf-8')
+        runtime = RUNTIME.read_text(encoding='utf-8')
+        self.assertIn('ad_dismissed=0', retry)
+        self.assertIn('[ "$state" = ad ]', retry)
+        self.assertIn('dismiss_ad_overlay', retry)
+        self.assertIn('ad_dismissed=1', retry)
+        self.assertIn('dismiss_ad_overlay(){', runtime)
+        self.assertIn('adb shell input keyevent 4', runtime)
+        self.assertIn('AdActivity', runtime)
+        self.assertIn('MonkeyGame', runtime)
+        self.assertIn('ad-overlay-before-dismiss', runtime)
 
 
 if __name__ == '__main__':
