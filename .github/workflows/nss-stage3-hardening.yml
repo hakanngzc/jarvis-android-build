@@ -19,7 +19,8 @@ jobs:
         run: |
           python3 -m unittest \
             test_stage3_harness_hardening.py \
-            test_stage3_runtime_state_patch.py -v
+            test_stage3_runtime_state_patch.py \
+            test_stage3_restart_hardening.py -v
       - name: Existing Stage3 unit regressions
         run: |
           python3 -m unittest \
@@ -40,7 +41,7 @@ jobs:
           cores: 2
           ram-size: 2048M
           heap-size: 384M
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-metrics
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
