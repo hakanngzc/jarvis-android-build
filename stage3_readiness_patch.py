@@ -17,16 +17,18 @@ helper = r'''wait_game_ready(){
     adb exec-out screencap -p > "$frame" 2>/dev/null || true
     bytes="$(wc -c < "$frame" 2>/dev/null || echo 0)"
     game_window="$(grep -A 45 -F "u0 $PKG/$PKG.MonkeyGame}" <<<"$window" 2>/dev/null || true)"
-    # Render bytes alone are not enough. During slow startup Android can show a
-    # NOT_TOUCHABLE Splash Screen while the real MonkeyGame window is still
-    # mObscured=true / STARTING_WINDOW_SHOWN. Treat that as NOT touch-ready.
+    # Render bytes alone are not enough. The authoritative touch-ready signals
+    # are the live WindowManager facts: the real MonkeyGame window is visible,
+    # not obscured, and there is no Splash Screen obscuring window. Android 10
+    # can leave mStartingWindowState=STARTING_WINDOW_SHOWN stale after this point,
+    # so that ActivityRecord field must not veto a genuinely touch-ready window.
     if [ -n "$pid" ] \
       && grep -q "$PKG/.MonkeyGame" <<<"$activity" \
       && grep -q 'state=RESUMED' <<<"$activity" \
-      && ! grep -q 'STARTING_WINDOW_SHOWN' <<<"$activity" \
       && [ -n "$game_window" ] \
       && grep -q 'mObscured=false' <<<"$game_window" \
       && grep -q 'isVisible=true' <<<"$game_window" \
+      && grep -q 'mObscuringWindow=null' <<<"$window" \
       && ! grep -q "mObscuringWindow=.*Splash Screen $PKG" <<<"$window" \
       && grep -qE 'EGL_emulation.*eglMakeCurrent|libEGL.*loaded|HostConnection.*New Host Connection' <<<"$log" \
       && [ "${bytes:-0}" -gt 30000 ]; then
@@ -40,10 +42,10 @@ helper = r'''wait_game_ready(){
       if [ -n "$pid" ] \
         && grep -q "$PKG/.MonkeyGame" <<<"$activity" \
         && grep -q 'state=RESUMED' <<<"$activity" \
-        && ! grep -q 'STARTING_WINDOW_SHOWN' <<<"$activity" \
         && [ -n "$game_window" ] \
         && grep -q 'mObscured=false' <<<"$game_window" \
         && grep -q 'isVisible=true' <<<"$game_window" \
+        && grep -q 'mObscuringWindow=null' <<<"$window" \
         && ! grep -q "mObscuringWindow=.*Splash Screen $PKG" <<<"$window" \
         && [ "${bytes:-0}" -gt 30000 ]; then
         cp "$frame" "$OUT/$tag-render-ready.png" || true
