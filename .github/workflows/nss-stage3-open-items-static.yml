@@ -1,5 +1,6 @@
 name: NSS Stage3 Open Items Static
 
+# v2 traces the stock caller(s) of c_TScreen_Match.m_SimulateMatch.
 on:
   push:
     branches:
