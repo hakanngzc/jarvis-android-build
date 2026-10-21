@@ -121,7 +121,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             OUT="$RUNNER_TEMP/nss431-kvm-smoke"
             mkdir -p "$OUT/xapk"
             URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
