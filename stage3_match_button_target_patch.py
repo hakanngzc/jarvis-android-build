@@ -30,18 +30,15 @@ done
 shot stage3-matchstats
 '''
 
-new = r'''# The first Career match shows a tutorial overlay on top of the prematch screen.
-# Runtime evidence proves two different controls are involved here:
-# - the tutorial overlay is dismissed by the previously proven 1005,400 tap;
-# - after StartMatch, the real green >> continuation button is centred at ~984,141
-#   on the stock API29 Pixel 4 screenshot. Keep those targets separate.
+new = r'''# First Career match has a tutorial overlay. Dismiss it with the already proven
+# overlay target, then let the patched StartMatch reproduce stock full-time.
+# The probe now calls stock TScreen_Match.m_DoHalfEnd(), which restores the normal
+# navigation panel. Stock TScreen_Match.m_ButtonPlay handles matchstate=5 by
+# calling TMatch.m_EndMatch(), so the NEXT input must be the footer Play/Continue
+# button, not the in-match upper-right fast-forward control.
 press_match_tutorial_close(){
   echo 'Match tutorial close target (stock API29 Pixel 4): 1005,400'
   press_physical 1005 400 "${1:-2}"
-}
-press_match_next(){
-  echo 'Match continuation target (stock API29 Pixel 4): 985,165'
-  press_physical 985 165 "${1:-2}"
 }
 matchstats_seen(){
   adb logcat -d -v brief > "$WORK/match-ingress.log" 2>/dev/null || true
@@ -50,38 +47,36 @@ matchstats_seen(){
 
 MATCHSTATS_REACHED=0
 clear_log
-
-# Deterministic fresh-Career tutorial: dismiss the overlay using the target that
-# was proven to close it in the previous runtime artifact.
 press_match_tutorial_close 2
 capture_log 'match tutorial closed'
 shot stage3-match-tutorial-closed
 fatal_check
 
-# Prematch PLAY now owns input. This invokes the test-only patched m_StartMatch,
-# which writes 1-0 to the real selected fixture and calls stock m_MatchOver(true).
+# First footer press invokes the TEST-ONLY StartMatch probe. The probe writes the
+# real selected fixture 1-0, calls stock MatchOver(true), sets state5, runs the GS
+# match-over hook, and finally executes stock m_DoHalfEnd() to restore footer nav.
 clear_log
 press_play 3
-capture_log 'probe StartMatch -> stock MatchOver'
+capture_log 'probe StartMatch -> stock MatchOver -> DoHalfEnd'
 shot stage3-match-after-probe
 if matchstats_seen; then MATCHSTATS_REACHED=1; fi
 
-# After StartMatch the footer is Work Rate / Focus and the green >> button is the
-# stock continuation control. A screen can stay active without a fresh SetActive
-# line, so advance using the screenshot-backed >> target and keep the loop bounded.
-for i in $(seq 1 6); do
+# With state5 + stock half-end UI active, footer Play/Continue is the stock exit
+# path: TScreen_Match.m_ButtonPlay -> TMatch.m_EndMatch -> g_GSEndMatch -> MatchStats.
+for i in $(seq 1 3); do
   [ "$MATCHSTATS_REACHED" -eq 1 ] && break
   clear_log
-  press_match_next 2
-  capture_log "match next $i"
+  echo "Stock full-time footer continuation attempt $i/3"
+  press_play 3
+  capture_log "stock state5 footer continuation $i"
   if matchstats_seen; then MATCHSTATS_REACHED=1; break; fi
   fatal_check
-  shot "stage3-match-next-$i"
+  shot "stage3-fulltime-footer-$i"
 done
 [ "$MATCHSTATS_REACHED" -eq 1 ] || {
   cp "$WORK/match-ingress.log" "$OUT/matchstats-not-reached.log" 2>/dev/null || true
   shot stage3-matchstats-not-reached
-  echo 'Did not reach MatchStats after tutorial close -> StartMatch -> stock match-next sequence'
+  echo 'Did not reach MatchStats after stock DoHalfEnd -> state5 footer EndMatch sequence'
   exit 204
 }
 shot stage3-matchstats
@@ -94,10 +89,9 @@ s = s.replace(old, new, 1)
 
 required = [
     'press_match_tutorial_close(){',
-    'press_match_next(){',
-    "capture_log 'match tutorial closed'",
-    "capture_log 'probe StartMatch -> stock MatchOver'",
-    'press_match_next 2',
+    "capture_log 'probe StartMatch -> stock MatchOver -> DoHalfEnd'",
+    'Stock full-time footer continuation attempt',
+    'press_play 3',
     'MATCHSTATS_REACHED',
 ]
 if not all(token in s for token in required):
