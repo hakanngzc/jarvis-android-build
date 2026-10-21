@@ -18,17 +18,24 @@ def transform(s: str) -> str:
     s = s.replace(old_build, new_build, 1)
 
     # The normal Stage3 workflow applies stage3_match_button_target_patch.py
-    # before this transform. Accept both the earlier hardened ingress and the
-    # real post-button-target ingress, preferring the latter when present.
-    ingress_anchors = (
-        '# First Career match has a tutorial overlay. Dismiss it with the already proven',
-        '# First-time Career match can show a tutorial overlay',
-    )
-    start = -1
-    for anchor in ingress_anchors:
-        start = s.find(anchor)
-        if start >= 0:
-            break
+    # before this transform. In that form keep its already-verified tutorial
+    # close helper and replace only the executable match ingress below it.
+    button_anchor = '# First Career match has a tutorial overlay. Dismiss it with the already proven'
+    old_anchor = '# First-time Career match can show a tutorial overlay'
+    button_pos = s.find(button_anchor)
+    if button_pos >= 0:
+        start = s.find('MATCHSTATS_REACHED=0\n', button_pos)
+        tutorial_step = r'''# Reuse the verified first-match tutorial target before touching debug autoplay.
+press_match_tutorial_close 2
+capture_log 'simulation tutorial closed'
+shot stage3-simulation-tutorial-closed
+fatal_check
+
+'''
+    else:
+        start = s.find(old_anchor)
+        tutorial_step = ''
+
     end_marker = 'shot stage3-matchstats\n'
     end = s.find(end_marker, start if start >= 0 else 0)
     if start < 0 or end < 0:
@@ -39,7 +46,7 @@ def transform(s: str) -> str:
 # Exact stock debug gadget from assets/monkey/NewGUI/Screens/match.uis:
 # PushOrigin(226,8) + Neutral Rect(95,5,80,80) => logical center (361,53).
 # DebugEnabled is exposed only in this CI test APK by patch_debug_enabled_test.py.
-SIM_TRIGGERED=0
+''' + tutorial_step + r'''SIM_TRIGGERED=0
 clear_log
 for i in $(seq 1 5); do
   press_logical 361 53 2
