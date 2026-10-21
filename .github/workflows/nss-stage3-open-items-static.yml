@@ -1,6 +1,6 @@
 name: NSS Stage3 Open Items Static
 
-# v7 traces simulation/debug controls, football-domain writers/assets, and match event loop.
+# v8 traces simulation/debug controls, event loop, football side effects, and stock match tweaks.
 on:
   push:
     branches:
@@ -46,6 +46,13 @@ jobs:
           set -euo pipefail
           python3 stage3_tools/audit_stage3_event_loop.py "$BASE" | tee stage3-event-loop.txt
           grep -q 'VERDICT=STAGE3_EVENT_LOOP_AUDIT_PASS' stage3-event-loop.txt
+
+      - name: Extract stock match chance and timing tweaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 stage3_tools/audit_stage3_match_tweaks.py "$BASE" | tee stage3-match-tweaks.txt
+          grep -q 'VERDICT=STAGE3_MATCH_TWEAK_AUDIT_PASS' stage3-match-tweaks.txt
 
       - name: Audit raw side-effect writers
         shell: bash
@@ -109,6 +116,7 @@ jobs:
           path: |
             stage3-open-items-static.txt
             stage3-event-loop.txt
+            stage3-match-tweaks.txt
             stage3-side-effect-writers.txt
             stage3-domain-side-effects.txt
             stage3-domain-assets.txt
