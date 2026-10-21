@@ -13,6 +13,7 @@ ARCH = "arm64"
 EXPECTED_BASE_SHA256 = "46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4"
 REPORT = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("/tmp/NSS_431_SOURCE_GATE.txt")
 WORK = Path("/tmp/nss431-play")
+VENV = WORK / "venv"
 WORK.mkdir(parents=True, exist_ok=True)
 
 
@@ -33,11 +34,14 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 try:
-    run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "goopdl==1.2.1"])
+    run([sys.executable, "-m", "venv", str(VENV)])
+    vpython = VENV / "bin" / "python"
+    goopdl = VENV / "bin" / "goopdl"
+    run([str(vpython), "-m", "pip", "install", "--disable-pip-version-check", "goopdl==1.2.1"])
 
     delivery = WORK / "delivery.json"
     run([
-        "goopdl", "inspect-delivery", PKG,
+        str(goopdl), "inspect-delivery", PKG,
         "--arch", ARCH,
         "--version", VERSION_CODE,
         "--json", "--output", str(delivery),
@@ -53,7 +57,7 @@ try:
         raise RuntimeError(f"Play returned unexpected version name {got_name!r}")
 
     run([
-        "goopdl", "download", PKG,
+        str(goopdl), "download", PKG,
         "--arch", ARCH,
         "--version", VERSION_CODE,
         "--output", str(WORK / "apks"),
