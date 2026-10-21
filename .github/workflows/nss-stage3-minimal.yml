@@ -30,7 +30,7 @@ jobs:
           cores: 2
           ram-size: 2048M
           heap-size: 384M
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -prop dalvik.vm.heapgrowthlimit=256m -prop dalvik.vm.heapsize=512m
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
