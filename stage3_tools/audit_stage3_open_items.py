@@ -17,6 +17,8 @@ PLAYER = 'Lcom/newstargames/newstarsoccer/c_TPlayer;'
 FIXTURE = 'Lcom/newstargames/newstarsoccer/c_TFixture;'
 TARGET_CLASSES = (SCREEN_MATCH, MATCH, PLAYER, FIXTURE)
 SIDE_RE = re.compile(r'injur|card|fitness|energy|skill|fatigue|tired|rating|stat', re.I)
+SPECIAL_CLASS_RE = re.compile(r'Dilemma|SplashMessage', re.I)
+SIM_STRING_RE = re.compile(r'Simulate(?:Negative|Neutral|Positive)', re.I)
 
 
 def proto_signature(d: Dex, method_id: int):
@@ -55,49 +57,81 @@ def all_defined_methods(d: Dex):
                 yield desc, kind, mid, d.methods[mid], access, code
 
 
+def trace_method_callers(d: Dex, target_ids: set[int], label: str, lines: list[str]):
+    needles = {mid: f'[method@{mid}]' for mid in target_ids}
+    counts = {mid: 0 for mid in target_ids}
+    for desc, kind, mid, method, access, code in all_defined_methods(d):
+        if not code:
+            continue
+        _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
+        for target_mid, needle in needles.items():
+            hit_indexes = [i for i, item in enumerate(items) if needle in item[2]]
+            if not hit_indexes:
+                continue
+            counts[target_mid] += 1
+            lines.append(f'{label}_CALLER target={target_mid} caller={desc}->{method[1]} method_id={mid}')
+            for hit_index in hit_indexes:
+                start = max(0, hit_index - 18)
+                end = min(len(items), hit_index + 10)
+                for off, op, args, raw in items[start:end]:
+                    lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+    for mid, count in sorted(counts.items()):
+        lines.append(f'{label}_CALLER_COUNT target={mid} count={count}')
+
+
 def inspect_dex(path: Path, label: str):
     d = Dex(path)
     found_sim = []
     lines = []
     simulate_mid = None
+    simulate_helpers: set[int] = set()
 
     for kind, mid, method, access, code in d.class_methods(SCREEN_MATCH) or []:
-        if method[1] != 'm_SimulateMatch':
-            continue
-        ret, params, shorty = proto_signature(d, mid)
-        found_sim.append((mid, access, code, ret, params, shorty))
-        simulate_mid = mid
-        lines.append(f'SIMULATE dex={label} kind={kind} method_id={mid} access=0x{access:x} code=0x{code:x} proto={params}->{ret} shorty={shorty}')
-        if code:
-            regs, ins, outs, tries, size, items = d.disasm(code)
-            lines.append(f'SIMULATE_CODE regs={regs} ins={ins} outs={outs} tries={tries} units={size}')
-            for off, op, args, raw in items:
-                if args or op.startswith(('invoke-', 'sput', 'iput', 'aput', 'sget', 'iget')):
-                    lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+        if method[1] == 'm_SimulateMatch':
+            ret, params, shorty = proto_signature(d, mid)
+            found_sim.append((mid, access, code, ret, params, shorty))
+            simulate_mid = mid
+            lines.append(f'SIMULATE dex={label} kind={kind} method_id={mid} access=0x{access:x} code=0x{code:x} proto={params}->{ret} shorty={shorty}')
+            if code:
+                regs, ins, outs, tries, size, items = d.disasm(code)
+                lines.append(f'SIMULATE_CODE regs={regs} ins={ins} outs={outs} tries={tries} units={size}')
+                for off, op, args, raw in items:
+                    if args or op.startswith(('invoke-', 'sput', 'iput', 'aput', 'sget', 'iget')):
+                        lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+        elif method[1] in {'m_SimulateNegative', 'm_SimulateNeutral', 'm_SimulatePositive'}:
+            simulate_helpers.add(mid)
+            lines.append(f'SIMULATE_HELPER dex={label} name={method[1]} method_id={mid} code=0x{code:x}')
 
     if simulate_mid is not None:
-        needle = f'[method@{simulate_mid}]'
-        caller_count = 0
-        for desc, kind, mid, method, access, code in all_defined_methods(d):
-            if not code or mid == simulate_mid:
-                continue
-            _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
-            hit_indexes = [i for i, item in enumerate(items) if needle in item[2]]
-            if not hit_indexes:
-                continue
-            caller_count += 1
+        trace_method_callers(d, {simulate_mid}, 'SIMULATE', lines)
+    if simulate_helpers:
+        trace_method_callers(d, simulate_helpers, 'SIM_HELPER', lines)
+
+    # Find string-dispatch references because Monkey/X screen callbacks can invoke
+    # named functions without a direct DEX invoke to the helper method.
+    for desc, kind, mid, method, access, code in all_defined_methods(d):
+        if not code:
+            continue
+        _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
+        hits = [(i, item) for i, item in enumerate(items) if SIM_STRING_RE.search(item[2] or '')]
+        for hit_index, item in hits:
+            lines.append(f'SIM_STRING_REF caller={desc}->{method[1]} method_id={mid} hit={item[2]}')
+            for off, op, args, raw in items[max(0, hit_index-12):min(len(items), hit_index+16)]:
+                lines.append(f'  {off:05x} {raw:<28} {op:<24} {args}')
+
+    # Map post-match optional dilemma/splash screens so the runtime harness can
+    # choose a real stock button instead of treating them as unknown.
+    for desc in sorted({x for x in d.types if SPECIAL_CLASS_RE.search(x)}):
+        methods = d.class_methods(desc) or []
+        lines.append(f'SPECIAL_SCREEN class={desc} method_count={len(methods)}')
+        for kind, mid, method, access, code in methods:
             ret, params, shorty = proto_signature(d, mid)
-            lines.append(
-                f'SIMULATE_CALLER dex={label} caller={desc}->{method[1]} method_id={mid} '
-                f'kind={kind} access=0x{access:x} proto={params}->{ret} shorty={shorty}'
-            )
-            for hit_index in hit_indexes:
-                start = max(0, hit_index - 45)
-                end = min(len(items), hit_index + 12)
-                lines.append(f'  CALL_CONTEXT hit_offset={items[hit_index][0]:05x}')
-                for off, op, args, raw in items[start:end]:
-                    lines.append(f'    {off:05x} {raw:<28} {op:<24} {args}')
-        lines.append(f'SIMULATE_CALLER_COUNT dex={label} count={caller_count}')
+            lines.append(f'  SPECIAL_METHOD name={method[1]} id={mid} kind={kind} proto={params}->{ret} code=0x{code:x}')
+            if code and re.search(r'Button|Hit|Select|SetUp|Call|Play|Boss|Team|Fan', method[1], re.I):
+                _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
+                for off, op, args, raw in items:
+                    if args or op.startswith(('invoke-', 'sput', 'iput', 'aput', 'sget', 'iget')):
+                        lines.append(f'    {off:05x} {raw:<28} {op:<24} {args}')
 
     for cls in TARGET_CLASSES:
         methods = d.class_methods(cls) or []
