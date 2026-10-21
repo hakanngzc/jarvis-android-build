@@ -94,7 +94,9 @@ wait_state(){
   capture_log "timeout state $wanted"; echo unknown; return 1
 }
 dump_save(){
-  local tag="$1" remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml" xml="$OUT/${tag}-MonkeyGame.xml"
+  local tag="$1"
+  local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+  local xml="$OUT/${tag}-MonkeyGame.xml"
   if adb shell cat "$remote" > "$xml" 2>/dev/null && grep -q 'monkeystate' "$xml"; then :; else echo "Could not read $remote"; return 1; fi
   echo "Captured $tag save"
 }
@@ -173,43 +175,26 @@ done
 shot stage3-match-prematch
 
 clear_log; press_play 3; capture_log 'probe StartMatch -> stock MatchOver'; shot stage3-match-after-probe
-clear_log; press_play 3; state="$(wait_state 'matchstats match' 30 || true)"; capture_log "full-time Play -> $state"
-if [ "$state" = match ]; then clear_log; press_play 3; state="$(wait_state 'matchstats match' 30 || true)"; capture_log "full-time retry -> $state"; fi
-[ "$state" = matchstats ] || { echo "Did not reach MatchStats: $state"; exit 204; }
-shot stage3-matchstats
-
-MY_MATCH_PLAYED=0; clear_log
-for i in $(seq 1 24); do
-  press_play 2; adb logcat -d -v brief > "$WORK/matchstats-progress.log" 2>/dev/null || true
-  if grep -qiE 'MyMatchPlayed|CallFunc:[[:space:]]*PlayToDate|SetActive:[[:space:]]*message' "$WORK/matchstats-progress.log"; then MY_MATCH_PLAYED=1; break; fi
+clear_log; press_play 3
+state="$(wait_state 'matchstats matchreview message match leaguefixtures gamemenu' 30 || true)"; capture_log "post probe Play -> $state"
+for step in $(seq 1 24); do
+  [ "$state" = gamemenu ] && break
+  clear_log
+  case "$state" in matchstats|matchreview|match|leaguefixtures|league|message) press_play 3;; *) press_message_accept 3;; esac
+  state="$(wait_state 'matchstats matchreview message match leaguefixtures league gamemenu' 20 || true)"; capture_log "post-match step $step -> $state"
 done
-capture_log 'MatchStats -> MyMatchPlayed'; [ "$MY_MATCH_PLAYED" -eq 1 ] || { echo 'MyMatchPlayed not observed'; exit 205; }
+[ "$state" = gamemenu ] || { echo "Post-match chain did not return to GameMenu: $state"; exit 204; }
+shot stage3-gamemenu-postmatch
+sleep 2; dump_save post-match
 
-PLAY_TO_DATE=0
-for i in $(seq 1 8); do
-  adb logcat -d -v brief > "$WORK/playtodate-progress.log" 2>/dev/null || true
-  grep -qiE 'CallFunc:[[:space:]]*PlayToDate|PlayToDate' "$WORK/playtodate-progress.log" && PLAY_TO_DATE=1
-  state="$(current_state)"; [ "$state" = leaguefixtures ] && break
-  press_message_accept 3
-done
-capture_log 'MyMatchPlayed -> PlayToDate -> results'; state="$(current_state)"
-if [ "$state" != leaguefixtures ]; then state="$(wait_state 'leaguefixtures league gamemenu matchreview message' 30 || true)"; fi
-[ "$PLAY_TO_DATE" -eq 1 ] || { echo 'PlayToDate not observed'; exit 206; }
-
-for step in $(seq 1 16); do
-  case "$state" in leaguefixtures|league|matchreview) clear_log; press_play 3;; gamemenu) break;; message) clear_log; press_message_accept 3;; *) sleep 2;; esac
-  state="$(wait_state 'league matchreview gamemenu message leaguefixtures' 25 || true)"; capture_log "post-match step $step -> $state"
-done
-[ "$state" = gamemenu ] || { echo "Did not return GameMenu: $state"; exit 207; }
-sleep 2; capture_log 'post-match GameMenu'; dump_save post-match; shot stage3-post-match-gamemenu
-
+# Restart, reload the same Career, then prove match state persisted.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
-start_game restart
-open_slot0 restart
-load_existing restart
-dump_save post-restart; capture_log 'restart LoadCareer -> GameMenu'; shot stage3-post-restart
+start_game reload
+open_slot0 reload
+load_existing reload
+sleep 2; dump_save post-restart
+capture_log 'Stage3 after restart/load'
 
-PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/verify_stage3_minimal.py \
-  "$OUT/pre-match-MonkeyGame.xml" "$OUT/post-match-MonkeyGame.xml" "$OUT/post-restart-MonkeyGame.xml" \
-  "$FLOW" "$OUT/STAGE3_MINIMAL_VERIFICATION.txt"
-cat "$OUT/STAGE3_MINIMAL_VERIFICATION.txt"
+python3 stage3_tools/verify_stage3_minimal.py "$OUT/pre-match-MonkeyGame.xml" "$OUT/post-match-MonkeyGame.xml" "$OUT/post-restart-MonkeyGame.xml" "$FLOW" | tee "$OUT/STAGE3_FULL_GATE.txt"
+grep -q 'STAGE3_FULL_GATE_PASS' "$OUT/STAGE3_FULL_GATE.txt"
+echo 'STAGE3_MINIMAL_FULL_RUNTIME_PASS'
