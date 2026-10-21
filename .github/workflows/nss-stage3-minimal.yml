@@ -33,6 +33,8 @@ jobs:
         run: |
           python3 stage3_dilemma_state_patch.py
           python3 -m unittest test_stage3_dilemma_state.py -v
+      - name: Stage3 dilemma flow regression
+        run: python3 -m unittest test_stage3_dilemma_flow.py -v
       - name: Stage3 real-frame readiness regression
         run: python3 -m unittest test_stage3_readiness_render_gate.py -v
       - name: Enable KVM access
