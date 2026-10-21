@@ -15,9 +15,8 @@ SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 [ -n "$SDK_ROOT" ] || { echo 'Android SDK root missing'; exit 2; }
 yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;$BT_VERSION" >/dev/null
-AAPT="$SDK_ROOT/build-tools/$BT_VERSION/aapt"
 APKSIGNER="$SDK_ROOT/build-tools/$BT_VERSION/apksigner"
-[ -x "$AAPT" ] && [ -x "$APKSIGNER" ] || { echo 'Pinned Android build-tools unavailable'; exit 3; }
+[ -x "$APKSIGNER" ] || { echo 'Pinned Android build-tools unavailable'; exit 3; }
 
 curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$WORK/NSS-Base.xapk"
 echo "$EXPECTED_XAPK_SHA  $WORK/NSS-Base.xapk" | sha256sum -c -
@@ -25,14 +24,14 @@ unzip -tq "$WORK/NSS-Base.xapk" >/dev/null
 unzip -q "$WORK/NSS-Base.xapk" -d "$WORK/xapk"
 BASE="$WORK/xapk/com.newstargames.newstarsoccer.apk"
 echo "$EXPECTED_BASE_SHA  $BASE" | sha256sum -c -
-
-"$AAPT" dump badging "$BASE" > "$OUT/aapt-badging.txt"
+[ -f "$WORK/xapk/manifest.json" ] || { echo 'XAPK manifest.json missing'; exit 4; }
+cp "$WORK/xapk/manifest.json" "$OUT/xapk-manifest.json"
 "$APKSIGNER" verify --verbose --print-certs "$BASE" > "$OUT/apksigner-certs.txt"
 
-python3 - "$WORK/NSS-Base.xapk" "$WORK/xapk" "$OUT/aapt-badging.txt" "$OUT/apksigner-certs.txt" "$OUT/NSS431_CANONICAL.json" <<'PY'
+python3 - "$WORK/NSS-Base.xapk" "$WORK/xapk" "$OUT/apksigner-certs.txt" "$OUT/NSS431_CANONICAL.json" <<'PY'
 from pathlib import Path
 import hashlib, json, re, sys, zipfile
-xapk_path=Path(sys.argv[1]); xdir=Path(sys.argv[2]); badging=Path(sys.argv[3]).read_text(errors='replace'); certs=Path(sys.argv[4]).read_text(errors='replace'); out=Path(sys.argv[5])
+xapk_path=Path(sys.argv[1]); xdir=Path(sys.argv[2]); certs=Path(sys.argv[3]).read_text(errors='replace'); out=Path(sys.argv[4])
 
 def sha256(p):
     h=hashlib.sha256()
@@ -41,8 +40,12 @@ def sha256(p):
     return h.hexdigest()
 
 def size(p): return Path(p).stat().st_size
-pkg=re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'",badging)
-if not pkg: raise SystemExit('Could not parse aapt package/version')
+meta=json.loads((xdir/'manifest.json').read_text(encoding='utf-8'))
+package=meta.get('package_name') or meta.get('package') or meta.get('packageName')
+version_code=meta.get('version_code') or meta.get('versionCode')
+version_name=meta.get('version_name') or meta.get('versionName')
+if not (package and version_code is not None and version_name):
+    raise SystemExit(f'Could not parse XAPK package/version: keys={sorted(meta)}')
 cert_sha256=re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)",certs)
 cert_sha1=re.search(r"Signer #1 certificate SHA-1 digest: ([0-9a-fA-F]+)",certs)
 cert_dn=re.search(r"Signer #1 certificate DN: (.+)",certs)
@@ -60,9 +63,9 @@ if not base: raise SystemExit('Base APK entry not found')
 data={
  'schema':1,
  'identity':'New Star Soccer 4.31 stock canonical baseline',
- 'package':pkg.group(1),
- 'version_code':int(pkg.group(2)),
- 'version_name':pkg.group(3),
+ 'package':str(package),
+ 'version_code':int(version_code),
+ 'version_name':str(version_name),
  'source':{
    'provider':'APKPure',
    'version_code':137,
@@ -77,8 +80,11 @@ data={
  },
  'apk_entries':apks,
  'expected_xapk_entries':entries,
- 'toolchain_capture':{'android_build_tools': '37.0.0'}
+ 'xapk_manifest_sha256':sha256(xdir/'manifest.json'),
+ 'toolchain_capture':{'android_build_tools':'37.0.0'}
 }
+if data['package']!='com.newstargames.newstarsoccer' or data['version_code']!=137 or data['version_name']!='4.31':
+    raise SystemExit(f'Unexpected package/version: {data["package"]} {data["version_code"]} {data["version_name"]}')
 out.write_text(json.dumps(data,indent=2,sort_keys=True)+'\n',encoding='utf-8')
 print(out.read_text())
 PY
