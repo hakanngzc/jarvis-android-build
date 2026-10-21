@@ -8,8 +8,9 @@ if len(sys.argv)!=3:
 src,dst=map(Path,sys.argv[1:])
 MESSAGE='Lcom/newstargames/newstarsoccer/c_TScreen_Message;'
 MAINMENU='Lcom/newstargames/newstarsoccer/c_TScreen_MainMenu;'
+CLOUD='Lcom/newstargames/newstarsoccer/c_Cloud;'
 FROM='DoTrial1'; TO='TrialDone'
-trial_patched=False; career_gate_patched=False; entries=[]
+trial_patched=False; career_gate_patched=False; cloud_patched=False; entries=[]
 with zipfile.ZipFile(src,'r') as zin:
     for info in zin.infolist():
         data=zin.read(info.filename)
@@ -17,6 +18,23 @@ with zipfile.ZipFile(src,'r') as zin:
             with tempfile.NamedTemporaryFile(suffix='.dex',delete=False) as f:
                 f.write(data); name=f.name
             d=Dex(name); blob=bytearray(data); changed=False
+
+            for kind,mid,mm,acc,code in d.class_methods(CLOUD) or []:
+                if mm[1]!='m_Setup_Internal' or not code: continue
+                by={off:(op,args,raw) for off,op,args,raw in d.disasm(code)[-1]}
+                if by.get(0x0b,('','',''))[0]!='invoke-static' or 'IsOnline' not in str(by[0x0b][1]):
+                    raise SystemExit(f'Unexpected Cloud Setup_Internal IsOnline layout: {by.get(0x0b)}')
+                if by.get(0x17,('','',''))[0]!='sget' or 'm_CLD_GetRootConfig_Offline' not in str(by[0x17][1]):
+                    raise SystemExit(f'Unexpected Cloud offline target: {by.get(0x17)}')
+                pos=code+16+0x0f*2
+                unit0,unit1=struct.unpack_from('<HH',blob,pos)
+                if (unit0,unit1)!=(0x0038,0x0008):
+                    raise SystemExit(f'Unexpected Cloud branch encoding {unit0:04x} {unit1:04x}')
+                struct.pack_into('<H',blob,pos,0x0029)
+                changed=True; cloud_patched=True
+                print(f'Persistence test harness: {info.filename} Cloud.m_Setup_Internal @0f: if-eqz -> goto/16 stock offline path')
+                break
+
             for kind,mid,mm,acc,code in d.class_methods(MAINMENU) or []:
                 if mm[1]!='m_ButtonCareer' or not code: continue
                 items=d.disasm(code)[-1]; jumps=[off for off,op,args,raw in items if op=='if-nez']
@@ -27,6 +45,7 @@ with zipfile.ZipFile(src,'r') as zin:
                 struct.pack_into('<H',blob,pos,0x0029); changed=True; career_gate_patched=True
                 print(f'Persistence test harness: {info.filename} MainMenu.m_ButtonCareer @{off:x}: if-nez -> goto/16 SaveSlot')
                 break
+
             for kind,mid,mm,acc,code in d.class_methods(MESSAGE) or []:
                 if mm[1]!='m_DoCallFunction' or not code: continue
                 hits=[]
@@ -41,10 +60,12 @@ with zipfile.ZipFile(src,'r') as zin:
                 struct.pack_into('<H',blob,pos,to_idx); changed=True; trial_patched=True
                 print(f'Persistence test harness: {info.filename} Message.m_DoCallFunction @{hits[0]:x}: {FROM} -> {TO}')
                 break
+
             if changed:
                 blob[12:32]=hashlib.sha1(blob[32:]).digest(); struct.pack_into('<I',blob,8,zlib.adler32(blob[12:]) & 0xffffffff); data=bytes(blob)
             Path(name).unlink(missing_ok=True)
         entries.append((info,data))
+if not cloud_patched: raise SystemExit('Cloud stock-offline branch was not patched')
 if not career_gate_patched: raise SystemExit('MainMenu Career FTUE gate was not patched')
 if not trial_patched: raise SystemExit('Trial continuation was not patched')
 with zipfile.ZipFile(dst,'w') as zout:
