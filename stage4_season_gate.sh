@@ -88,7 +88,14 @@ PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/patch_trial_skip_for_persist
 BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 ZIPALIGN="$BT/zipalign"; APKSIGNER="$BT/apksigner"
 keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -keypass android -alias ci -dname 'CN=NSS Stage4 CI' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
-sign_one(){ local src="$1" dst="$2" tmp="$WORK/aligned-$(basename "$dst")"; "$ZIPALIGN" -f 4 "$src" "$tmp"; "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci --ks-pass pass:android --key-pass pass:android --out "$dst" "$tmp"; "$APKSIGNER" verify --verbose "$dst" >/dev/null; }
+sign_one(){
+  local src="$1"
+  local dst="$2"
+  local tmp="$WORK/aligned-$(basename "$dst")"
+  "$ZIPALIGN" -f 4 "$src" "$tmp"
+  "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci --ks-pass pass:android --key-pass pass:android --out "$dst" "$tmp"
+  "$APKSIGNER" verify --verbose "$dst" >/dev/null
+}
 sign_one "$WORK/base-career-unsigned.apk" "$WORK/signed/base-career.apk"
 sign_one "$WORK/xapk/config.tr.apk" "$WORK/signed/config.tr.apk"
 sign_one "$WORK/xapk/config.xxhdpi.apk" "$WORK/signed/config.xxhdpi.apk"
