@@ -17,11 +17,22 @@ def transform(s: str) -> str:
         raise ValueError(f'expected one fast-match build command, found {s.count(old_build)}')
     s = s.replace(old_build, new_build, 1)
 
-    start = s.find('# First-time Career match can show a tutorial overlay')
+    # The normal Stage3 workflow applies stage3_match_button_target_patch.py
+    # before this transform. Accept both the earlier hardened ingress and the
+    # real post-button-target ingress, preferring the latter when present.
+    ingress_anchors = (
+        '# First Career match has a tutorial overlay. Dismiss it with the already proven',
+        '# First-time Career match can show a tutorial overlay',
+    )
+    start = -1
+    for anchor in ingress_anchors:
+        start = s.find(anchor)
+        if start >= 0:
+            break
     end_marker = 'shot stage3-matchstats\n'
-    end = s.find(end_marker, start)
+    end = s.find(end_marker, start if start >= 0 else 0)
     if start < 0 or end < 0:
-        raise ValueError('hardened MatchStats ingress anchors not found; apply stage3_match_flow_patch.py first')
+        raise ValueError('hardened MatchStats ingress anchors not found; apply Stage3 match-flow/button-target patches first')
     end += len(end_marker)
 
     sim_ingress = r'''# STAGE3_STOCK_SIMULATION_RUNTIME_V1
