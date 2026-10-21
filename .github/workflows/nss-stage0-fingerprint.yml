@@ -23,6 +23,6 @@ jobs:
           name: stage0-fingerprint
           path: |
             NSS431_CANONICAL.json
-            ${{ runner.temp }}/stage0-fingerprint/out/aapt-badging.txt
+            ${{ runner.temp }}/stage0-fingerprint/out/xapk-manifest.json
             ${{ runner.temp }}/stage0-fingerprint/out/apksigner-certs.txt
           retention-days: 1
