@@ -74,10 +74,10 @@ shot stage3-matchstats
 
     old_verify = '''python3 stage3_tools/verify_stage3_minimal.py "$OUT/pre-match-MonkeyGame.xml" "$OUT/post-match-MonkeyGame.xml" "$OUT/post-restart-MonkeyGame.xml" "$FLOW" | tee "$OUT/STAGE3_FULL_GATE.txt"
 grep -q 'STAGE3_FULL_GATE_PASS' "$OUT/STAGE3_FULL_GATE.txt"
-echo 'STAGE3_MINIMAL_FULL_RUNTIME_PASS' '''
+echo 'STAGE3_MINIMAL_FULL_RUNTIME_PASS' '''.rstrip()
     new_verify = '''python3 stage3_tools/verify_stage3_simulation.py "$OUT/pre-match-MonkeyGame.xml" "$OUT/post-match-MonkeyGame.xml" "$OUT/post-restart-MonkeyGame.xml" "$FLOW" | tee "$OUT/STAGE3_SIMULATION_GATE.txt"
 grep -q 'STAGE3_SIMULATION_GATE_PASS' "$OUT/STAGE3_SIMULATION_GATE.txt"
-echo 'STAGE3_STOCK_SIMULATION_RUNTIME_PASS' '''
+echo 'STAGE3_STOCK_SIMULATION_RUNTIME_PASS' '''.rstrip()
     if s.count(old_verify) != 1:
         raise ValueError(f'expected one minimal verifier block, found {s.count(old_verify)}')
     s = s.replace(old_verify, new_verify, 1)
