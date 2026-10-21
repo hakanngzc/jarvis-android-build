@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 -m unittest test_stage3_ad_overlay_flow.py -v
           python3 stage3_runtime_hotfix.py
+          python3 stage3_ad_overlay_state_patch.py
           python3 -m unittest test_stage3_ad_overlay_state.py -v
       - name: Enable KVM access
         run: |
@@ -47,6 +48,7 @@ jobs:
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
+            python3 stage3_ad_overlay_state_patch.py
             python3 stage3_career_input_retry_patch.py
             python3 stage3_readiness_patch.py
             python3 stage3_match_flow_patch.py
