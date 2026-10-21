@@ -67,7 +67,7 @@ for i in $(seq 1 10); do
     PLAY_TO_DATE=1
   fi
   state="$(current_state)"
-  if [[ " leaguefixtures league gamemenu matchreview dilemma ad " == *" $state "* ]]; then
+  if [[ " leaguefixtures league gamemenu matchreview dilemma starman ad " == *" $state "* ]]; then
     break
   fi
   clear_log
@@ -81,20 +81,18 @@ capture_log 'MyMatchPlayed -> PlayToDate -> results'
   exit 206
 }
 
-# Results -> League/Continue -> optional MatchReview/Dilemma -> GameMenu.
+# Results -> League/Continue -> optional MatchReview/Dilemma/StarMan -> GameMenu.
 # Stock 4.31 can launch an AdMob interstitial immediately after GameMenu has
 # already saved the Career. Treat that Activity as a temporary overlay, dismiss
 # it with Android Back, then re-read the underlying Monkey state.
 #
-# A stock Dilemma can also appear in this chain. dilemma.uis proves TopOption is
-# PushOrigin(55,165+[@T*0.3]) with a 528x368 pressable rectangle. Logical point
-# (320,400) is safely inside that stock relationship1 option. The internal
-# splashmessage may consume the first attempt. Preserve the parent Dilemma log
-# across that retry so current_state() can still classify the parent and the next
-# bounded iteration can press the same verified stock option again.
+# Dilemma and StarMan both have internal overlay layers that may consume the
+# first tap without re-emitting the parent screen. Preserve parent screen logs
+# across those retries. StarMan uses the same verified bottom-right stock Play
+# target as the standard footer continuation.
 state="$(current_state)"
-if [[ " leaguefixtures league gamemenu matchreview dilemma message ad " != *" $state "* ]]; then
-  state="$(wait_state 'leaguefixtures league gamemenu matchreview dilemma message ad' 30 || true)"
+if [[ " leaguefixtures league gamemenu matchreview dilemma starman message ad " != *" $state "* ]]; then
+  state="$(wait_state 'leaguefixtures league gamemenu matchreview dilemma starman message ad' 30 || true)"
 fi
 for step in $(seq 1 16); do
   [ "$state" = gamemenu ] && break
@@ -112,18 +110,19 @@ for step in $(seq 1 16); do
     dilemma)
       press_logical 320 400 3
       ;;
+    starman)
+      press_play 3
+      ;;
     message)
       clear_log
       press_message_accept 3
       ;;
     *)
       clear_log
-      # One bounded neutral wait for transitions that have not emitted their
-      # next screen line yet. Never fall into the old 24x20s unknown loop.
       sleep 2
       ;;
   esac
-  state="$(wait_state 'league matchreview gamemenu dilemma message leaguefixtures ad' 25 || true)"
+  state="$(wait_state 'league matchreview gamemenu dilemma starman message leaguefixtures ad' 25 || true)"
   capture_log "post-match state machine step $step -> $state"
   if [ "$state" = unknown ]; then
     shot "post-match-unknown-$step"
@@ -144,12 +143,9 @@ required = [
     'MATCHSTATS_REACHED=0',
     "capture_log 'MatchStats -> MyMatchPlayed'",
     "capture_log 'MyMatchPlayed -> PlayToDate -> results'",
-    ' dilemma ',
-    'dilemma)',
-    'press_logical 320 400',
-    ' ad ',
-    'ad)',
-    'input keyevent 4',
+    ' dilemma ', 'dilemma)', 'press_logical 320 400',
+    ' starman ', 'starman)',
+    ' ad ', 'ad)', 'input keyevent 4',
     'dump_save post-match',
 ]
 if not all(x in s for x in required):
