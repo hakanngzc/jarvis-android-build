@@ -20,7 +20,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Boot Android 10 and isolate MainMenu to SaveSlot
+      - name: Boot Android 10 and run Stage3 startup A-B diagnostic
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
@@ -30,17 +30,13 @@ jobs:
           cores: 2
           ram-size: 2048M
           heap-size: 384M
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -prop dalvik.vm.heapgrowthlimit=256m -prop dalvik.vm.heapsize=512m
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: |
-            python3 stage3_runtime_hotfix.py
-            python3 stage3_ui_entry_probe_patch.py
-            bash -n stage3_minimal_gate.sh
-            bash stage3_minimal_gate.sh
-      - name: Upload Stage3 UI-entry evidence
+          script: bash stage3_startup_ab.sh
+      - name: Upload Stage3 startup A-B evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage3-ui-entry-evidence
-          path: ${{ runner.temp }}/stage3-minimal/
+          name: stage3-startup-ab-evidence
+          path: ${{ runner.temp }}/stage3-startup-ab/
           retention-days: 1
