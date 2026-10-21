@@ -1,24 +1,37 @@
 #!/usr/bin/env python3
-import html,re,urllib.request,urllib.parse,json
+import html,re,urllib.request,json
 BASE='https://new-star-soccer.en.uptodown.com/android'
+ROOT='https://new-star-soccer.en.uptodown.com'
 UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36'
 def get(url,ref=None):
  h={'User-Agent':UA,'Accept':'*/*'}
  if ref:h['Referer']=ref
  r=urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=60)
  b=r.read(); print('GET',r.status,r.geturl(),r.headers.get('Content-Type'),len(b)); return b,r.geturl()
-raw,u=get(BASE+'/versions')
+raw,u=get(BASE+'/download/1129097900')
 t=raw.decode('utf-8','replace')
-m=re.search(r'<div[^>]*data-version-id=["\']1129097900["\'][^>]*>',t,re.I)
-print('VERSION_TAG',m.group(0) if m else 'NONE')
-page=BASE+'/download/1129097900'
-raw,u=get(page,u); t=raw.decode('utf-8','replace')
-for pat in ['detail-download-button','detail-app-name','button variants','post-download','data-file-id']:
- print('\n--',pat,'--')
- for x in re.findall(r'<[^>]*'+re.escape(pat.split()[0])+r'[^>]*>',t,re.I)[:20]: print(html.unescape(x))
-for name in ['data-url','data-version','data-code','code','data-file-id']:
- vals=[]
- for mm in re.finditer(r'\b'+name+r'\s*=\s*["\']([^"\']+)["\']',t,re.I):
-  v=html.unescape(mm.group(1))
-  if v not in vals: vals.append(v)
- print(name,vals[:30])
+print('MAIN', re.findall(r'<button id="detail-download-button"[^>]*>',t,re.I)[:1])
+print('APP_CODE', re.findall(r'id="detail-app-name"[^>]*data-code="([^"]+)"',t,re.I))
+print('DATA_VERSION', re.findall(r'class="button variants"[^>]*data-version="([^"]+)"',t,re.I))
+files_url=ROOT+'/app/18771/version/12062304/files'
+b,u2=get(files_url,u)
+obj=json.loads(b.decode('utf-8','replace'))
+content=html.unescape(str(obj.get('content','')))
+print('FILES_CONTENT', re.sub(r'\s+',' ',content)[:12000])
+ids=[]
+for m in re.finditer(r'data-file-id\s*=\s*["\']([^"\']+)["\']',content,re.I):
+ v=m.group(1)
+ if v not in ids: ids.append(v)
+print('FILE_IDS',ids)
+for fid in ids[:12]:
+ for suffix in ('-x',''):
+  url=f'{BASE}/download/{fid}{suffix}'
+  try:
+   rb,fu=get(url,u)
+  except Exception as e:
+   print('ERR',url,type(e).__name__,e); continue
+  tt=rb.decode('utf-8','replace')
+  tags=re.findall(r'<button id="detail-download-button"[^>]*>',tt,re.I)
+  print('PAGE',fid,suffix,'BUTTON',tags[:1])
+  vals=re.findall(r'\bdata-url\s*=\s*["\']([^"\']+)["\']',tt,re.I)
+  print('DATA_URLS',vals[:10])
