@@ -18,11 +18,24 @@ if 'first-run-overlay-patch.txt' not in s:
 
 old_start = '''  wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "$tag-mainmenu"\n  sleep 3\n  test -n "$(adb shell pidof "$PKG" | tr -d '\\r' || true)"'''
 new_start = '''  wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "$tag-mainmenu"\n  local rendered=0 ready_i bytes\n  for ready_i in $(seq 1 45); do\n    adb exec-out screencap -p > "$WORK/render-probe.png" 2>/dev/null || true\n    bytes="$(wc -c < "$WORK/render-probe.png" 2>/dev/null || echo 0)"\n    if [ "${bytes:-0}" -gt 30000 ]; then\n      cp "$WORK/render-probe.png" "$OUT/${tag}-render-ready.png" || true\n      echo "Rendered frame ready after ${ready_i}s (${bytes} bytes)"\n      rendered=1\n      break\n    fi\n    sleep 1\n  done\n  [ "$rendered" -eq 1 ] || { cp "$WORK/render-probe.png" "$OUT/${tag}-render-timeout.png" 2>/dev/null || true; echo 'Rendered frame did not become ready'; return 1; }\n  test -n "$(adb shell pidof "$PKG" | tr -d '\\r' || true)"'''
-
 if old_start in s:
     s = s.replace(old_start, new_start, 1)
 elif 'Rendered frame ready after' not in s:
     raise SystemExit('start_game render-gate anchor not found')
 
+old_boot = '''install_base "$WORK/signed/base-career.apk"\nadb shell pm clear "$PKG" >/dev/null || true\nadb root >/dev/null 2>&1 || true; adb wait-for-device; sleep 2\n\n# Fresh stock Career creation.'''
+new_boot = '''install_base "$WORK/signed/base-career.apk"\nadb shell pm clear "$PKG" >/dev/null || true\n# Make first launch deterministic: finish package compilation before starting the game.\nadb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true\nsleep 2\n\n# Fresh stock Career creation.'''
+if old_boot in s:
+    s = s.replace(old_boot, new_boot, 1)
+elif 'Make first launch deterministic' not in s:
+    raise SystemExit('initial install/root anchor not found')
+
+root_anchor = '''shot fresh-after-save\n\n# Same-signature Stage3 fast-match update.'''
+root_replacement = '''shot fresh-after-save\n\n# Root is required only for direct save-file evidence; defer adbd restart until after the first stable Career save.\nadb root >/dev/null 2>&1 || true\nadb wait-for-device\nsleep 2\n\n# Same-signature Stage3 fast-match update.'''
+if root_anchor in s:
+    s = s.replace(root_anchor, root_replacement, 1)
+elif 'Root is required only for direct save-file evidence' not in s:
+    raise SystemExit('deferred-root anchor not found')
+
 p.write_text(s, encoding='utf-8')
-print('Applied Stage3 runtime hotfixes: sign_one scope + first-run overlay removal + rendered-frame gate')
+print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + render gate + deterministic first launch + deferred root')
