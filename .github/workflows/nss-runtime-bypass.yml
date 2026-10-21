@@ -96,3 +96,23 @@ jobs:
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.txt
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.log
           retention-days: 1
+
+  apkpure-source-gate:
+    if: github.event_name == 'pull_request' && github.head_ref == 'tmp-apkpure-source-gate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download APKPure NSS 4.31 and verify exact base APK hash
+        run: |
+          set -o pipefail
+          python3 apkpure_431_gate.py "$RUNNER_TEMP/NSS_431_APKPURE_GATE.txt" | tee "$RUNNER_TEMP/NSS_431_APKPURE_GATE.log"
+      - name: Upload source-gate evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss431-apkpure-source-gate
+          path: |
+            ${{ runner.temp }}/NSS_431_APKPURE_GATE.txt
+            ${{ runner.temp }}/NSS_431_APKPURE_GATE.log
+          retention-days: 1
