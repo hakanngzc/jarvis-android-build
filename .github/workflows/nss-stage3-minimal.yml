@@ -34,6 +34,7 @@ jobs:
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
+            python3 stage3_career_input_retry_patch.py
             python3 stage3_prematch_reload_probe_patch.py
             bash -n stage3_minimal_gate.sh
             bash stage3_minimal_gate.sh
