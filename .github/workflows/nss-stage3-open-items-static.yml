@@ -1,6 +1,6 @@
 name: NSS Stage3 Open Items Static
 
-# v4 traces simulation/debug controls and card/injury/skill/fitness writers.
+# v5 traces simulation/debug controls and precise football-domain side effects.
 on:
   push:
     branches:
@@ -40,12 +40,19 @@ jobs:
           python3 stage3_tools/audit_stage3_open_items.py "$BASE" | tee stage3-open-items-static.txt
           grep -q 'VERDICT=STAGE3_OPEN_ITEMS_STATIC_AUDIT_PASS' stage3-open-items-static.txt
 
-      - name: Audit card injury skill and fitness writers
+      - name: Audit raw side-effect writers
         shell: bash
         run: |
           set -euo pipefail
           python3 stage3_tools/audit_stage3_side_effect_writers.py "$BASE" | tee stage3-side-effect-writers.txt
           grep -q 'VERDICT=STAGE3_SIDE_EFFECT_WRITER_AUDIT_PASS' stage3-side-effect-writers.txt
+
+      - name: Audit precise football-domain side effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 stage3_tools/audit_stage3_domain_side_effects.py "$BASE" | tee stage3-domain-side-effects.txt
+          grep -q 'VERDICT=STAGE3_DOMAIN_SIDE_EFFECT_AUDIT_PASS' stage3-domain-side-effects.txt
 
       - name: Locate stock autoplay gadget definitions
         shell: bash
@@ -88,4 +95,5 @@ jobs:
           path: |
             stage3-open-items-static.txt
             stage3-side-effect-writers.txt
+            stage3-domain-side-effects.txt
             stage3-autoplay-assets.txt
