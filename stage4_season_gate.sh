@@ -121,6 +121,8 @@ echo "$BASE_SHA  $BASE" | sha256sum -c -
 
 # Reuse proven TEST-ONLY fresh-Career/trial shortcut. Persistence remains stock.
 PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/patch_trial_skip_for_persistence_test.py "$BASE" "$WORK/base-career-unsigned.apk" | tee "$OUT/career-trial-patch.txt"
+python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk" "$WORK/base-career-overlay-unsigned.apk" | tee "$OUT/first-run-overlay-patch.txt"
+mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"
 
 BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 ZIPALIGN="$BT/zipalign"; APKSIGNER="$BT/apksigner"
