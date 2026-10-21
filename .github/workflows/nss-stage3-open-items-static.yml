@@ -1,6 +1,6 @@
 name: NSS Stage3 Open Items Static
 
-# v8 traces simulation/debug controls, event loop, football side effects, and stock match tweaks.
+# v9 traces simulation/debug controls, event loop, football side effects, stock tweaks and StarMan.
 on:
   push:
     branches:
@@ -34,46 +34,25 @@ jobs:
           echo "BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Audit simulated match and debug flag
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_open_items.py "$BASE" | tee stage3-open-items-static.txt
-          grep -q 'VERDICT=STAGE3_OPEN_ITEMS_STATIC_AUDIT_PASS' stage3-open-items-static.txt
+        run: python3 stage3_tools/audit_stage3_open_items.py "$BASE" | tee stage3-open-items-static.txt && grep -q 'VERDICT=STAGE3_OPEN_ITEMS_STATIC_AUDIT_PASS' stage3-open-items-static.txt
 
       - name: Audit stock match event and minigame loop
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_event_loop.py "$BASE" | tee stage3-event-loop.txt
-          grep -q 'VERDICT=STAGE3_EVENT_LOOP_AUDIT_PASS' stage3-event-loop.txt
+        run: python3 stage3_tools/audit_stage3_event_loop.py "$BASE" | tee stage3-event-loop.txt && grep -q 'VERDICT=STAGE3_EVENT_LOOP_AUDIT_PASS' stage3-event-loop.txt
 
       - name: Extract stock match chance and timing tweaks
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_match_tweaks.py "$BASE" | tee stage3-match-tweaks.txt
-          grep -q 'VERDICT=STAGE3_MATCH_TWEAK_AUDIT_PASS' stage3-match-tweaks.txt
+        run: python3 stage3_tools/audit_stage3_match_tweaks.py "$BASE" | tee stage3-match-tweaks.txt && grep -q 'VERDICT=STAGE3_MATCH_TWEAK_AUDIT_PASS' stage3-match-tweaks.txt
+
+      - name: Map stock StarMan screen and controls
+        run: python3 stage3_tools/audit_stage3_starman.py "$BASE" | tee stage3-starman.txt && grep -q 'VERDICT=STAGE3_STARMAN_AUDIT_PASS' stage3-starman.txt
 
       - name: Audit raw side-effect writers
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_side_effect_writers.py "$BASE" | tee stage3-side-effect-writers.txt
-          grep -q 'VERDICT=STAGE3_SIDE_EFFECT_WRITER_AUDIT_PASS' stage3-side-effect-writers.txt
+        run: python3 stage3_tools/audit_stage3_side_effect_writers.py "$BASE" | tee stage3-side-effect-writers.txt && grep -q 'VERDICT=STAGE3_SIDE_EFFECT_WRITER_AUDIT_PASS' stage3-side-effect-writers.txt
 
       - name: Audit precise football-domain side effects
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_domain_side_effects.py "$BASE" | tee stage3-domain-side-effects.txt
-          grep -q 'VERDICT=STAGE3_DOMAIN_SIDE_EFFECT_AUDIT_PASS' stage3-domain-side-effects.txt
+        run: python3 stage3_tools/audit_stage3_domain_side_effects.py "$BASE" | tee stage3-domain-side-effects.txt && grep -q 'VERDICT=STAGE3_DOMAIN_SIDE_EFFECT_AUDIT_PASS' stage3-domain-side-effects.txt
 
       - name: Audit injury and discipline asset terms
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 stage3_tools/audit_stage3_domain_assets.py "$BASE" | tee stage3-domain-assets.txt
-          grep -q 'VERDICT=STAGE3_DOMAIN_ASSET_AUDIT_PASS' stage3-domain-assets.txt
+        run: python3 stage3_tools/audit_stage3_domain_assets.py "$BASE" | tee stage3-domain-assets.txt && grep -q 'VERDICT=STAGE3_DOMAIN_ASSET_AUDIT_PASS' stage3-domain-assets.txt
 
       - name: Locate stock autoplay gadget definitions
         shell: bash
@@ -117,6 +96,7 @@ jobs:
             stage3-open-items-static.txt
             stage3-event-loop.txt
             stage3-match-tweaks.txt
+            stage3-starman.txt
             stage3-side-effect-writers.txt
             stage3-domain-side-effects.txt
             stage3-domain-assets.txt
