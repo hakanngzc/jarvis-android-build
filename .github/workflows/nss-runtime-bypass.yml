@@ -96,3 +96,57 @@ jobs:
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.txt
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.log
           retention-days: 1
+
+  stage3-kvm-runtime:
+    if: github.event_name == 'pull_request' && github.head_ref == 'tmp-stage3-kvm-runtime'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply isolated shell-scope fix and static-check harness
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('stage3_runtime/public_stage3_gate.sh')
+          s=p.read_text()
+          old1='''capture_failure(){\n  local rc=$?\n  set +e'''
+          new1='''capture_failure(){\n  local rc=$?\n  trap - ERR\n  set +e'''
+          old2='''  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"'''
+          new2='''  local src="$1"\n  local dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"'''
+          if s.count(old1)!=1 or s.count(old2)!=1:
+              raise SystemExit('expected shell-scope patch targets were not unique')
+          p.write_text(s.replace(old1,new1).replace(old2,new2))
+          PY
+          bash -n stage3_runtime/public_stage3_gate.sh
+          python3 -m py_compile \
+            stage3_runtime/tools/dex_inspect.py \
+            stage3_runtime/tools/patch_cloud_startup_bypass_for_persistence_test.py \
+            stage3_runtime/tools/patch_trial_skip_for_persistence_test.py \
+            stage3_runtime/tools/patch_stage3_fast_match_probe.py
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run Stage3 lifecycle gate on Android 10
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 4096M
+          heap-size: 512M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: TEST_NAME=stage3-public-api29 bash stage3_runtime/public_stage3_gate.sh
+      - name: Upload Stage3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-stage3-public-api29
+          path: artifacts/stage3-public-api29/
+          retention-days: 2
