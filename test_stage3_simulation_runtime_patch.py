@@ -67,7 +67,11 @@ echo 'STAGE3_MINIMAL_FULL_RUNTIME_PASS'\n'''
 
     def test_transform_accepts_real_post_button_target_ingress(self):
         mod = self.load_module()
-        self.assert_stock_sim_transform(mod.transform(self.button_target_fixture()))
+        out = mod.transform(self.button_target_fixture())
+        self.assert_stock_sim_transform(out)
+        self.assertIn('press_match_tutorial_close(){ :; }', out)
+        self.assertIn('press_match_tutorial_close 2', out)
+        self.assertLess(out.index('press_match_tutorial_close 2'), out.index('press_logical 361 53'))
 
     def test_transform_refuses_unhardened_match_flow(self):
         mod = self.load_module()
