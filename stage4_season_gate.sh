@@ -68,7 +68,20 @@ start_game(){
   adb shell am force-stop "$PKG" >/dev/null 2>&1 || true; clear_log
   adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
   wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "$tag-mainmenu"
-  sleep 2; test -n "$(adb shell pidof "$PKG" | tr -d '\r' || true)"; capture_log "$tag mainmenu"; shot "$tag-mainmenu"
+  local rendered=0 ready_i bytes
+  for ready_i in $(seq 1 45); do
+    adb exec-out screencap -p > "$WORK/render-probe.png" 2>/dev/null || true
+    bytes="$(wc -c < "$WORK/render-probe.png" 2>/dev/null || echo 0)"
+    if [ "${bytes:-0}" -gt 30000 ]; then
+      cp "$WORK/render-probe.png" "$OUT/${tag}-render-ready.png" || true
+      echo "Rendered frame ready after ${ready_i}s (${bytes} bytes)"
+      rendered=1
+      break
+    fi
+    sleep 1
+  done
+  [ "$rendered" -eq 1 ] || { cp "$WORK/render-probe.png" "$OUT/${tag}-render-timeout.png" 2>/dev/null || true; echo 'Rendered frame did not become ready'; return 1; }
+  test -n "$(adb shell pidof "$PKG" | tr -d '\r' || true)"; capture_log "$tag mainmenu"; shot "$tag-mainmenu"
 }
 open_slot0(){
   local tag="$1" attempt reached=0
