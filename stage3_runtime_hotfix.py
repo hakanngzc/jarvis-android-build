@@ -88,5 +88,12 @@ if root_anchor in s:
 elif 'Root is required only for direct save-file evidence' not in s:
     raise SystemExit('deferred-root anchor not found')
 
+old_state = '''current_state(){\n  adb logcat -d -v brief > "$WORK/state.log" 2>/dev/null || true\n  local line; line="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/state.log" | tail -1 || true)"'''
+new_state = '''current_state(){\n  adb logcat -d -v brief > "$WORK/state.log" 2>/dev/null || true\n  # MatchReview has an internal weekly-report phase that does not emit a new SetActive/Create Screen line.\n  # Stock 4.31 logs this phase through matchReviewBuxAwarded immediately before the weekly summary is shown.\n  if grep -q 'USE player.matchReviewBuxAwarded:' "$WORK/state.log"; then\n    echo matchreview\n    return\n  fi\n  local line; line="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/state.log" | tail -1 || true)"'''
+if old_state in s:
+    s = s.replace(old_state, new_state, 1)
+elif 'MatchReview has an internal weekly-report phase' not in s:
+    raise SystemExit('current_state weekly-review anchor not found')
+
 p.write_text(s, encoding='utf-8')
-print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + stock Career tap + footer target + render gate + deterministic first launch + stock webpagenews continuation + deferred root')
+print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + stock Career tap + footer target + render gate + deterministic first launch + stock webpagenews continuation + deferred root + weekly MatchReview phase')
