@@ -22,11 +22,12 @@ class Stage3RestartHardeningTests(unittest.TestCase):
             'mainmenu',
         )
 
-    def test_readiness_rejects_starting_splash_and_obscured_game_window(self):
+    def test_readiness_uses_live_window_state_not_stale_starting_flag(self):
         src = READINESS.read_text(encoding='utf-8')
         self.assertIn('Splash Screen', src)
         self.assertIn('mObscured=false', src)
-        self.assertIn('STARTING_WINDOW_SHOWN', src)
+        self.assertIn('mObscuringWindow=null', src)
+        self.assertNotIn("! grep -q 'STARTING_WINDOW_SHOWN'", src)
         self.assertIn('touch-ready', src)
 
     def test_career_retry_aborts_on_fatal_instead_of_pressing_again(self):
