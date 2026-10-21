@@ -67,7 +67,7 @@ for i in $(seq 1 10); do
     PLAY_TO_DATE=1
   fi
   state="$(current_state)"
-  if [[ " leaguefixtures league gamemenu matchreview " == *" $state "* ]]; then
+  if [[ " leaguefixtures league gamemenu matchreview ad " == *" $state "* ]]; then
     break
   fi
   clear_log
@@ -82,27 +82,38 @@ capture_log 'MyMatchPlayed -> PlayToDate -> results'
 }
 
 # Results -> League/Continue -> optional MatchReview -> GameMenu.
+# Stock 4.31 can launch an AdMob interstitial immediately after GameMenu has
+# already saved the Career. Treat that Activity as a temporary overlay, dismiss
+# it with Android Back, then re-read the underlying Monkey state.
 state="$(current_state)"
-if [[ " leaguefixtures league gamemenu matchreview message " != *" $state "* ]]; then
-  state="$(wait_state 'leaguefixtures league gamemenu matchreview message' 30 || true)"
+if [[ " leaguefixtures league gamemenu matchreview message ad " != *" $state "* ]]; then
+  state="$(wait_state 'leaguefixtures league gamemenu matchreview message ad' 30 || true)"
 fi
 for step in $(seq 1 16); do
   [ "$state" = gamemenu ] && break
-  clear_log
   case "$state" in
+    ad)
+      shot "post-match-ad-$step"
+      echo 'Closing stock AdMob interstitial with Android Back'
+      adb shell input keyevent 4 </dev/null || true
+      sleep 2
+      ;;
     leaguefixtures|league|matchreview)
+      clear_log
       press_play 3
       ;;
     message)
+      clear_log
       press_message_accept 3
       ;;
     *)
+      clear_log
       # One bounded neutral wait for transitions that have not emitted their
       # next screen line yet. Never fall into the old 24x20s unknown loop.
       sleep 2
       ;;
   esac
-  state="$(wait_state 'league matchreview gamemenu message leaguefixtures' 25 || true)"
+  state="$(wait_state 'league matchreview gamemenu message leaguefixtures ad' 25 || true)"
   capture_log "post-match state machine step $step -> $state"
   if [ "$state" = unknown ]; then
     shot "post-match-unknown-$step"
@@ -123,6 +134,9 @@ required = [
     'MATCHSTATS_REACHED=0',
     "capture_log 'MatchStats -> MyMatchPlayed'",
     "capture_log 'MyMatchPlayed -> PlayToDate -> results'",
+    ' ad ',
+    'ad)',
+    'input keyevent 4',
     'dump_save post-match',
 ]
 if not all(x in s for x in required):
