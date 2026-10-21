@@ -42,6 +42,7 @@ for i in $(seq 1 60); do
   fi
 done
 
+sleep 5
 adb exec-out screencap -p > "$OUT/screen.png" || true
 adb shell dumpsys activity activities > "$OUT/activity.txt" || true
 pidof=$(adb shell pidof "$PKG" | tr -d '\r' || true)
