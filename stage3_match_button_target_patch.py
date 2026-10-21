@@ -62,17 +62,12 @@ capture_log 'probe StartMatch -> stock MatchOver'
 shot stage3-match-after-probe
 if matchstats_seen; then MATCHSTATS_REACHED=1; fi
 
-# After StartMatch the match screen footer is Work Rate / Focus. Advance with the
-# actual stock upper-right match continuation control, never the old footer PLAY.
+# After StartMatch the match screen footer is Work Rate / Focus. A screen can stay
+# active without emitting another SetActive/Create Screen line, so do not treat
+# the absence of a fresh transition log as an unknown state. Advance only with
+# the verified stock upper-right continuation target and keep the loop bounded.
 for i in $(seq 1 6); do
   [ "$MATCHSTATS_REACHED" -eq 1 ] && break
-  state="$(current_state)"
-  if [ "$state" = matchstats ]; then MATCHSTATS_REACHED=1; break; fi
-  if [ "$state" != match ]; then
-    capture_log "unexpected post-StartMatch state $state"
-    echo "Unexpected state while advancing Match: $state"
-    exit 204
-  fi
   clear_log
   press_match_next 2
   capture_log "match next $i"
