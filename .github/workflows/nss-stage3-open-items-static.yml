@@ -1,6 +1,6 @@
 name: NSS Stage3 Open Items Static
 
-# v2 traces the stock caller(s) of c_TScreen_Match.m_SimulateMatch.
+# v3 also locates the stock autoplayAverage gadget definition in APK assets.
 on:
   push:
     branches:
@@ -40,9 +40,44 @@ jobs:
           python3 stage3_tools/audit_stage3_open_items.py "$BASE" | tee stage3-open-items-static.txt
           grep -q 'VERDICT=STAGE3_OPEN_ITEMS_STATIC_AUDIT_PASS' stage3-open-items-static.txt
 
+      - name: Locate stock autoplay gadget definitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$BASE" <<'PY' | tee stage3-autoplay-assets.txt
+          import sys, zipfile
+          apk = sys.argv[1]
+          needles = [b'autoplayAverage', b'autoplayGood', b'autoplayPoor', b'dilemma.btn_relationship1', b'dilemma.btn_relationship2']
+          hits = 0
+          with zipfile.ZipFile(apk) as z:
+              for info in z.infolist():
+                  if info.file_size > 8_000_000:
+                      continue
+                  try:
+                      data = z.read(info.filename)
+                  except Exception:
+                      continue
+                  for needle in needles:
+                      pos = data.find(needle)
+                      if pos < 0:
+                          continue
+                      hits += 1
+                      lo = max(0, pos - 900)
+                      hi = min(len(data), pos + 1800)
+                      chunk = data[lo:hi]
+                      text = ''.join(chr(b) if b in (9,10,13) or 32 <= b < 127 else '.' for b in chunk)
+                      print(f'ENTRY={info.filename} NEEDLE={needle.decode()} OFFSET={pos} SIZE={info.file_size}')
+                      print(text)
+                      print('---')
+          print(f'ASSET_NEEDLE_HITS={hits}')
+          PY
+          grep -q 'autoplayAverage' stage3-autoplay-assets.txt
+
       - name: Upload static audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: stage3-open-items-static
-          path: stage3-open-items-static.txt
+          path: |
+            stage3-open-items-static.txt
+            stage3-autoplay-assets.txt
