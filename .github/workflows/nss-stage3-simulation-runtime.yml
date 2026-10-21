@@ -35,6 +35,7 @@ jobs:
           python3 stage3_runtime_hotfix.py
           python3 stage3_ad_overlay_state_patch.py
           python3 stage3_dilemma_state_patch.py
+          python3 stage3_starman_state_patch.py
           python3 -m unittest \
             test_stage3_weeklyreview_state.py \
             test_stage3_ad_overlay_state.py \
@@ -66,6 +67,7 @@ jobs:
             python3 stage3_runtime_hotfix.py
             python3 stage3_ad_overlay_state_patch.py
             python3 stage3_dilemma_state_patch.py
+            python3 stage3_starman_state_patch.py
             python3 stage3_career_input_retry_patch.py
             python3 stage3_readiness_patch.py
             python3 stage3_match_flow_patch.py
