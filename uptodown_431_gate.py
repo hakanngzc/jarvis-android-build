@@ -9,8 +9,8 @@ from pathlib import Path
 
 PKG = "com.newstargames.newstarsoccer"
 VERSION_CODE = "137"
+ARCH = "arm64"
 EXPECTED_BASE_SHA256 = "46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4"
-OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/nss-4.31.xapk")
 REPORT = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("/tmp/NSS_431_SOURCE_GATE.txt")
 WORK = Path("/tmp/nss431-play")
 WORK.mkdir(parents=True, exist_ok=True)
@@ -38,7 +38,7 @@ try:
     delivery = WORK / "delivery.json"
     run([
         "goopdl", "inspect-delivery", PKG,
-        "--arch", "x86_64",
+        "--arch", ARCH,
         "--version", VERSION_CODE,
         "--json", "--output", str(delivery),
     ])
@@ -54,7 +54,7 @@ try:
 
     run([
         "goopdl", "download", PKG,
-        "--arch", "x86_64",
+        "--arch", ARCH,
         "--version", VERSION_CODE,
         "--output", str(WORK / "apks"),
         "--no-extras",
@@ -87,7 +87,7 @@ try:
         f"package={PKG}\n"
         "version_name=4.31\n"
         f"version_code={VERSION_CODE}\n"
-        "arch=x86_64\n"
+        f"auth_arch={ARCH}\n"
         f"base_file={base.name}\n"
         f"base_sha256={base_hash}\n"
         f"apk_count={len(files)}\n"
@@ -101,6 +101,7 @@ except Exception as exc:
         "source=google-play-via-goopdl\n"
         f"package={PKG}\n"
         f"version_code={VERSION_CODE}\n"
+        f"auth_arch={ARCH}\n"
         f"reason={type(exc).__name__}:{exc}\n"
         f"expected_base_sha256={EXPECTED_BASE_SHA256}\n",
         encoding="utf-8",
