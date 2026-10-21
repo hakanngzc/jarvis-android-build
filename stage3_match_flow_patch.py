@@ -89,8 +89,9 @@ capture_log 'MyMatchPlayed -> PlayToDate -> results'
 # A stock Dilemma can also appear in this chain. dilemma.uis proves TopOption is
 # PushOrigin(55,165+[@T*0.3]) with a 528x368 pressable rectangle. Logical point
 # (320,400) is safely inside that stock relationship1 option. The internal
-# splashmessage may consume the first attempt, so the bounded state loop can
-# retry the same stock option on the next iteration without guessing coordinates.
+# splashmessage may consume the first attempt. Preserve the parent Dilemma log
+# across that retry so current_state() can still classify the parent and the next
+# bounded iteration can press the same verified stock option again.
 state="$(current_state)"
 if [[ " leaguefixtures league gamemenu matchreview dilemma message ad " != *" $state "* ]]; then
   state="$(wait_state 'leaguefixtures league gamemenu matchreview dilemma message ad' 30 || true)"
@@ -109,7 +110,6 @@ for step in $(seq 1 16); do
       press_play 3
       ;;
     dilemma)
-      clear_log
       press_logical 320 400 3
       ;;
     message)
