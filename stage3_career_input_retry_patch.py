@@ -13,7 +13,7 @@ old = '''open_slot0(){
 }'''
 
 new = '''open_slot0(){
-  local tag="$1" attempt reached=0 fatal_rc=0 pre_state state
+  local tag="$1" attempt reached=0 fatal_rc=0 pre_state state ad_dismissed=0
   pre_state="$(current_state 2>/dev/null || echo unknown)"
   if [ "$pre_state" != mainmenu ]; then
     echo "Career input refused: expected mainmenu before first press, state=$pre_state"
@@ -36,6 +36,16 @@ new = '''open_slot0(){
       return 1
     fi
     state="$(current_state 2>/dev/null || echo unknown)"
+    if [ "$state" = ad ]; then
+      if [ "$ad_dismissed" -ne 0 ]; then
+        echo 'Second ad overlay encountered during one Career transition; refusing repeated dismissal loop'
+        return 1
+      fi
+      echo 'Transient ad overlay interrupted Career transition; dismissing once and requiring MonkeyGame foreground'
+      dismiss_ad_overlay || return 1
+      ad_dismissed=1
+      continue
+    fi
     if [ "$state" != unknown ] && [ "$state" != mainmenu ]; then
       echo "Career retry refused: state moved away from mainmenu to $state"
       return 1
@@ -52,4 +62,4 @@ if old not in s:
     raise SystemExit('open_slot0 anchor not found')
 
 p.write_text(s.replace(old, new, 1), encoding='utf-8')
-print('Applied Stage3 Career input retry patch: max 3 guarded presses, fatal-abort, mainmenu precondition')
+print('Applied Stage3 Career input retry patch: max 3 guarded presses, one ad dismissal, fatal-abort, mainmenu precondition')
