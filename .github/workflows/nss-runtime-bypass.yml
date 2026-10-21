@@ -96,3 +96,12 @@ jobs:
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.txt
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.log
           retention-days: 1
+
+  tamindir-diag:
+    if: github.event_name == 'pull_request' && github.head_ref == 'tmp-tamindir-diag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Tamindir NSS 4.31 delivery flow
+        run: python3 tamindir_431_diag.py
