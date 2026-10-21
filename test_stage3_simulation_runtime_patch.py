@@ -73,6 +73,16 @@ echo 'STAGE3_MINIMAL_FULL_RUNTIME_PASS'\n'''
         self.assertIn('press_match_tutorial_close 2', out)
         self.assertLess(out.index('press_match_tutorial_close 2'), out.index('press_logical 361 53'))
 
+    def test_stock_play_starts_fast_forward_after_simulation_gadget(self):
+        mod = self.load_module()
+        out = mod.transform(self.button_target_fixture())
+        trigger_check = out.index("[ \"$SIM_TRIGGERED\" -eq 1 ]")
+        start_play = out.index('press_play 2', trigger_check)
+        wait_loop = out.index('MATCHSTATS_REACHED=0', trigger_check)
+        self.assertLess(trigger_check, start_play)
+        self.assertLess(start_play, wait_loop)
+        self.assertIn("capture_log 'stock neutral simulation -> StartMatch/FastForward'", out)
+
     def test_transform_refuses_unhardened_match_flow(self):
         mod = self.load_module()
         bad = self.fixture().replace('# First-time Career match can show a tutorial overlay that consumes the first\n', '# no hardened anchor\n')
