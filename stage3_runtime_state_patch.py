@@ -65,11 +65,6 @@ capture_stage3_diagnostics(){
     if n != 1:
         raise ValueError('press_play tracking anchor missing')
 
-    start = text.find('current_state(){')
-    end = text.find('wait_state(){', start + 1 if start >= 0 else 0)
-    if start < 0 or end < 0 or end <= start:
-        raise ValueError('current_state/wait_state boundary not found')
-
     new_state = r'''current_state(){
   adb logcat -d -v brief > "$WORK/state.log" 2>/dev/null || true
   local state
@@ -105,13 +100,14 @@ wait_state(){
   return 1
 }
 '''
-    text = text[:start] + new_state + text[end + len('wait_state(){'):]
-    # The splice above retained the old wait_state body after the opening token;
-    # remove it by cutting from the first duplicated old body through dump_save.
-    duplicate = text.find('\n  local wanted="$1" timeout_s="${2:-30}" i state', start + len(new_state))
-    dump = text.find('\ndump_save(){', start + len(new_state))
-    if duplicate >= 0 and dump > duplicate:
-        text = text[:duplicate] + text[dump:]
+    block = re.compile(
+        r'current_state\(\)\{\n.*?^\}\nwait_state\(\)\{\n.*?^\}\n',
+        re.MULTILINE | re.DOTALL,
+    )
+    matches = list(block.finditer(text))
+    if len(matches) != 1:
+        raise ValueError(f'current_state/wait_state block: expected one match, found {len(matches)}')
+    text = block.sub(lambda _m: new_state, text, count=1)
 
     # MatchReview's weekly/report phase is internal; it needs its own logical state.
     text = text.replace('leaguefixtures|league|matchreview)', 'leaguefixtures|league|matchreview|weeklyreport)')
