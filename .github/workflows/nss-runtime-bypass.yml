@@ -79,11 +79,11 @@ jobs:
 
   nss431-source-gate:
     if: github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe'
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve Uptodown 4.31 and verify exact base APK hash
+      - name: Resolve Google Play 4.31 and verify exact base APK hash
         run: |
           set -o pipefail
           python3 uptodown_431_gate.py /tmp/nss-4.31.xapk "$RUNNER_TEMP/NSS_431_SOURCE_GATE.txt" | tee "$RUNNER_TEMP/NSS_431_SOURCE_GATE.log"
