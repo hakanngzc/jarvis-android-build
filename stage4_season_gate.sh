@@ -42,7 +42,21 @@ PY
 }
 press_physical(){ adb shell input touchscreen swipe "$1" "$2" "$1" "$2" 220 </dev/null || true; sleep "${3:-2}"; }
 press_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); press_physical "$x" "$y" "${3:-2}"; }
-press_career(){ press_logical 471 541 "${1:-3}"; }
+press_career(){
+  local size
+  size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
+  case "$size" in
+    *1080x2280*)
+      echo 'Career target (stock API29 Pixel 4): 795,1399'
+      adb shell input touchscreen tap 795 1399 </dev/null || true
+      sleep "${1:-3}"
+      ;;
+    *)
+      echo "Unsupported Stage4 MainMenu geometry: $size" >&2
+      return 1
+      ;;
+  esac
+}
 press_slot0(){ press_logical 332 324 "${1:-3}"; }
 press_footer_ok(){ press_logical 536 880 "${1:-2}"; }
 press_message_accept(){ press_logical 477 880 "${1:-2}"; }
