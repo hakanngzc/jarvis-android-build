@@ -12,7 +12,7 @@ jobs:
   stage3-full:
     if: github.head_ref == 'tmp-uptodown-source-probe'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Enable KVM access
@@ -20,7 +20,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Boot Android 10 and run Stage3 startup A-B diagnostic
+      - name: Boot Android 10 default AOSP and run full Stage3 gate
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
@@ -32,11 +32,14 @@ jobs:
           heap-size: 384M
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: bash stage3_startup_ab.sh
-      - name: Upload Stage3 startup A-B evidence
+          script: |
+            python3 stage3_runtime_hotfix.py
+            bash -n stage3_minimal_gate.sh
+            bash stage3_minimal_gate.sh
+      - name: Upload Stage3 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage3-startup-ab-evidence
-          path: ${{ runner.temp }}/stage3-startup-ab/
+          name: stage3-minimal-evidence
+          path: ${{ runner.temp }}/stage3-minimal/
           retention-days: 1
