@@ -23,8 +23,7 @@ new_career = '''press_career(){
   case "$size" in
     *1080x2280*)
       # Stock mainmenu.uis: CareerButton press rect is X=339..603 and
-      # Y=(505-0.8*@T)..(577-0.8*@T). On the API29 Pixel 4 app viewport
-      # @T=-160, so the verified physical centre is approximately 795,1399.
+      # Y=(505-0.8*@T)..(577-0.8*@T). Verified on API29 Pixel 4.
       echo 'Career target (stock API29 Pixel 4): 795,1399'
       press_physical 795 1399 "${1:-3}"
       ;;
@@ -38,6 +37,27 @@ if old_career in s:
     s = s.replace(old_career, new_career, 1)
 elif 'Career target (stock API29 Pixel 4)' not in s:
     raise SystemExit('press_career anchor not found')
+
+old_play = 'press_play(){ press_logical 553 829 "${1:-3}"; }'
+new_play = '''press_play(){
+  local size
+  size="$(adb shell wm size 2>/dev/null | tr -d '\\r')"
+  case "$size" in
+    *1080x2280*)
+      # Stock JDButtonMacros.uis M_Footer press rect uses dynamic @B.
+      # Screenshot-backed centre of the webpagenews footer button is ~934,1850.
+      echo 'Footer Play target (stock API29 Pixel 4): 934,1850'
+      press_physical 934 1850 "${1:-3}"
+      ;;
+    *)
+      press_logical 553 829 "${1:-3}"
+      ;;
+  esac
+}'''
+if old_play in s:
+    s = s.replace(old_play, new_play, 1)
+elif 'Footer Play target (stock API29 Pixel 4)' not in s:
+    raise SystemExit('press_play anchor not found')
 
 old_start = '''  wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "$tag-mainmenu"\n  sleep 3\n  test -n "$(adb shell pidof "$PKG" | tr -d '\\r' || true)"'''
 new_start = '''  wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "$tag-mainmenu"\n  local rendered=0 ready_i bytes\n  for ready_i in $(seq 1 45); do\n    adb exec-out screencap -p > "$WORK/render-probe.png" 2>/dev/null || true\n    bytes="$(wc -c < "$WORK/render-probe.png" 2>/dev/null || echo 0)"\n    if [ "${bytes:-0}" -gt 30000 ]; then\n      cp "$WORK/render-probe.png" "$OUT/${tag}-render-ready.png" || true\n      echo "Rendered frame ready after ${ready_i}s (${bytes} bytes)"\n      rendered=1\n      break\n    fi\n    sleep 1\n  done\n  [ "$rendered" -eq 1 ] || { cp "$WORK/render-probe.png" "$OUT/${tag}-render-timeout.png" 2>/dev/null || true; echo 'Rendered frame did not become ready'; return 1; }\n  test -n "$(adb shell pidof "$PKG" | tr -d '\\r' || true)"'''
@@ -53,6 +73,13 @@ if old_boot in s:
 elif 'Make first launch deterministic' not in s:
     raise SystemExit('initial install/root anchor not found')
 
+old_fresh_return = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 40 fresh-gamemenu || true\nshot fresh-after-save'''
+new_fresh_return = '''if ! wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 5 fresh-gamemenu; then\n  adb logcat -d -v brief > "$WORK/fresh-post-save-screen.txt" 2>/dev/null || true\n  if grep -qiE 'Create Screen:[[:space:]]*webpagenews|SETTING ACTIVE:[[:space:]]*webpagenews|SetActive:[[:space:]]*webpagenews' "$WORK/fresh-post-save-screen.txt"; then\n    echo 'Fresh Career saved; continuing stock webpagenews -> GameMenu'\n    clear_log\n    press_play 3\n    wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 30 fresh-gamemenu\n  else\n    echo 'Fresh Career did not reach GameMenu or webpagenews'\n    exit 109\n  fi\nfi\nshot fresh-after-save'''
+if old_fresh_return in s:
+    s = s.replace(old_fresh_return, new_fresh_return, 1)
+elif 'Fresh Career saved; continuing stock webpagenews -> GameMenu' not in s:
+    raise SystemExit('fresh post-save return anchor not found')
+
 root_anchor = '''shot fresh-after-save\n\n# Same-signature Stage3 fast-match update.'''
 root_replacement = '''shot fresh-after-save\n\n# Root is required only for direct save-file evidence; defer adbd restart until after the first stable Career save.\nadb root >/dev/null 2>&1 || true\nadb wait-for-device\nsleep 2\n\n# Same-signature Stage3 fast-match update.'''
 if root_anchor in s:
@@ -61,4 +88,4 @@ elif 'Root is required only for direct save-file evidence' not in s:
     raise SystemExit('deferred-root anchor not found')
 
 p.write_text(s, encoding='utf-8')
-print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + verified Career target + render gate + deterministic first launch + deferred root')
+print('Applied Stage3 runtime hotfixes: sign scope + overlay removal + verified Career/footer targets + render gate + deterministic first launch + stock webpagenews continuation + deferred root')
