@@ -79,11 +79,11 @@ jobs:
 
   nss431-source-gate:
     if: github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe'
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve Uptodown 4.31 and verify exact base APK hash
+      - name: Resolve exact APKPure 4.31 and verify base APK hash
         run: |
           set -o pipefail
           python3 uptodown_431_gate.py /tmp/nss-4.31.xapk "$RUNNER_TEMP/NSS_431_SOURCE_GATE.txt" | tee "$RUNNER_TEMP/NSS_431_SOURCE_GATE.log"
@@ -95,4 +95,36 @@ jobs:
           path: |
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.txt
             ${{ runner.temp }}/NSS_431_SOURCE_GATE.log
+          retention-days: 1
+
+  nss431-kvm-smoke:
+    if: github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot Android 10 and launch exact NSS 4.31
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: bash nss431_kvm_smoke.sh
+      - name: Upload KVM smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss431-kvm-smoke
+          path: ${{ runner.temp }}/nss431-kvm-smoke/
           retention-days: 1
