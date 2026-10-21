@@ -3,21 +3,17 @@ from pathlib import Path
 
 p = Path('stage3_minimal_gate.sh')
 s = p.read_text(encoding='utf-8')
-old = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 40 fresh-gamemenu || true
-shot fresh-after-save'''
-new = '''wait_log 'Create Screen:[[:space:]]*webpagenews|SETTING ACTIVE:[[:space:]]*webpagenews|SetActive:[[:space:]]*webpagenews' 20 fresh-webpagenews
-shot fresh-webpagenews
-clear_log
-# Verified from the API29 Pixel 4 screenshot: green-ring bounds x=795..1071, y=1709..1970.
-# Use the measured physical centre of the stock WebPageNews forward button.
-echo 'WebPageNews forward target (stock API29 Pixel 4): 933,1840'
-press_physical 933 1840 3
-wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 30 fresh-gamemenu
+anchor = 'shot fresh-after-save'
+if anchor not in s:
+    raise SystemExit('fresh-after-save anchor not found after runtime hotfix')
+replacement = '''shot fresh-after-save
+adb logcat -d -v brief > "$WORK/webpagenews-probe-final.txt" 2>/dev/null || true
+if ! grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/webpagenews-probe-final.txt"; then
+  echo 'WebPageNews probe did not finish at GameMenu'
+  exit 110
+fi
 capture_log 'webpagenews -> gamemenu probe complete'
-shot fresh-after-webpagenews
 echo 'STAGE3_WEBPAGENEWS_PROBE=PASS'
 exit 0'''
-if old not in s:
-    raise SystemExit('fresh gamemenu/webpagenews anchor not found')
-p.write_text(s.replace(old, new, 1), encoding='utf-8')
-print('Applied Stage3 WebPageNews forward-button probe patch')
+p.write_text(s.replace(anchor, replacement, 1), encoding='utf-8')
+print('Applied Stage3 WebPageNews post-hotfix verification probe')
