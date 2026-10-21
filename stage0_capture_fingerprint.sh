@@ -43,8 +43,8 @@ def sha256(p):
 
 def size(p): return Path(p).stat().st_size
 
-def cert_digest(label):
-    m=re.search(rf"Signer #1 certificate {re.escape(label)} digest:\s*([0-9a-fA-F: ]+)",certs)
+def first_cert_digest(label):
+    m=re.search(rf"certificate {re.escape(label)} digest:\s*([0-9a-fA-F: ]+)",certs)
     if not m: return None
     return re.sub(r'[^0-9a-fA-F]','',m.group(1)).lower()
 
@@ -54,9 +54,9 @@ version_code=meta.get('version_code') or meta.get('versionCode')
 version_name=meta.get('version_name') or meta.get('versionName')
 if not (package and version_code is not None and version_name):
     raise SystemExit(f'Could not parse XAPK package/version: keys={sorted(meta)}')
-cert_sha256=cert_digest('SHA-256')
-cert_sha1=cert_digest('SHA-1')
-cert_dn_match=re.search(r"Signer #1 certificate DN:\s*(.+)",certs)
+cert_sha256=first_cert_digest('SHA-256')
+cert_sha1=first_cert_digest('SHA-1')
+cert_dn_match=re.search(r"(?:V\d+(?:\.\d+)? Signer|Signer #\d+): certificate DN:\s*(.+)",certs)
 if not cert_sha256 or not cert_sha1:
     raise SystemExit('Could not parse signer certificate; output preserved in apksigner-certs.txt')
 if cert_sha1 != expected_cert_sha1:
