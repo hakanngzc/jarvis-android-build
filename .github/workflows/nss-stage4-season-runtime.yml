@@ -1,0 +1,53 @@
+name: NSS Stage4 Season Runtime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  season-runtime:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Stage4 tooling
+        run: |
+          python3 -m py_compile stage4_tools/patch_stage4_new_season_probe.py stage4_tools/verify_stage4_season_transition.py
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and verify Stage4 season transition
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            bash stage4_season_gate.sh
+
+      - name: Upload Stage4 runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage4-season-runtime-evidence
+          path: ${{ runner.temp }}/stage4-season/
+          retention-days: 2
