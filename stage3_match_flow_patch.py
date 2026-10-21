@@ -67,7 +67,7 @@ for i in $(seq 1 10); do
     PLAY_TO_DATE=1
   fi
   state="$(current_state)"
-  if [[ " leaguefixtures league gamemenu matchreview ad " == *" $state "* ]]; then
+  if [[ " leaguefixtures league gamemenu matchreview dilemma ad " == *" $state "* ]]; then
     break
   fi
   clear_log
@@ -81,13 +81,19 @@ capture_log 'MyMatchPlayed -> PlayToDate -> results'
   exit 206
 }
 
-# Results -> League/Continue -> optional MatchReview -> GameMenu.
+# Results -> League/Continue -> optional MatchReview/Dilemma -> GameMenu.
 # Stock 4.31 can launch an AdMob interstitial immediately after GameMenu has
 # already saved the Career. Treat that Activity as a temporary overlay, dismiss
 # it with Android Back, then re-read the underlying Monkey state.
+#
+# A stock Dilemma can also appear in this chain. dilemma.uis proves TopOption is
+# PushOrigin(55,165+[@T*0.3]) with a 528x368 pressable rectangle. Logical point
+# (320,400) is safely inside that stock relationship1 option. The internal
+# splashmessage may consume the first attempt, so the bounded state loop can
+# retry the same stock option on the next iteration without guessing coordinates.
 state="$(current_state)"
-if [[ " leaguefixtures league gamemenu matchreview message ad " != *" $state "* ]]; then
-  state="$(wait_state 'leaguefixtures league gamemenu matchreview message ad' 30 || true)"
+if [[ " leaguefixtures league gamemenu matchreview dilemma message ad " != *" $state "* ]]; then
+  state="$(wait_state 'leaguefixtures league gamemenu matchreview dilemma message ad' 30 || true)"
 fi
 for step in $(seq 1 16); do
   [ "$state" = gamemenu ] && break
@@ -102,6 +108,10 @@ for step in $(seq 1 16); do
       clear_log
       press_play 3
       ;;
+    dilemma)
+      clear_log
+      press_logical 320 400 3
+      ;;
     message)
       clear_log
       press_message_accept 3
@@ -113,7 +123,7 @@ for step in $(seq 1 16); do
       sleep 2
       ;;
   esac
-  state="$(wait_state 'league matchreview gamemenu message leaguefixtures ad' 25 || true)"
+  state="$(wait_state 'league matchreview gamemenu dilemma message leaguefixtures ad' 25 || true)"
   capture_log "post-match state machine step $step -> $state"
   if [ "$state" = unknown ]; then
     shot "post-match-unknown-$step"
@@ -134,6 +144,9 @@ required = [
     'MATCHSTATS_REACHED=0',
     "capture_log 'MatchStats -> MyMatchPlayed'",
     "capture_log 'MyMatchPlayed -> PlayToDate -> results'",
+    ' dilemma ',
+    'dilemma)',
+    'press_logical 320 400',
     ' ad ',
     'ad)',
     'input keyevent 4',
