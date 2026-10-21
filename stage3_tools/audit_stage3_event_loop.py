@@ -14,10 +14,11 @@ MATCH = 'Lcom/newstargames/newstarsoccer/c_TMatch;'
 SCREEN = 'Lcom/newstargames/newstarsoccer/c_TScreen_Match;'
 TARGETS = {MATCH, SCREEN}
 FOCUS = re.compile(
-    r'Chance|Minute|Tick|Half|StartMatch|EndMatch|MatchOver|Player|Pass|Drib|Shot|Shoot|Goal|Score|'
+    r'Chance|Minute|Tick|Half|StartMatch|EndMatch|MatchOver|FastForward|Player|Pass|Drib|Shot|Shoot|Goal|Score|'
     r'Keeper|Defend|Attack|Cross|Header|Button|Play|Training|Instruction|Event|Action|Update',
     re.I,
 )
+DETAIL_METHODS = {'m_CheckFastForward'}
 
 
 def inspect_dex(path: Path, label: str):
@@ -39,6 +40,11 @@ def inspect_dex(path: Path, label: str):
         if not code:
             continue
         _regs, _ins, _outs, _tries, _size, items = d.disasm(code)
+        if name in DETAIL_METHODS:
+            lines.append(f'DETAIL_BEGIN method={owner}->{name} id={mid}')
+            for off, op, args, raw in items:
+                lines.append(f'DETAIL {off:05x} raw={raw:<28} op={op:<24} args={args}')
+            lines.append(f'DETAIL_END method={owner}->{name} id={mid}')
         for off, op, args, raw in items:
             if not op.startswith('invoke-') or '[method@' not in args:
                 continue
@@ -54,16 +60,14 @@ def inspect_dex(path: Path, label: str):
                     f'EDGE caller={owner}->{name} caller_id={mid} offset={off:05x} '
                     f'callee={called_owner}->{called_name} callee_id={called_id}'
                 )
-        # Keep text/function-dispatch evidence that may not appear as a normal invoke.
         for off, op, args, raw in items:
-            if op.startswith('const-string') and args:
-                if FOCUS.search(args):
-                    lines.append(f'STRING_REF caller={owner}->{name} id={mid} offset={off:05x} value={args}')
+            if op.startswith('const-string') and args and FOCUS.search(args):
+                lines.append(f'STRING_REF caller={owner}->{name} id={mid} offset={off:05x} value={args}')
 
-    # Produce compact chains for the known phase/control owners.
     roots = {
         'm_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds',
         'm_MatchOver', 'm_EndMatch', 'm_ButtonPlay', 'm_PlayerScored', 'm_AddStat',
+        'm_CheckFastForward',
     }
     by_name = {name: mid for mid, (_o, name, _k, _a, _c) in target_methods.items()}
     lines.append('ROOT_METHOD_IDS=' + ','.join(f'{name}:{by_name[name]}' for name in sorted(roots) if name in by_name))
@@ -83,9 +87,10 @@ def main() -> int:
             out.write_bytes(z.read(name))
             lines.extend(inspect_dex(out, Path(name).name))
     print('STAGE3_EVENT_LOOP_AUDIT')
-    print('\n'.join(lines))
-    required = ['m_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds', 'm_MatchOver', 'm_EndMatch']
-    missing = [x for x in required if x not in '\n'.join(lines)]
+    text = '\n'.join(lines)
+    print(text)
+    required = ['m_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds', 'm_MatchOver', 'm_EndMatch', 'm_CheckFastForward']
+    missing = [x for x in required if x not in text]
     if missing:
         raise SystemExit(f'missing event-loop roots: {missing}')
     print('VERDICT=STAGE3_EVENT_LOOP_AUDIT_PASS')
