@@ -12,7 +12,7 @@ jobs:
   stage3-full:
     if: github.head_ref == 'tmp-uptodown-source-probe'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - name: Enable KVM access
@@ -20,7 +20,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Boot Android 10 and verify fresh Career creation
+      - name: Boot Android 10 and verify Stage3 update reload
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
@@ -34,13 +34,13 @@ jobs:
           disable-animations: true
           script: |
             python3 stage3_runtime_hotfix.py
-            python3 stage3_career_creation_probe_patch.py
+            python3 stage3_prematch_reload_probe_patch.py
             bash -n stage3_minimal_gate.sh
             bash stage3_minimal_gate.sh
-      - name: Upload fresh Career evidence
+      - name: Upload Stage3 pre-match reload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage3-career-creation-evidence
+          name: stage3-prematch-reload-evidence
           path: ${{ runner.temp }}/stage3-minimal/
           retention-days: 1
