@@ -18,7 +18,7 @@ FOCUS = re.compile(
     r'Keeper|Defend|Attack|Cross|Header|Button|Play|Training|Instruction|Event|Action|Update',
     re.I,
 )
-DETAIL_METHODS = {'m_CheckFastForward'}
+DETAIL_METHODS = {'m_CheckFastForward', 'm_ShouldFastForward'}
 
 
 def inspect_dex(path: Path, label: str):
@@ -67,7 +67,7 @@ def inspect_dex(path: Path, label: str):
     roots = {
         'm_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds',
         'm_MatchOver', 'm_EndMatch', 'm_ButtonPlay', 'm_PlayerScored', 'm_AddStat',
-        'm_CheckFastForward',
+        'm_CheckFastForward', 'm_ShouldFastForward',
     }
     by_name = {name: mid for mid, (_o, name, _k, _a, _c) in target_methods.items()}
     lines.append('ROOT_METHOD_IDS=' + ','.join(f'{name}:{by_name[name]}' for name in sorted(roots) if name in by_name))
@@ -89,7 +89,7 @@ def main() -> int:
     print('STAGE3_EVENT_LOOP_AUDIT')
     text = '\n'.join(lines)
     print(text)
-    required = ['m_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds', 'm_MatchOver', 'm_EndMatch', 'm_CheckFastForward']
+    required = ['m_StartMatch', 'm_IncrementMinute', 'm_UpdateChance', 'm_DoHalfEnds', 'm_MatchOver', 'm_EndMatch', 'm_CheckFastForward', 'm_ShouldFastForward']
     missing = [x for x in required if x not in text]
     if missing:
         raise SystemExit(f'missing event-loop roots: {missing}')
