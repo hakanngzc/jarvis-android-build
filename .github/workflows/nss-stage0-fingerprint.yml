@@ -1,0 +1,28 @@
+name: NSS Stage0 Fingerprint
+
+on:
+  push:
+    branches:
+      - stage0-fingerprint-public-20261022
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Capture exact 4.31 fingerprint
+        run: bash stage0_capture_fingerprint.sh
+      - name: Upload text evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage0-fingerprint
+          path: |
+            NSS431_CANONICAL.json
+            ${{ runner.temp }}/stage0-fingerprint/out/aapt-badging.txt
+            ${{ runner.temp }}/stage0-fingerprint/out/apksigner-certs.txt
+          retention-days: 1
