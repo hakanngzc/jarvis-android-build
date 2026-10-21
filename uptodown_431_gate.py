@@ -1,97 +1,117 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import html
-import re
+import hashlib
+import json
+import os
+import subprocess
 import sys
-import urllib.parse
-import urllib.request
-import http.cookiejar
 from pathlib import Path
 
-PAGE = "https://apkcombo.com/nss/com.newstargames.newstarsoccer/"
-UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141 Safari/537.36"
+PKG = "com.newstargames.newstarsoccer"
+VERSION_CODE = "137"
+EXPECTED_BASE_SHA256 = "46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4"
+OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/nss-4.31.xapk")
 REPORT = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("/tmp/NSS_431_SOURCE_GATE.txt")
+WORK = Path("/tmp/nss431-play")
+WORK.mkdir(parents=True, exist_ok=True)
 
-cookies = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+
+def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    print("+", " ".join(cmd), flush=True)
+    cp = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    print(cp.stdout, end="")
+    if check and cp.returncode != 0:
+        raise RuntimeError(f"command failed rc={cp.returncode}: {' '.join(cmd)}")
+    return cp
 
 
-def fetch(url: str, referer: str | None = None):
-    headers = {
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
-    }
-    if referer:
-        headers["Referer"] = referer
-    req = urllib.request.Request(url, headers=headers)
-    with opener.open(req, timeout=180) as r:
-        return r.read(), r.geturl(), r.headers, r.status
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
 
 try:
-    raw, final, headers, status = fetch(PAGE)
+    run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "goopdl==1.0.0"])
+
+    # First prove Google Play still exposes exact versionCode 137 to an anonymous
+    # x86_64 device profile; this avoids downloading anything if the old delivery
+    # has already disappeared from Play.
+    delivery = WORK / "delivery.json"
+    run([
+        "goopdl", "inspect-delivery", PKG,
+        "--arch", "x86_64",
+        "--version", VERSION_CODE,
+        "--json", "--output", str(delivery),
+    ])
+    meta = json.loads(delivery.read_text(encoding="utf-8"))
+    print("DELIVERY_JSON", json.dumps(meta, sort_keys=True))
+    version = meta.get("version") or {}
+    got_code = str(version.get("code", ""))
+    got_name = str(version.get("name", ""))
+    if got_code != VERSION_CODE:
+        raise RuntimeError(f"Play returned unexpected version code {got_code!r}")
+    if got_name and got_name != "4.31":
+        raise RuntimeError(f"Play returned unexpected version name {got_name!r}")
+
+    run([
+        "goopdl", "download", PKG,
+        "--arch", "x86_64",
+        "--version", VERSION_CODE,
+        "--output", str(WORK / "apks"),
+        "--no-extras",
+    ])
+
+    files = sorted((WORK / "apks").glob("*.apk"))
+    if not files:
+        raise RuntimeError("goopdl returned no APK files")
+    print("DOWNLOADED_APKS")
+    for p in files:
+        print(p.name, p.stat().st_size, sha256(p))
+
+    # goopdl documents the base naming as {package}-{versionCode}.apk.
+    base_candidates = [
+        p for p in files
+        if p.name == f"{PKG}-{VERSION_CODE}.apk"
+        or ("config." not in p.name and "asset" not in p.name)
+    ]
+    if len(base_candidates) != 1:
+        raise RuntimeError(f"could not uniquely identify base APK: {[p.name for p in base_candidates]}")
+    base = base_candidates[0]
+    base_hash = sha256(base)
+    if base_hash != EXPECTED_BASE_SHA256:
+        raise RuntimeError(
+            f"base APK hash mismatch: got {base_hash}, expected {EXPECTED_BASE_SHA256}"
+        )
+
+    # This gate deliberately does NOT upload or commit Google Play APK bytes.
+    # The source proof records only metadata + hashes. Stage3 runtime will repeat
+    # the same fetch inside its ephemeral KVM runner.
+    REPORT.write_text(
+        "SOURCE_GATE=PASS\n"
+        "source=google-play-via-goopdl\n"
+        f"package={PKG}\n"
+        "version_name=4.31\n"
+        f"version_code={VERSION_CODE}\n"
+        "arch=x86_64\n"
+        f"base_file={base.name}\n"
+        f"base_sha256={base_hash}\n"
+        f"apk_count={len(files)}\n"
+        "binary_published=NO\n",
+        encoding="utf-8",
+    )
+    print(REPORT.read_text(encoding="utf-8"), end="")
 except Exception as exc:
-    print("FETCH_ERROR", repr(exc))
-    REPORT.write_text(f"SOURCE_GATE=FAIL\nsource=apkcombo\nreason={type(exc).__name__}:{exc}\n", encoding="utf-8")
+    REPORT.write_text(
+        "SOURCE_GATE=FAIL\n"
+        "source=google-play-via-goopdl\n"
+        f"package={PKG}\n"
+        f"version_code={VERSION_CODE}\n"
+        f"reason={type(exc).__name__}:{exc}\n"
+        f"expected_base_sha256={EXPECTED_BASE_SHA256}\n",
+        encoding="utf-8",
+    )
     print(REPORT.read_text(encoding="utf-8"), end="")
     raise SystemExit(3)
-
-print("APKCOMBO_PAGE", status, final, headers.get("Content-Type"), "bytes=", len(raw))
-s = html.unescape(raw.decode("utf-8", "replace")).replace("\\/", "/")
-
-print("===== 4.31 CONTEXT =====")
-for needle in ["4.31", "137", "Nov 24, 2025", "72", "76 MB", "Old Versions"]:
-    mm=list(re.finditer(re.escape(needle),s,re.I))
-    if not mm: continue
-    print(f"--- {needle} ({len(mm)}) ---")
-    for m in mm[:12]:
-        print(re.sub(r"\s+"," ",s[max(0,m.start()-2200):m.start()+5600])[:7800])
-
-print("\n===== DOWNLOAD / VERSION TAGS =====")
-for pat in [r"<a\b[^>]*>.*?</a>", r"<form\b[^>]*>.*?</form>", r"<button\b[^>]*>.*?</button>"]:
-    for m in re.finditer(pat,s,re.I|re.S):
-        tag=re.sub(r"\s+"," ",m.group(0))
-        if re.search(r"4\.31|download|old.version|xapk|137",tag,re.I):
-            print(tag[:12000])
-
-print("\n===== CANDIDATE URLS =====")
-urls=[]
-patterns=[
-    r'''(?:href|action|data-url|data-href|data-download|data-file|data-link|data-version|data-id)\s*=\s*["']([^"']+)["']''',
-    r'''["'](https?://[^"'<>\s]+)["']''',
-]
-for pat in patterns:
-    for m in re.finditer(pat,s,re.I):
-        v=m.group(1).strip(); u=urllib.parse.urljoin(final,v)
-        low=u.lower(); nearby=s[max(0,m.start()-1200):m.end()+1200].lower()
-        if re.search(r"download|old-versions|xapk|apk|downloader",low) or "4.31" in nearby or "137" in nearby:
-            if u.startswith("http") and u not in urls:
-                urls.append(u)
-for u in urls[:150]: print(u)
-
-print("\n===== RELEVANT SCRIPTS =====")
-for m in re.finditer(r"<script\b([^>]*)>(.*?)</script>",s,re.I|re.S):
-    body=m.group(2)
-    if re.search(r"4\.31|137|download|downloader|xapk|version_code|versionCode|package",body,re.I):
-        print("SCRIPT_ATTRS",re.sub(r"\s+"," ",m.group(1))[:1000])
-        print("SCRIPT_BODY",re.sub(r"\s+"," ",body)[:22000])
-
-print("\n===== SCRIPT SRC =====")
-for m in re.finditer(r'''<script\b[^>]*src=["']([^"']+)["'][^>]*>''',s,re.I):
-    u=urllib.parse.urljoin(final,m.group(1))
-    print(u)
-
-REPORT.write_text(
-    "SOURCE_GATE=DIAGNOSTIC\n"
-    "source=apkcombo\n"
-    f"page_status={status}\n"
-    f"page_bytes={len(raw)}\n"
-    "target_version=4.31\n"
-    "target_version_code=137\n"
-    "next=resolve_apkcombo_binary_url\n",
-    encoding="utf-8",
-)
-print("\n"+REPORT.read_text(encoding="utf-8"),end="")
-raise SystemExit(3)
