@@ -5,6 +5,7 @@ URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137
 REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
 EXPECTED_XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
 EXPECTED_BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
+EXPECTED_CERT_SHA1='eb94af17f8335fc62cff5a19517946c3dbdcaea8'
 BT_VERSION='37.0.0'
 WORK="${RUNNER_TEMP:-/tmp}/stage0-fingerprint"
 OUT="$WORK/out"
@@ -26,12 +27,13 @@ BASE="$WORK/xapk/com.newstargames.newstarsoccer.apk"
 echo "$EXPECTED_BASE_SHA  $BASE" | sha256sum -c -
 [ -f "$WORK/xapk/manifest.json" ] || { echo 'XAPK manifest.json missing'; exit 4; }
 cp "$WORK/xapk/manifest.json" "$OUT/xapk-manifest.json"
-"$APKSIGNER" verify --verbose --print-certs "$BASE" > "$OUT/apksigner-certs.txt"
+"$APKSIGNER" verify --verbose --print-certs "$BASE" > "$OUT/apksigner-certs.txt" 2>&1
+cat "$OUT/apksigner-certs.txt"
 
-python3 - "$WORK/NSS-Base.xapk" "$WORK/xapk" "$OUT/apksigner-certs.txt" "$OUT/NSS431_CANONICAL.json" <<'PY'
+python3 - "$WORK/NSS-Base.xapk" "$WORK/xapk" "$OUT/apksigner-certs.txt" "$OUT/NSS431_CANONICAL.json" "$EXPECTED_CERT_SHA1" <<'PY'
 from pathlib import Path
 import hashlib, json, re, sys, zipfile
-xapk_path=Path(sys.argv[1]); xdir=Path(sys.argv[2]); certs=Path(sys.argv[3]).read_text(errors='replace'); out=Path(sys.argv[4])
+xapk_path=Path(sys.argv[1]); xdir=Path(sys.argv[2]); certs=Path(sys.argv[3]).read_text(errors='replace'); out=Path(sys.argv[4]); expected_cert_sha1=sys.argv[5].lower()
 
 def sha256(p):
     h=hashlib.sha256()
@@ -40,16 +42,25 @@ def sha256(p):
     return h.hexdigest()
 
 def size(p): return Path(p).stat().st_size
+
+def cert_digest(label):
+    m=re.search(rf"Signer #1 certificate {re.escape(label)} digest:\s*([0-9a-fA-F: ]+)",certs)
+    if not m: return None
+    return re.sub(r'[^0-9a-fA-F]','',m.group(1)).lower()
+
 meta=json.loads((xdir/'manifest.json').read_text(encoding='utf-8'))
 package=meta.get('package_name') or meta.get('package') or meta.get('packageName')
 version_code=meta.get('version_code') or meta.get('versionCode')
 version_name=meta.get('version_name') or meta.get('versionName')
 if not (package and version_code is not None and version_name):
     raise SystemExit(f'Could not parse XAPK package/version: keys={sorted(meta)}')
-cert_sha256=re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)",certs)
-cert_sha1=re.search(r"Signer #1 certificate SHA-1 digest: ([0-9a-fA-F]+)",certs)
-cert_dn=re.search(r"Signer #1 certificate DN: (.+)",certs)
-if not (cert_sha256 and cert_sha1): raise SystemExit('Could not parse signer certificate')
+cert_sha256=cert_digest('SHA-256')
+cert_sha1=cert_digest('SHA-1')
+cert_dn_match=re.search(r"Signer #1 certificate DN:\s*(.+)",certs)
+if not cert_sha256 or not cert_sha1:
+    raise SystemExit('Could not parse signer certificate; output preserved in apksigner-certs.txt')
+if cert_sha1 != expected_cert_sha1:
+    raise SystemExit(f'Unexpected signer SHA-1: {cert_sha1} != {expected_cert_sha1}')
 with zipfile.ZipFile(xapk_path) as z:
     entries=sorted(i.filename for i in z.infolist() if not i.is_dir())
 apks=[]
@@ -74,9 +85,9 @@ data={
  'xapk':{'name':'NSS-Base.xapk','size':size(xapk_path),'sha256':sha256(xapk_path)},
  'base_apk':{
    **base,
-   'signer_certificate_dn': cert_dn.group(1).strip() if cert_dn else None,
-   'signer_certificate_sha256':cert_sha256.group(1).lower(),
-   'signer_certificate_sha1':cert_sha1.group(1).lower()
+   'signer_certificate_dn': cert_dn_match.group(1).strip() if cert_dn_match else None,
+   'signer_certificate_sha256':cert_sha256,
+   'signer_certificate_sha1':cert_sha1
  },
  'apk_entries':apks,
  'expected_xapk_entries':entries,
