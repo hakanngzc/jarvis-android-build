@@ -54,6 +54,44 @@ capture_stage3_diagnostics(){
     echo "nss_pid=$pid"
   } > "$OUT/${prefix}-meta.txt"
 }
+
+dismiss_ad_overlay(){
+  local i top
+  LAST_INPUT="dismiss_ad_overlay"
+  capture_stage3_diagnostics "ad-overlay-before-dismiss" ad mainmenu || true
+
+  # Some interstitials disappear on their own as soon as presentation settles.
+  # Observe briefly before sending any input so we do not race the Activity.
+  for i in 1 2 3; do
+    fatal_check || return 1
+    top="$(timeout 5 adb shell dumpsys activity top 2>/dev/null || true)"
+    if ! grep -qiE 'AdActivity|com\.google\.android\.gms\.ads' <<<"$top" \
+      && grep -qE "$PKG/\.MonkeyGame|$PKG/$PKG\.MonkeyGame" <<<"$top"; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  # One bounded Android Back is the least invasive way to close a transient
+  # interstitial. Never loop taps/Back presses blindly.
+  adb shell input keyevent 4 >/dev/null 2>&1 || true
+  sleep 1
+  for i in $(seq 1 10); do
+    fatal_check || return 1
+    top="$(timeout 5 adb shell dumpsys activity top 2>/dev/null || true)"
+    if ! grep -qiE 'AdActivity|com\.google\.android\.gms\.ads' <<<"$top" \
+      && grep -qE "$PKG/\.MonkeyGame|$PKG/$PKG\.MonkeyGame" <<<"$top"; then
+      adb exec-out screencap -p > "$OUT/ad-overlay-after-dismiss.png" 2>/dev/null || true
+      printf '%s\n' "$top" > "$OUT/ad-overlay-after-dismiss-activity.txt"
+      return 0
+    fi
+    sleep 1
+  done
+
+  capture_stage3_diagnostics "ad-overlay-dismiss-failed" ad mainmenu || true
+  echo 'Transient ad overlay did not return to MonkeyGame after one controlled Back'
+  return 1
+}
 '''
     text = _replace_once(text, flow_anchor, flow_anchor + helpers, 'FLOW helper insertion')
 
@@ -120,6 +158,8 @@ wait_state(){
         raise ValueError('weeklyreport integration postcondition failed')
     if 'capture_stage3_diagnostics' not in text or 'stage3_harness.py state' not in text:
         raise ValueError('runtime hardening postcondition failed')
+    if 'dismiss_ad_overlay(){' not in text:
+        raise ValueError('ad overlay hardening postcondition failed')
     return text
 
 
