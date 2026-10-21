@@ -1,6 +1,6 @@
 name: NSS Stage3 Open Items Static
 
-# v3 also locates the stock autoplayAverage gadget definition in APK assets.
+# v4 traces simulation/debug controls and card/injury/skill/fitness writers.
 on:
   push:
     branches:
@@ -33,12 +33,19 @@ jobs:
           echo "$BASE_SHA  $BASE" | sha256sum -c -
           echo "BASE=$BASE" >> "$GITHUB_ENV"
 
-      - name: Audit simulated match and side effects
+      - name: Audit simulated match and debug flag
         shell: bash
         run: |
           set -euo pipefail
           python3 stage3_tools/audit_stage3_open_items.py "$BASE" | tee stage3-open-items-static.txt
           grep -q 'VERDICT=STAGE3_OPEN_ITEMS_STATIC_AUDIT_PASS' stage3-open-items-static.txt
+
+      - name: Audit card injury skill and fitness writers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 stage3_tools/audit_stage3_side_effect_writers.py "$BASE" | tee stage3-side-effect-writers.txt
+          grep -q 'VERDICT=STAGE3_SIDE_EFFECT_WRITER_AUDIT_PASS' stage3-side-effect-writers.txt
 
       - name: Locate stock autoplay gadget definitions
         shell: bash
@@ -47,7 +54,7 @@ jobs:
           python3 - "$BASE" <<'PY' | tee stage3-autoplay-assets.txt
           import sys, zipfile
           apk = sys.argv[1]
-          needles = [b'autoplayAverage', b'autoplayGood', b'autoplayPoor', b'dilemma.btn_relationship1', b'dilemma.btn_relationship2']
+          needles = [b'autoplayAverage', b'autoplayGood', b'autoplayPoor', b'DebugEnabled', b'dilemma.btn_relationship1', b'dilemma.btn_relationship2']
           hits = 0
           with zipfile.ZipFile(apk) as z:
               for info in z.infolist():
@@ -80,4 +87,5 @@ jobs:
           name: stage3-open-items-static
           path: |
             stage3-open-items-static.txt
+            stage3-side-effect-writers.txt
             stage3-autoplay-assets.txt
