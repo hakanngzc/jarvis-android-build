@@ -103,9 +103,21 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Static-check Stage3 runtime harness
+      - name: Apply isolated shell-scope fix and static-check harness
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('stage3_runtime/public_stage3_gate.sh')
+          s=p.read_text()
+          old1='''capture_failure(){\n  local rc=$?\n  set +e'''
+          new1='''capture_failure(){\n  local rc=$?\n  trap - ERR\n  set +e'''
+          old2='''  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"'''
+          new2='''  local src="$1"\n  local dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"'''
+          if s.count(old1)!=1 or s.count(old2)!=1:
+              raise SystemExit('expected shell-scope patch targets were not unique')
+          p.write_text(s.replace(old1,new1).replace(old2,new2))
+          PY
           bash -n stage3_runtime/public_stage3_gate.sh
           python3 -m py_compile \
             stage3_runtime/tools/dex_inspect.py \
