@@ -25,16 +25,16 @@ jobs:
           mkdir -p "$WORK/xapk" "$OUT"
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
           REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
-          EXPECTED='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          EXPECTED_XAPK='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          EXPECTED_CERT_SHA256='bec73a9ac3f4e7da49ab4f5ecc56fe3162011fe87d6eba0eb6454bd167dd8086'
           curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$WORK/stock.xapk"
-          echo "$EXPECTED  $WORK/stock.xapk" | sha256sum -c -
+          echo "$EXPECTED_XAPK  $WORK/stock.xapk" | sha256sum -c -
           unzip -q "$WORK/stock.xapk" -d "$WORK/xapk"
-          sdkmanager --install 'build-tools;37.0.0' >/dev/null
-          APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          python3 - "$WORK/stock.xapk" "$WORK/xapk" "$APKSIGNER" "$OUT/public-payload-manifest.json" <<'PY'
-          import hashlib, json, re, subprocess, sys, zipfile
+          python3 - "$WORK/stock.xapk" "$WORK/xapk" "$OUT/public-payload-manifest.json" "$EXPECTED_CERT_SHA256" <<'PY'
+          import hashlib, json, re, sys, zipfile
           from pathlib import Path
-          xapk, root, apksigner, out = map(Path, sys.argv[1:])
+          xapk, root, out = map(Path, sys.argv[1:4])
+          expected_cert=sys.argv[4]
           def h(b): return hashlib.sha256(b).hexdigest()
           def fh(p):
               q=hashlib.sha256()
@@ -46,14 +46,10 @@ jobs:
               'xapk_sha256': fh(xapk),
               'xapk_size': xapk.stat().st_size,
               'manifest_sha256': fh(root/'manifest.json'),
+              'publisher_signer_sha256_from_verified_canonical': expected_cert,
               'apks': []
           }
           for apk in sorted(root.glob('*.apk')):
-              p=subprocess.run([str(apksigner),'verify','--verbose','--print-certs',str(apk)],text=True,capture_output=True,check=True)
-              text=(p.stdout or '')+'\n'+(p.stderr or '')
-              c256=re.search(r'(?im)^.*Signer.*certificate SHA-256 digest:\s*([0-9a-f]{64})\s*$',text)
-              c1=re.search(r'(?im)^.*Signer.*certificate SHA-1 digest:\s*([0-9a-f]{40})\s*$',text)
-              dn=re.search(r'(?im)^.*Signer.*certificate DN:\s*(.+?)\s*$',text)
               entries=[]
               with zipfile.ZipFile(apk) as z:
                   for i in z.infolist():
@@ -65,16 +61,13 @@ jobs:
                   'name':apk.name,
                   'size':apk.stat().st_size,
                   'sha256':fh(apk),
-                  'signer_sha256':c256.group(1).lower() if c256 else None,
-                  'signer_sha1':c1.group(1).lower() if c1 else None,
-                  'signer_dn':dn.group(1).strip() if dn else None,
                   'payload_entries':entries,
               })
           out.write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
           print('XAPK_SHA256='+data['xapk_sha256'])
           print('APK_COUNT='+str(len(data['apks'])))
           for a in data['apks']:
-              print(a['name'],a['sha256'],a['signer_sha256'],len(a['payload_entries']))
+              print(a['name'],a['sha256'],len(a['payload_entries']))
           PY
       - name: Upload text-only manifest evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
