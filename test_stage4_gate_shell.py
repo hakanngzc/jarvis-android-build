@@ -46,5 +46,14 @@ class Stage4GateShellRegressionTests(unittest.TestCase):
         self.assertRegex(body, r'timeout\s+--signal=TERM\s+--kill-after=5s\s+45s')
         self.assertIn('"$ADB_BIN" "$@"', body)
 
+    def test_play_target_uses_measured_api29_pixel4_button_center(self):
+        match = re.search(r'press_play\(\)\{\n(?P<body>.*?)\n\}', self.text, re.S)
+        self.assertIsNotNone(match, 'press_play function not found')
+        body = match.group('body')
+        self.assertIn('1080x2280', body)
+        self.assertIn('935 1850', body)
+        self.assertIn('Stage4 Play target', body)
+        self.assertNotIn('press_logical 553 829', body)
+
 if __name__ == '__main__':
     unittest.main()
