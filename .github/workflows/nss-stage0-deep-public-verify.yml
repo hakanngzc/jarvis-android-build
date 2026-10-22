@@ -1,0 +1,41 @@
+name: NSS Stage0 Deep Public Verify
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage0-deep-public-verify-20261022]
+    paths:
+      - 'stage0_public/**'
+      - '.github/workflows/nss-stage0-deep-public-verify.yml'
+permissions:
+  contents: read
+jobs:
+  deep-foundation-public:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage0-public/xapk"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage0-public/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/stage0-public/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage0-public/nss431.xapk" -d "$RUNNER_TEMP/stage0-public/xapk"
+          BASE="$RUNNER_TEMP/stage0-public/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+      - name: Rebuild and verify stock DEX foundation
+        run: |
+          set -euo pipefail
+          python3 stage0_public/verify_deep_foundation.py "$BASE"
+      - name: Verify guarded save backup and restore
+        run: |
+          set -euo pipefail
+          chmod +x stage0_public/save_backup_restore.sh
+          python3 -m unittest stage0_public/test_save_backup_restore.py -v
+          bash -n stage0_public/save_backup_restore.sh
+          echo 'VERDICT=STAGE0_PUBLIC_SAVE_BACKUP_RESTORE_PASS'
+      - name: Public deep-foundation verdict
+        run: echo 'VERDICT=STAGE0_DEEP_PUBLIC_HOSTED_PASS'
