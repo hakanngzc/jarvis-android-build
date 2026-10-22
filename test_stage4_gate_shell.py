@@ -53,6 +53,16 @@ class Stage4GateShellRegressionTests(unittest.TestCase):
         ):
             self.assertIn(token, block)
 
+    def test_restart_uses_stock_slot0_autoload_instead_of_reopening_save_slot(self):
+        marker = '# Restart/load must reproduce the same post-rollover Career state.'
+        self.assertIn(marker, self.text)
+        block = self.text.split(marker, 1)[1].split('python3 stage4_tools/verify_stage4_season_transition.py', 1)[0]
+        self.assertNotIn('open_slot0 reload', block)
+        self.assertNotIn('load_existing reload', block)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 reload-loadcareer", block)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 reload-gamemenu", block)
+        self.assertIn('dump_save post-restart', block)
+
     def test_stage4_verifier_uses_pre_post_restart_checkpoints(self):
         verifier = (ROOT / 'stage4_tools' / 'verify_stage4_season_transition.py').read_text(encoding='utf-8')
         self.assertIn('usage: verify_stage4_season_transition.py PRE POST RESTART FLOW', verifier)
