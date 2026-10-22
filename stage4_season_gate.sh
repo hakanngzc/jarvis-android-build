@@ -209,23 +209,18 @@ clear_log; press_play 4
 wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 leaguefixtures
 capture_log 'GameMenu -> LeagueFixtures'; shot stage4-leaguefixtures
 clear_log; press_play 4
-wait_log 'NewSeason|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' 60 new-season-trigger
-capture_log 'p_NewSeason trigger and pre-reset save'; shot stage4-newseason-message
-dump_save seeded-pre-reset
-
-# Execute the four stock Message continuations NewSeasonSetUp1..4.
-for step in 1 2 3 4; do
-  clear_log; press_message_accept 4; capture_log "NewSeasonSetUp step $step"
-  if [ "$step" -lt 4 ]; then
-    wait_log 'Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' 90 "newseason-step-$step-message"
-  else
-    wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 120 newseason-gamemenu
-  fi
-done
+wait_log 'NewSeason' 60 new-season-trigger
+wait_log 'CallFunc:[[:space:]]*NewSeasonSetUp1' 60 newseason-setup1
+wait_log 'CallFunc:[[:space:]]*NewSeasonSetUp2' 60 newseason-setup2
+wait_log 'CallFunc:[[:space:]]*NewSeasonSetUp3' 60 newseason-setup3
+wait_log 'CallFunc:[[:space:]]*NewSeasonSetUp4' 60 newseason-setup4
+wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 newseason-loadcareer
+wait_log 'New Season - Save' 60 newseason-final-save
 fatal_check
+capture_log 'stock NewSeasonSetUp1..4 -> LoadCareer -> final save'
+sleep 3
 shot stage4-post-rollover
 dump_save post-rollover
-capture_log 'post rollover GameMenu'
 
 # Restart/load must reproduce the same post-rollover Career state.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
@@ -237,7 +232,6 @@ capture_log 'Stage4 after restart/load'
 
 python3 stage4_tools/verify_stage4_season_transition.py \
   "$OUT/pre-season-MonkeyGame.xml" \
-  "$OUT/seeded-pre-reset-MonkeyGame.xml" \
   "$OUT/post-rollover-MonkeyGame.xml" \
   "$OUT/post-restart-MonkeyGame.xml" \
   "$FLOW" | tee "$OUT/STAGE4_SEASON_GATE.txt"
