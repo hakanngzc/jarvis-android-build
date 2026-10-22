@@ -28,5 +28,15 @@ class Stage4GateShellRegressionTests(unittest.TestCase):
         self.assertIn('Slot0 press attempt', body)
         self.assertIn('return 1', body)
 
+    def test_new_season_trigger_reaches_leaguefixtures_before_second_play(self):
+        marker = '# GameMenu -> LeagueFixtures -> patched PlayMatches trigger.'
+        self.assertIn(marker, self.text)
+        block = self.text.split(marker, 1)[1].split('# Execute the four stock Message continuations', 1)[0]
+        league_wait = "wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures'"
+        self.assertIn(league_wait, block)
+        self.assertGreaterEqual(block.count('press_play'), 2)
+        self.assertLess(block.index(league_wait), block.rindex('press_play'))
+        self.assertIn('new-season-trigger', block)
+
 if __name__ == '__main__':
     unittest.main()
