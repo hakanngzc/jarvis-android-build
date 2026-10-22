@@ -32,10 +32,10 @@ BASE="$WORK/xapk/com.newstargames.newstarsoccer.apk"
 [ -f "$BASE" ] || { echo 'Canonical base APK entry is missing'; exit 12; }
 echo "$BASE_SHA  $BASE" | sha256sum -c -
 
-# Read-only inspection only. Old stock signing may make a modern apksigner
-# return non-zero while still printing the signer certificate; preserve that
-# output instead of treating the inspection exit code as an NSS failure.
-"$AAPT" dump badging "$BASE" > "$OUT/base-badging.txt"
+# Read-only inspection only. Legacy stock metadata/signing can make modern
+# tooling return non-zero while still printing the data we need; preserve the
+# output and validate its parsed contents explicitly below.
+"$AAPT" dump badging "$BASE" > "$OUT/base-badging.txt" 2>&1 || true
 "$APKSIGNER" verify --print-certs "$BASE" > "$OUT/base-signer.txt" 2>&1 || true
 sha256sum "$WORK/NSS-Base.xapk" "$WORK/xapk"/*.apk > "$OUT/sha256sums.txt"
 
