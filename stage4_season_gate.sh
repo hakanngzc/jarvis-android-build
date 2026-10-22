@@ -96,7 +96,21 @@ open_slot0(){
     echo "Career press attempt $attempt did not reach SaveSlot; retrying only because MainMenu remained active"
   done
   [ "$reached" -eq 1 ] || { echo "SaveSlot not reached after 3 controlled Career presses"; return 1; }
-  capture_log "$tag saveslot"; clear_log; press_slot0 3
+  capture_log "$tag saveslot"
+  local slot_attempt slot_hit=0
+  for slot_attempt in 1 2 3; do
+    clear_log
+    echo "Slot0 press attempt $slot_attempt/3"
+    press_slot0 3
+    adb logcat -d -v brief > "$WORK/$tag-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
+    if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/$tag-slot0-attempt-$slot_attempt.txt"; then
+      slot_hit=1
+      break
+    fi
+    fatal_check || return 1
+    echo "Slot0 press attempt $slot_attempt did not register; retrying"
+  done
+  [ "$slot_hit" -eq 1 ] || { echo "Slot0 did not register after 3 controlled presses"; return 1; }
 }
 load_existing(){
   local tag="$1"; sleep 2; adb logcat -d -v brief > "$WORK/$tag-load.txt" 2>/dev/null || true
