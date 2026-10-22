@@ -38,5 +38,13 @@ class Stage4GateShellRegressionTests(unittest.TestCase):
         self.assertLess(block.index(league_wait), block.rindex('press_play'))
         self.assertIn('new-season-trigger', block)
 
+    def test_all_adb_calls_are_bounded_and_last_command_is_recorded(self):
+        match = re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}', self.text, re.S)
+        self.assertIsNotNone(match, 'bounded adb wrapper not found')
+        body = match.group('body')
+        self.assertIn('last-adb-command.txt', body)
+        self.assertRegex(body, r'timeout\s+--signal=TERM\s+--kill-after=5s\s+45s')
+        self.assertIn('"$ADB_BIN" "$@"', body)
+
 if __name__ == '__main__':
     unittest.main()
