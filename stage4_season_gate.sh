@@ -66,7 +66,21 @@ press_career(){
 press_slot0(){ press_logical 332 324 "${1:-3}"; }
 press_footer_ok(){ press_logical 536 880 "${1:-2}"; }
 press_message_accept(){ press_logical 477 880 "${1:-2}"; }
-press_play(){ press_logical 553 829 "${1:-3}"; }
+press_play(){
+  local size
+  size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
+  case "$size" in
+    *1080x2280*)
+      echo 'Stage4 Play target (stock API29 Pixel 4): 935,1850'
+      adb shell input touchscreen tap 935 1850 </dev/null || true
+      sleep "${1:-3}"
+      ;;
+    *)
+      echo "Unsupported Stage4 Play geometry: $size" >&2
+      return 1
+      ;;
+  esac
+}
 shot(){ adb exec-out screencap -p > "$OUT/$1.png" || true; }
 
 start_game(){
