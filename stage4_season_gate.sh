@@ -8,6 +8,12 @@ FLOW="$OUT/STAGE4_RUNTIME_FLOW.log"
 mkdir -p "$OUT" "$WORK/xapk" "$WORK/signed"
 : > "$FLOW"
 
+ADB_BIN="$(command -v adb)"
+adb(){
+  { printf '%q ' "$ADB_BIN" "$@"; printf '\n'; } > "$OUT/last-adb-command.txt"
+  command timeout --signal=TERM --kill-after=5s 45s "$ADB_BIN" "$@"
+}
+
 URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
 REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
 XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
@@ -35,7 +41,7 @@ wait_log(){
 logical_xy(){
 python3 - "$1" "$2" <<'PY'
 import re,subprocess,sys
-x,y=map(float,sys.argv[1:]); s=subprocess.check_output(['adb','shell','wm','size'],text=True)
+x,y=map(float,sys.argv[1:]); s=subprocess.check_output(['adb','shell','wm','size'],text=True,timeout=15)
 w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups()); scale=w/640.0; top=(h-960*scale)/2.0
 print(round(x*scale),round(top+y*scale))
 PY
