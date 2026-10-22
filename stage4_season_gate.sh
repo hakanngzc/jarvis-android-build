@@ -225,8 +225,10 @@ dump_save post-rollover
 # Restart/load must reproduce the same post-rollover Career state.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 start_game reload
-open_slot0 reload
-load_existing reload
+wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 reload-loadcareer
+wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 reload-gamemenu
+fatal_check
+sleep 2
 dump_save post-restart
 capture_log 'Stage4 after restart/load'
 
