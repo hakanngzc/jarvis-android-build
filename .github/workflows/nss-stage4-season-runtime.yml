@@ -21,6 +21,7 @@ jobs:
 
       - name: Validate Stage4 tooling
         run: |
+          python3 -m unittest test_stage4_gate_shell.py -v
           python3 -m py_compile stage4_tools/patch_stage4_new_season_probe.py stage4_tools/verify_stage4_season_transition.py
 
       - name: Enable KVM access
