@@ -184,7 +184,10 @@ open_slot0 stage4
 load_existing stage4
 dump_save pre-season
 
-# GameMenu Play is the test-only trigger: set sdate=365 + sentinel, then call real p_NewSeason(0).
+# GameMenu -> LeagueFixtures -> patched PlayMatches trigger.
+clear_log; press_play 4
+wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 leaguefixtures
+capture_log 'GameMenu -> LeagueFixtures'; shot stage4-leaguefixtures
 clear_log; press_play 4
 wait_log 'NewSeason|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' 60 new-season-trigger
 capture_log 'p_NewSeason trigger and pre-reset save'; shot stage4-newseason-message
