@@ -2,6 +2,8 @@ name: NSS Stage4 Season Runtime
 
 on:
   workflow_dispatch:
+  push:
+    branches: [stage4-runtime-20261022]
   pull_request:
     types: [opened, synchronize]
 
@@ -11,7 +13,7 @@ permissions:
 
 jobs:
   season-runtime:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.head_ref == 'tmp-uptodown-source-probe')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
