@@ -57,8 +57,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/stage6-tools"
           BAK="$RUNNER_TEMP/stage6-tools/baksmali-3.0.10-fat.jar"
           SMA="$RUNNER_TEMP/stage6-tools/smali-3.0.10-fat.jar"
-          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/v3.0.10/baksmali-3.0.10-fat.jar' -o "$BAK"
-          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/v3.0.10/smali-3.0.10-fat.jar' -o "$SMA"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/3.0.10/baksmali-3.0.10-fat.jar' -o "$BAK"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/3.0.10/smali-3.0.10-fat.jar' -o "$SMA"
           echo '37ae4a41a8886e15c20b8362fa4250f96bbdb55e1a608199ad8b5dff068b588f  '"$BAK" | sha256sum -c -
           echo '32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a  '"$SMA" | sha256sum -c -
           java -jar "$BAK" --version | tee stage6_public_artifacts/runtime/baksmali-version.txt
