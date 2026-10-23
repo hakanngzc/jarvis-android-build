@@ -8,15 +8,17 @@ fi
 BASE="$1"; XAPK_DIR="$2"; WORK="$3"; OUT="$4"; BAK="$5"; SMALI="$6"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SHIELD_UI='assets/monkey/NewGUI/Screens/ShieldAnims.uih'
+MAIN_UI='assets/monkey/NewGUI/Screens/mainmenu.uis'
 rm -rf "$WORK" "$OUT"
 mkdir -p "$WORK/extract" "$WORK/smali3" "$WORK/fixtures" "$OUT/signed" "$OUT/evidence"
 
-python3 - "$BASE" "$WORK/extract" "$SHIELD_UI" <<'PY'
+python3 - "$BASE" "$WORK/extract" "$SHIELD_UI" "$MAIN_UI" <<'PY'
 import sys,zipfile,pathlib
-apk,out,shield=sys.argv[1:]; out=pathlib.Path(out)
+apk,out,shield,main=sys.argv[1:]; out=pathlib.Path(out)
 need={
  'classes3.dex':'classes3.dex',
  shield:'ShieldAnims.uih',
+ main:'mainmenu.uis',
  'assets/monkey/NewGUI/Atlases/Key.key':'Key.key',
 }
 with zipfile.ZipFile(apk) as z:
@@ -24,27 +26,34 @@ with zipfile.ZipFile(apk) as z:
         try: data=z.read(member)
         except KeyError: raise SystemExit(f'missing stock member: {member}')
         (out/dst).write_bytes(data)
-print('STAGE6_STOCK_MEMBERS_EXTRACTED=PASS shield='+shield)
+print('STAGE6_STOCK_MEMBERS_EXTRACTED=PASS shield='+shield+' main='+main)
 PY
 
 java -jar "$BAK" disassemble "$WORK/extract/classes3.dex" -o "$WORK/smali3"
 CLUB_SMALI="$WORK/smali3/com/newstargames/newstarsoccer/c_TClub.smali"
+MAIN_SMALI="$WORK/smali3/com/newstargames/newstarsoccer/c_TScreen_MainMenu.smali"
 [ -f "$CLUB_SMALI" ] || { echo "c_TClub.smali missing after baksmali" >&2; exit 31; }
-cp "$CLUB_SMALI" "$WORK/evidence-stock-c_TClub.smali"
+[ -f "$MAIN_SMALI" ] || { echo "c_TScreen_MainMenu.smali missing after baksmali" >&2; exit 31; }
+
 python3 "$ROOT/stage6_runtime/patch_club_badge_styles.py" "$CLUB_SMALI" "$WORK/c_TClub.patched.smali"
 mv "$WORK/c_TClub.patched.smali" "$CLUB_SMALI"
+python3 "$ROOT/stage6_runtime/patch_mainmenu_probe_smali.py" "$MAIN_SMALI" "$WORK/c_TScreen_MainMenu.patched.smali"
+mv "$WORK/c_TScreen_MainMenu.patched.smali" "$MAIN_SMALI"
 cp "$CLUB_SMALI" "$OUT/evidence/c_TClub.patched.smali"
+cp "$MAIN_SMALI" "$OUT/evidence/c_TScreen_MainMenu.patched.smali"
 java -jar "$SMALI" assemble "$WORK/smali3" -o "$WORK/classes3-patched.dex"
 
 python3 "$ROOT/stage6_runtime/patch_shield_ui.py" "$WORK/extract/ShieldAnims.uih" "$WORK/ShieldAnims.patched.uih"
+python3 "$ROOT/stage6_runtime/patch_mainmenu_probe_ui.py" "$WORK/extract/mainmenu.uis" "$WORK/ShieldAnims.patched.uih" "$WORK/mainmenu.patched.uis"
 python3 "$ROOT/stage6_runtime/generate_fixture_badges.py" "$WORK/fixtures"
 
-python3 - "$BASE" "$WORK/base-stage6-unsigned.apk" "$WORK/classes3-patched.dex" "$WORK/ShieldAnims.patched.uih" "$WORK/fixtures/3141.png" "$WORK/fixtures/3163.png" "$SHIELD_UI" <<'PY'
+python3 - "$BASE" "$WORK/base-stage6-unsigned.apk" "$WORK/classes3-patched.dex" "$WORK/ShieldAnims.patched.uih" "$WORK/mainmenu.patched.uis" "$WORK/fixtures/3141.png" "$WORK/fixtures/3163.png" "$SHIELD_UI" "$MAIN_UI" <<'PY'
 import sys,zipfile
-src,dst,dex,ui,p3141,p3163,shield=sys.argv[1:]
+src,dst,dex,shield_ui,main_ui,p3141,p3163,shield,main=sys.argv[1:]
 repl={
  'classes3.dex':open(dex,'rb').read(),
- shield:open(ui,'rb').read(),
+ shield:open(shield_ui,'rb').read(),
+ main:open(main_ui,'rb').read(),
 }
 adds={
  'assets/monkey/NewGUI/RebornBadges/3141.png':open(p3141,'rb').read(),
@@ -67,10 +76,22 @@ with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst,'w',allowZip64=True) as zo
         raise SystemExit(f'missing replacement members: {set(repl)-seen}')
     for name,data in adds.items():
         zout.writestr(name,data,compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
-print('STAGE6_BASE_PATCHED=PASS shield='+shield)
+print('STAGE6_BASE_PATCHED=PASS shield='+shield+' main='+main)
 PY
 
 python3 "$ROOT/stage6_runtime/verify_fixture_apk.py" "$BASE" "$WORK/base-stage6-unsigned.apk" "$CLUB_SMALI" "$OUT/evidence/fixture-structure-unsigned.json"
+python3 - "$WORK/base-stage6-unsigned.apk" "$MAIN_SMALI" "$MAIN_UI" <<'PY'
+import sys,zipfile
+apk,smali,main=sys.argv[1:]
+s=open(smali,encoding='utf-8').read()
+for x in ('m_Stage6LoadBadgeProbes','0xc45','0xc5b','0xc55','Stage6A','Stage6B','Stage6C'):
+    assert x in s,x
+with zipfile.ZipFile(apk) as z:
+    u=z.read(main).decode('utf-8-sig')
+for x in ('ref:Stage6ProbeA','ref:Stage6ProbeB','ref:Stage6ProbeC','Selector(Stage6A,BadgeStyle1)','Selector(Stage6B,BadgeStyle1)','Selector(Stage6C,BadgeStyle1)'):
+    assert x in u,x
+print('STAGE6_REAL_CLUB_PROBE_STRUCTURE=PASS')
+PY
 
 BT="$(find "${ANDROID_HOME:?ANDROID_HOME required}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 ZIPALIGN="$BT/zipalign"; APKSIGNER="$BT/apksigner"
@@ -91,4 +112,4 @@ done
 
 python3 "$ROOT/stage6_runtime/verify_fixture_apk.py" "$BASE" "$OUT/signed/base.apk" "$CLUB_SMALI" "$OUT/evidence/fixture-structure-signed.json"
 sha256sum "$OUT/signed/"*.apk > "$OUT/evidence/signed-apks.sha256"
-printf 'STAGE6_FIXTURE_BUILD=PASS\n' | tee "$OUT/evidence/build-gates.txt"
+printf 'STAGE6_FIXTURE_BUILD=PASS\nSTAGE6_REAL_CLUB_PROBE_STRUCTURE=PASS\n' | tee "$OUT/evidence/build-gates.txt"
