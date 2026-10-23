@@ -39,6 +39,11 @@ jobs:
           if old_sign not in text:
               raise SystemExit('expected sign_one declaration not found')
           text = text.replace(old_sign, new_sign, 1)
+          old_menu = 'press_physical 810 1450 2\nwait_log \'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot\' 25 saveslot\n'
+          new_menu = 'python3 stage3/pick_mainmenu_play.py "$OUT/stock-mainmenu-rendered.png" "$WORK/mainmenu-play.txt"\nread -r MAIN_X MAIN_Y < "$WORK/mainmenu-play.txt"\npress_physical "$MAIN_X" "$MAIN_Y" 2\nwait_log \'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot\' 25 saveslot\n'
+          if old_menu not in text:
+              raise SystemExit('expected MainMenu fixed tap block not found')
+          text = text.replace(old_menu, new_menu, 1)
           old_slot = 'find_slot0_target "$OUT/saveslot.png" "$WORK/slot0.txt"\n'
           new_slot = 'python3 stage3/pick_saveslot.py "$OUT/saveslot.png" "$WORK/slot0.txt"\n'
           if old_slot not in text:
