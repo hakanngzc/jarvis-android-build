@@ -50,6 +50,11 @@ def patch_smali_text(text):
         f'{indent}const/16 {idreg}, 0x11\n'
         f'{indent}iput {idreg}, {clubreg}, {STYLE_FIELD}\n\n'
         f'{indent}:nss_reborn_badge_done\n'
+        # Stock m_CreateClub deliberately reuses the divisor register shortly
+        # afterwards as the Clubs.txt field-15 index. Restore that exact scratch
+        # register state so the targeted style override cannot affect later data
+        # parsing.
+        f'{indent}const/16 {divreg}, 0xf\n'
     )
     out=text[:m.end()]+override+text[m.end():]
     report={
@@ -60,6 +65,7 @@ def patch_smali_text(text):
         'inserted_label':'nss_reborn_badge_done',
         'captured_registers':{'id':idreg,'club':clubreg,'divisor':divreg},
         'blank_line_tolerant':True,
+        'divisor_register_restored':True,
     }
     return out,report
 
@@ -74,6 +80,6 @@ def main():
     dst.write_text(out,encoding='utf-8')
     report.parent.mkdir(parents=True,exist_ok=True)
     report.write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
-    print('CLUB_BADGE_OVERRIDE_PATCH=PASS fallback=id%15 overrides=3141:16,3157:17 registers='+json.dumps(meta['captured_registers'],sort_keys=True))
+    print('CLUB_BADGE_OVERRIDE_PATCH=PASS fallback=id%15 overrides=3141:16,3157:17 registers='+json.dumps(meta['captured_registers'],sort_keys=True)+' divisor_restored=true')
 
 if __name__=='__main__': main()
