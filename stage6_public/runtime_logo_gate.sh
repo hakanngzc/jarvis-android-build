@@ -36,6 +36,7 @@ assert d['classes3_sha256_before']!=d['classes3_sha256_after']
 assert d['override']['fallback']=='m_id % 15'
 assert d['override']['overrides']=={'3141':16,'3157':17}
 assert d['override']['stock_anchor_preserved'] is True
+assert d['override']['divisor_register_restored'] is True
 assert r['append']['old_atlas_count']==144 and r['append']['new_atlas_count']==145
 assert r['append']['record_names']==['REBORNClub3141','REBORNClub3157']
 assert r['append']['alias_suffix_sha256_before']==r['append']['alias_suffix_sha256_after']
@@ -60,7 +61,10 @@ ZIPALIGN="$BT/zipalign"; APKSIGNER="$BT/apksigner"
 keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -keypass android -alias ci \
   -dname 'CN=NSS Stage6 Public Runtime' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
 sign_one(){
-  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"
+  local src="$1"
+  local dst="$2"
+  local aligned
+  aligned="$WORK/aligned-$(basename "$dst")"
   "$ZIPALIGN" -f 4 "$src" "$aligned"
   "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci \
     --ks-pass pass:android --key-pass pass:android --out "$dst" "$aligned"
@@ -115,7 +119,10 @@ def crop(x0,y0,x1,y1):
 def ratio(img,target,tol=24):
     px=list(img.getdata()); n=max(1,len(px))
     return sum(max(abs(p[j]-target[j]) for j in range(3))<=tol for p in px)/n
-left=crop(45,155,275,385); right=crop(365,155,595,385); stock=crop(235,455,405,685)
+# Run 14 artifact proved both custom crests render simultaneously, but the old
+# y=155..385 crop ended just above the left crest's red centre (real y≈669..772
+# on 1080x2280). Use the actual test-overlay geometry instead of that stale ROI.
+left=crop(45,240,275,550); right=crop(365,240,595,550); stock=crop(190,455,350,685)
 left_red=ratio(left,(238,52,52)); left_yellow=ratio(left,(250,205,35)); left_dark=ratio(left,(20,20,25))
 right_yellow=ratio(right,(250,205,35)); right_blue=ratio(right,(20,65,170)); right_dark=ratio(right,(20,20,25))
 stock_navy=ratio(stock,(38,53,74),35); stock_std=sum(ImageStat.Stat(stock).stddev)/3.0
@@ -123,8 +130,9 @@ text=(f'size={w}x{h}\nscale={s:.6f}\nleft_red={left_red:.5f}\nleft_yellow={left_
       f'right_yellow={right_yellow:.5f}\nright_blue={right_blue:.5f}\nright_dark={right_dark:.5f}\n'
       f'stock_navy={stock_navy:.5f}\nstock_stddev={stock_std:.3f}\n')
 open(sys.argv[2],'w').write(text); print(text.replace('\n',' ').strip())
-# Identity proof: 3141 is the red/black-white crest, 3157 is yellow/blue.
-# Cross-colour limits catch swapped or duplicated atlas UV records.
+# Identity proof: 3141 is red/black-white; 3157 is yellow/blue. The yellow/blue
+# crest intentionally has a small red centre, so its identity is established by
+# strong yellow+blue shares rather than absence of red.
 ok=(left_red>0.008 and left_dark>0.02 and left_red>left_yellow*2+0.002 and
     right_yellow>0.015 and right_blue>0.015 and right_yellow>right_dark*0.3 and
     stock_std>12.0 and stock_navy>0.002)
