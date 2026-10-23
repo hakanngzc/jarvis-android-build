@@ -42,7 +42,7 @@ def make_apk(path: Path, *, patched=False, mutate_key=False, mutate_clubs=False)
     with zipfile.ZipFile(path, 'w') as z:
         z.writestr('classes3.dex', b'patched-dex' if patched else b'stock-dex')
         z.writestr('assets/monkey/NewGUI/Atlases/Key.key', b'KEY-CHANGED' if mutate_key else b'KEY-STOCK')
-        z.writestr('assets/monkey/NewGUI/Common/ShieldAnims.uih', PATCHED_UI if patched else STOCK_UI)
+        z.writestr('assets/monkey/NewGUI/Screens/ShieldAnims.uih', PATCHED_UI if patched else STOCK_UI)
         z.writestr('assets/monkey/MyData/v2025/Clubs.txt', CLUBS.replace(b'3141', b'9999', 1) if mutate_clubs else CLUBS)
         if patched:
             z.writestr('assets/monkey/NewGUI/RebornBadges/3141.png', b'PNG-A')
@@ -77,7 +77,6 @@ class VerifyFixtureApkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             td = Path(td); stock=td/'stock.apk'; patched=td/'patched.apk'; smali=td/'c_TClub.smali'
             make_apk(stock); make_apk(patched, patched=True); smali.write_text(PATCHED_SMALI)
-            # Rewrite without 3163 fixture.
             tmp=td/'tmp.apk'
             with zipfile.ZipFile(patched) as zin, zipfile.ZipFile(tmp,'w') as zout:
                 for info in zin.infolist():
