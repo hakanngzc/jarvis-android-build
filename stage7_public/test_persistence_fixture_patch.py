@@ -26,6 +26,24 @@ VERIFIER_SRC='''.class public Lcom/newstargames/newstarsoccer/c_TPlayer;
 .end method
 '''
 
+MUTATOR_REGISTERS='''.class public Lcom/newstargames/newstarsoccer/c_TPlayer;
+.method public final p_SaveCareer()I
+    .registers 8
+    const/4 v0, 0x1
+    invoke-virtual {p0}, Lcom/newstargames/newstarsoccer/c_TPlayer;->p_GetPlayerData()Ljava/lang/String;
+    return v0
+.end method
+'''
+
+VERIFIER_REGISTERS='''.class public Lcom/newstargames/newstarsoccer/c_TPlayer;
+.method public static m_LoadCareer()I
+    .registers 19
+    const/4 v7, 0x1
+    move v18, v7
+    return v7
+.end method
+'''
+
 
 class PersistenceFixturePatchTests(unittest.TestCase):
     def test_mutator_injects_only_savecareer_and_preserves_stock_flow(self):
@@ -48,6 +66,16 @@ class PersistenceFixturePatchTests(unittest.TestCase):
         self.assertEqual(out.count('STAGE7_TEST_MUTATOR_BEGIN'),1)
         self.assertEqual(out.count('.method public p_Other()V'),1)
 
+    def test_mutator_expands_real_registers_layout_without_touching_p0_alias(self):
+        out,meta=patch_mutator_text(MUTATOR_REGISTERS)
+        self.assertEqual(meta['directive'],'registers')
+        self.assertEqual(meta['old_registers'],8)
+        self.assertEqual(meta['new_registers'],11)
+        self.assertEqual(meta['scratch'],['v7','v8','v9'])
+        self.assertIn('.registers 11',out)
+        self.assertIn(f'iput v7, p0, {PLAYER}->m_bank:I',out)
+        self.assertIn('invoke-virtual {p0}',out)
+
     def test_mutator_is_fail_closed_if_already_patched(self):
         out,_=patch_mutator_text(MUTATOR_SRC)
         with self.assertRaises(ValueError): patch_mutator_text(out)
@@ -64,6 +92,19 @@ class PersistenceFixturePatchTests(unittest.TestCase):
         self.assertLess(out.index('STAGE7_TEST_VERIFY_RESAVE_BEGIN'),out.rindex('return v0'))
         self.assertEqual(out.count('return v0'),1)
         self.assertEqual(out.count('STAGE7_TEST_VERIFY_RESAVE_BEGIN'),1)
+
+    def test_verifier_expands_static_registers_layout_with_v19_scratch(self):
+        out,meta=patch_verifier_text(VERIFIER_REGISTERS)
+        self.assertEqual(meta['directive'],'registers')
+        self.assertEqual(meta['old_registers'],19)
+        self.assertEqual(meta['new_registers'],20)
+        self.assertEqual(meta['scratch'],'v19')
+        self.assertEqual(meta['return_register'],'v7')
+        self.assertIn('.registers 20',out)
+        self.assertIn('sget-object v19, Lcom/newstargames/newstarsoccer/bb_;->g_player:',out)
+        self.assertIn(f'invoke-virtual/range {{v19 .. v19}}, {PLAYER}->p_SaveCareer()I',out)
+        self.assertIn('move-result v19',out)
+        self.assertEqual(out.count('return v7'),1)
 
     def test_verifier_rejects_multiple_returns(self):
         bad=VERIFIER_SRC.replace('    return v0\n','    return v0\n    return v0\n')
