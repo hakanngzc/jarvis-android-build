@@ -13,7 +13,7 @@ permissions:
 jobs:
   real-logo-runtime:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Stage6 fixture patcher tests
@@ -22,7 +22,7 @@ jobs:
           python3 -m pip install --disable-pip-version-check pillow
           PYTHONPATH=stage6_runtime python3 -m unittest stage6_runtime/test_stage6_patchers.py stage6_runtime/test_verify_fixture_apk.py stage6_runtime/test_stage6_runtime_probe_patchers.py -v
           python3 -m py_compile stage6_runtime/dump_club_accessors.py
-          bash -n stage6_runtime/build_fixture_apk.sh
+          bash -n stage6_runtime/build_fixture_apk.sh stage6_runtime/runtime_logo_gate.sh
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -58,6 +58,7 @@ jobs:
             stage6_runtime_artifacts "$BAKSMALI_JAR" "$SMALI_JAR"
           python3 stage6_runtime/dump_club_accessors.py "$BASE" stage6_runtime_artifacts/evidence/club-accessors.txt
           grep -q '^STAGE6_FIXTURE_BUILD=PASS$' stage6_runtime_artifacts/evidence/build-gates.txt
+          grep -q '^STAGE6_REAL_CLUB_PROBE_STRUCTURE=PASS$' stage6_runtime_artifacts/evidence/build-gates.txt
           python3 - <<'PY'
           import json
           for name in ('fixture-structure-unsigned.json','fixture-structure-signed.json'):
@@ -70,6 +71,36 @@ jobs:
               assert p['classes3_changed'] is True
           print('VERDICT=STAGE6_FIXTURE_STRUCTURE_PASS')
           PY
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 10 real-logo runtime preflight
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: bash stage6_runtime/runtime_logo_gate.sh
+      - name: Require Stage6 runtime preflight
+        run: |
+          set -euo pipefail
+          G=stage6_runtime_artifacts/runtime/stage6-runtime-gates.txt
+          grep -q '^STAGE6_REAL_CLUB_LOADS=PASS$' "$G"
+          grep -q '^STAGE6_PROCESS_ALIVE=PASS$' "$G"
+          grep -q '^STAGE6_SCREENSHOT_CAPTURE=PASS$' "$G"
+          grep -q '^STAGE6_NO_FATAL=PASS$' "$G"
+          grep -q '^STAGE6_RUNTIME_PREFLIGHT=PASS$' "$G"
+          test -s stage6_runtime_artifacts/runtime/stage6-mainmenu-probes.png
+          echo 'VERDICT=STAGE6_RUNTIME_PREFLIGHT_PASS'
       - name: Upload Stage6 fixture evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
