@@ -19,10 +19,6 @@ echo "$EXPECTED_XAPK  $XAPK" | sha256sum -c -
 unzip -q "$XAPK" -d "$ROOT"
 echo "$EXPECTED_BASE  $ROOT/com.newstargames.newstarsoccer.apk" | sha256sum -c -
 
-# Near-stock interaction fixture. First-run/privacy overlays are removed and two
-# already-verified TEST-ONLY DEX gates are applied: force the stock Cloud state
-# machine down its own offline branch, and bypass unrelated FTUE/trial input.
-# Match gameplay methods remain stock in this discovery run.
 python3 - "$ROOT/com.newstargames.newstarsoccer.apk" "$WORK/base-ui-probe.apk" <<'PY'
 import sys, zipfile
 src,dst=sys.argv[1:]
@@ -84,7 +80,7 @@ start_menu(){
     adb logcat -d -v brief > "$WORK/start.log" 2>/dev/null || true
     last="$(grep -Ei 'SetActive:[[:space:]]*[A-Za-z0-9_]+' "$WORK/start.log" | tail -1 || true)"
     if grep -qiE 'SetActive:[[:space:]]*mainmenu' <<<"$last"; then
-      echo "Rendered stock MainMenu after ${i}s"
+      echo "Stock MainMenu state active after ${i}s"
       return 0
     fi
   done
@@ -92,43 +88,57 @@ start_menu(){
   return 1
 }
 
+wait_rendered_menu(){
+  local i png="$WORK/menu-render-probe.png" bytes
+  for i in $(seq 1 60); do
+    fatal_check || return 1
+    adb exec-out screencap -p > "$png" 2>/dev/null || true
+    bytes="$(wc -c < "$png" 2>/dev/null || echo 0)"
+    # On this pinned API29/Pixel4 profile a blank white frame compresses to
+    # ~17 KiB while the real stock menu is >1 MiB. Keep a conservative bound.
+    if [ "$bytes" -gt 200000 ]; then
+      cp "$png" "$OUT/stock-mainmenu-rendered.png"
+      echo "Stock MainMenu rendered after ${i}s (${bytes} bytes)"
+      return 0
+    fi
+    sleep 1
+  done
+  cp "$png" "$OUT/menu-render-timeout.png" 2>/dev/null || true
+  echo 'Stock MainMenu state was active but a rendered frame was not observed'
+  return 1
+}
+
 start_menu
-adb exec-out screencap -p > "$OUT/stock-mainmenu.png"
+wait_rendered_menu
 adb shell wm size > "$OUT/wm-size.txt"
 adb shell wm density > "$OUT/wm-density.txt"
 
-POINTS=(
-  '810 850' '810 1000' '810 1150' '810 1300' '810 1450' '810 1600'
-  '650 850' '650 1000' '650 1150' '650 1300' '650 1450' '650 1600'
-  '500 850' '500 1000' '500 1150' '500 1300' '500 1450' '500 1600'
-)
+# Visual evidence from run 39945433018 shows Play centered in this region on
+# the pinned 1080x2280 Pixel4 profile. Wait for rendering before the tap.
+PLAY_X=810
+PLAY_Y=1450
+adb logcat -c >/dev/null 2>&1 || true
+adb shell input touchscreen tap "$PLAY_X" "$PLAY_Y" </dev/null || true
+
 FOUND=0
-N=0
-: > "$OUT/career-probe-summary.txt"
-for P in "${POINTS[@]}"; do
-  N=$((N+1)); read -r X Y <<< "$P"
-  start_menu
-  adb logcat -c >/dev/null 2>&1 || true
-  adb shell input touchscreen tap "$X" "$Y" </dev/null || true
-  sleep 3
-  adb logcat -d -v brief > "$OUT/probe-$N.log" 2>/dev/null || true
-  adb exec-out screencap -p > "$OUT/probe-$N.png" 2>/dev/null || true
-  LAST="$(grep -Ei 'Create Screen:|SetActive:|SETTING ACTIVE:' "$OUT/probe-$N.log" | tail -12 || true)"
-  printf 'probe=%s point=%s,%s\n%s\n---\n' "$N" "$X" "$Y" "$LAST" >> "$OUT/career-probe-summary.txt"
-  if grep -qiE 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' "$OUT/probe-$N.log"; then
-    echo "$X $Y" > "$OUT/career-point.txt"
+for i in $(seq 1 20); do
+  sleep 1
+  fatal_check || exit 71
+  adb logcat -d -v brief > "$OUT/career-tap.log" 2>/dev/null || true
+  if grep -qiE 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' "$OUT/career-tap.log"; then
     FOUND=1
     break
   fi
 done
+adb exec-out screencap -p > "$OUT/after-play-tap.png" 2>/dev/null || true
 
-adb logcat -d -v threadtime > "$OUT/final-logcat.txt" 2>/dev/null || true
-fatal_check || { echo 'NSS-owned crash/ANR during stock career discovery'; exit 71; }
 if [ "$FOUND" -ne 1 ]; then
-  echo 'CAREER_POINT_FOUND=NO' | tee -a "$OUT/career-probe-summary.txt"
+  echo 'CAREER_POINT_FOUND=NO'
+  tail -80 "$OUT/career-tap.log" || true
   exit 72
 fi
 
-echo 'CAREER_POINT_FOUND=YES' | tee -a "$OUT/career-probe-summary.txt"
+echo "$PLAY_X $PLAY_Y" > "$OUT/career-point.txt"
+echo 'CAREER_POINT_FOUND=YES'
 echo "CAREER_POINT=$(cat "$OUT/career-point.txt")"
 echo 'VERDICT=STAGE3_STOCK_CAREER_DISCOVERY_PASS'
