@@ -7,20 +7,35 @@ OUT="$ROOT/stage6_public_artifacts/runtime"
 WORK="$RUNNER_TEMP/nss-stage6-logo-runtime"
 BASE="${BASE:?BASE is required}"
 XAPK_DIR="${STOCK_XAPK_DIR:?STOCK_XAPK_DIR is required}"
+: "${BAKSMALI_JAR:?BAKSMALI_JAR is required}"
+: "${SMALI_JAR:?SMALI_JAR is required}"
 mkdir -p "$OUT" "$WORK/signed"
 GATES="$OUT/stage6-logo-gates.txt"
 : > "$GATES"
 record(){ printf '%s=%s\n' "$1" "$2" | tee -a "$GATES"; }
 
+# 1. Preserve stock id%15 fallback and override only the two proof clubs.
+bash stage6_public/apply_club_badge_override_dex.sh \
+  "$BASE" "$WORK/base-badge-dex.apk" "$WORK/dexpatch" "$OUT/badge-dex-report.json" \
+  | tee "$OUT/badge-dex-build.txt"
+record STAGE6_DEX_OVERRIDE PASS
+
+# 2. Add the isolated atlas and supplemental style 16/17 selector layer.
 python3 stage6_public/build_runtime_fixture.py \
-  "$BASE" "$WORK/base-stage6-unsigned.apk" "$WORK/fixture" "$OUT/runtime-fixture-report.json" \
+  "$WORK/base-badge-dex.apk" "$WORK/base-stage6-unsigned.apk" "$WORK/fixture" "$OUT/runtime-fixture-report.json" \
   | tee "$OUT/runtime-fixture-build.txt"
 record STAGE6_FIXTURE_BUILD PASS
 
-python3 - "$WORK/base-stage6-unsigned.apk" "$OUT/runtime-fixture-report.json" <<'PY'
+python3 - "$WORK/base-stage6-unsigned.apk" "$OUT/runtime-fixture-report.json" "$OUT/badge-dex-report.json" <<'PY'
 import json,struct,sys,zipfile
-apk,report=sys.argv[1:]
+apk,report,dex_report=sys.argv[1:]
 r=json.load(open(report,encoding='utf-8'))
+d=json.load(open(dex_report,encoding='utf-8'))
+assert d['other_dex_preserved'] is True
+assert d['classes3_sha256_before']!=d['classes3_sha256_after']
+assert d['override']['fallback']=='m_id % 15'
+assert d['override']['overrides']=={'3141':16,'3157':17}
+assert d['override']['stock_anchor_preserved'] is True
 assert r['append']['old_atlas_count']==144 and r['append']['new_atlas_count']==145
 assert r['append']['record_names']==['REBORNClub3141','REBORNClub3157']
 assert r['append']['alias_suffix_sha256_before']==r['append']['alias_suffix_sha256_after']
