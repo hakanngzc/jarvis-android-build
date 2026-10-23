@@ -80,20 +80,30 @@ def ui_hits(path,text):
     return lines
 
 
+def is_metadata_candidate(name,data):
+    low=name.lower()
+    if low.endswith('.key'):
+        return True
+    # Packed metadata has appeared under different names across builds; follow
+    # content signatures, not an extension contract.
+    return b'MapShield' in data or (b'UIAtlas' in data and not low.endswith(('.png','.jpg','.jpeg','.webp')))
+
+
 def discover(apk_path,out_dir):
     apk_path=Path(apk_path); out_dir=Path(out_dir); out_dir.mkdir(parents=True,exist_ok=True)
     report={
         'apk_sha256':hashlib.sha256(apk_path.read_bytes()).hexdigest(),
         'shield_ui':{'files':[],'tokens':[]},
+        'metadata_files':[],
         'atlas_symbols':[],
         'atlas_files':[],
         'clubs':{},
     }
-    tokens=set(); symbol_names=set(); key_blobs=[]
+    tokens=set(); symbol_names=set(); metadata_blobs=[]
     with zipfile.ZipFile(apk_path) as z:
         names=z.namelist()
-        for name in names:
-            low=name.lower()
+        for info in z.infolist():
+            name=info.filename; low=name.lower()
             if low.endswith(('.uih','.uis')):
                 try: text=z.read(name).decode('utf-8-sig')
                 except Exception: continue
@@ -108,10 +118,22 @@ def discover(apk_path,out_dir):
                     symbol_names.update(re.findall(r'\bMapShield[A-Za-z0-9_]*\b',text))
                     if name.endswith('ShieldAnims.uih'):
                         (out_dir/'ShieldAnims.uih.txt').write_text(text,encoding='utf-8')
-            if low.endswith('.key'):
-                key_blobs.append((name,z.read(name)))
             if re.search(r'(?:^|/)UIAtlas\d+(?:_VOL)?\.png$',name):
                 report['atlas_files'].append(name)
+            # Avoid reading large raster/dex payloads solely for signature scanning.
+            if info.is_dir() or info.file_size>32*1024*1024 or low.endswith(('.png','.jpg','.jpeg','.webp','.dex')):
+                continue
+            try: data=z.read(name)
+            except Exception: continue
+            if is_metadata_candidate(name,data):
+                headers=scan_atlas_headers(data)
+                metadata_blobs.append((name,data))
+                report['metadata_files'].append({
+                    'path':name,'size':len(data),
+                    'mapshield_ascii_occurrences':data.count(b'MapShield'),
+                    'atlas_headers':[h['name'] for h in headers],
+                    'atlas_header_count':len(headers),
+                })
         clubs=[n for n in names if n.endswith('/v2025/Clubs.txt')]
         if len(clubs)==1:
             raw=z.read(clubs[0]).decode('utf-8-sig')
@@ -126,24 +148,24 @@ def discover(apk_path,out_dir):
                 'badge_candidate_fields':[f for f in fields if any(x in f.lower() for x in ('style','colour','color','kit','badge','shield'))],
                 'samples':{i:idx[i] for i in sample_ids if i in idx},
             }
-    # Also discover MapShield symbols directly from key blobs in case a registered symbol is not referenced by current UI text.
-    for key_path,data in key_blobs:
+    for meta_path,data in metadata_blobs:
         for m in re.finditer(rb'MapShield[A-Za-z0-9_]{0,64}',data):
             try: symbol_names.add(m.group().decode('ascii'))
             except Exception: pass
     records=[]
     for name in sorted(symbol_names):
-        for key_path,data in key_blobs:
-            rec=read_normal_record(data,name,key_path)
+        for meta_path,data in metadata_blobs:
+            rec=read_normal_record(data,name,meta_path)
             if rec:
                 records.append(rec); break
     report['shield_ui']['tokens']=sorted(tokens)
     report['shield_ui']['files']=sorted(report['shield_ui']['files'],key=lambda x:x['path'])
+    report['metadata_files']=sorted(report['metadata_files'],key=lambda x:x['path'])
     report['atlas_symbols']=sorted(records,key=lambda x:(x['atlas'],x['name']))
     report['atlas_files']=sorted(report['atlas_files'])
     out=(out_dir/'stage6-badge-atlas-discovery.json')
     out.write_text(json.dumps(report,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
-    print(f"shield_ui_files={len(report['shield_ui']['files'])} tokens={len(tokens)} atlas_symbols={len(records)} atlas_files={len(report['atlas_files'])} club_rows={report.get('clubs',{}).get('numeric_row_count',0)}")
+    print(f"shield_ui_files={len(report['shield_ui']['files'])} tokens={len(tokens)} metadata_files={len(report['metadata_files'])} atlas_symbols={len(records)} atlas_files={len(report['atlas_files'])} club_rows={report.get('clubs',{}).get('numeric_row_count',0)}")
     print(f"report={out}")
     return report
 
