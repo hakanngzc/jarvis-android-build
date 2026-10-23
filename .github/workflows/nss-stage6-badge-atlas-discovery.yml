@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py stage6_public/test_append_logo_atlas.py -v
-          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py stage6_public/dump_badge_chain.py stage6_public/find_image_load_paths.py stage6_public/inspect_key_tail.py
+          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py stage6_public/dump_badge_chain.py stage6_public/find_image_load_paths.py stage6_public/inspect_key_tail.py stage6_public/append_logo_atlas.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -41,6 +41,44 @@ jobs:
           python3 stage6_public/dump_badge_chain.py "$BASE" stage6_public_artifacts/badge-chain-disasm.txt
           python3 stage6_public/find_image_load_paths.py "$BASE" stage6_public_artifacts/image-load-paths.json
           python3 stage6_public/inspect_key_tail.py "$BASE" stage6_public_artifacts/key-tail-layout.json
+
+          unzip -p "$BASE" assets/monkey/NewGUI/Atlases/Key.key > stage6_public_artifacts/stock-Key.key
+          cat > stage6_public_artifacts/logo-atlas-spec.json <<'JSON'
+          {
+            "atlas_name":"UIAtlas145","width":256,"height":128,
+            "records":[
+              {"name":"REBORNClub3141","original_width":128,"original_height":128,"trimmed_width":128,"trimmed_height":128,"render_data":[0.0,1.0,0.0,1.0,1.0,0.0,0.5,0.0]},
+              {"name":"REBORNClub3157","original_width":128,"original_height":128,"trimmed_width":128,"trimmed_height":128,"render_data":[0.0,1.0,0.5,1.0,1.0,0.0,1.0,0.0]}
+            ]
+          }
+          JSON
+          PYTHONPATH=stage6_public python3 stage6_public/append_logo_atlas.py \
+            stage6_public_artifacts/stock-Key.key stage6_public_artifacts/Key-with-UIAtlas145.key \
+            stage6_public_artifacts/logo-atlas-spec.json stage6_public_artifacts/append-atlas-report.json
+
+          PYTHONPATH=stage6_public python3 - <<'PY'
+          import hashlib,json,struct
+          from inspect_key_tail import headers,parse_record_end
+          stock=open('stage6_public_artifacts/stock-Key.key','rb').read()
+          data=open('stage6_public_artifacts/Key-with-UIAtlas145.key','rb').read()
+          rep=json.load(open('stage6_public_artifacts/append-atlas-report.json'))
+          hs=headers(data)
+          assert struct.unpack_from('<I',data,0)[0]==145
+          assert len(hs)==145 and hs[-1]['name']=='UIAtlas145'
+          assert hs[-1]['width']==256 and hs[-1]['height']==128 and hs[-1]['count']==2
+          pos=hs[-1]['records_offset']; names=[]
+          for _ in range(2):
+              end,meta=parse_record_end(data,pos); assert end and meta['layout']=='normal' and meta['flags']==0
+              names.append(meta['name']); pos=end
+          assert names==['REBORNClub3141','REBORNClub3157']
+          assert rep['insert_offset']==768320
+          assert rep['old_atlas_count']==144 and rep['new_atlas_count']==145
+          assert rep['alias_suffix_sha256_before']==rep['alias_suffix_sha256_after']
+          assert rep['source_prefix_sha256']==rep['patched_prefix_sha256']
+          assert hashlib.sha256(stock[rep['insert_offset']:]).hexdigest()==rep['alias_suffix_sha256_before']
+          print('EXACT_STOCK_ATLAS_APPEND=PASS')
+          PY
+
           python3 - <<'PY'
           import json
           p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
