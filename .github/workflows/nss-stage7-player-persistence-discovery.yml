@@ -18,6 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile stage7_public/dump_player_persistence.py stage7_public/dump_stage7_core.py stage1_public/dex_inspect.py
+          PYTHONPATH=stage7_public python3 -m unittest stage7_public/test_persistence_fixture_patch.py -v
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
