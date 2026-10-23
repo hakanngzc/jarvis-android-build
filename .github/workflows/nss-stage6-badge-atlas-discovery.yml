@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py -v
-          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py stage6_public/dump_badge_chain.py
+          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py stage6_public/dump_badge_chain.py stage6_public/find_image_load_paths.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -39,6 +39,7 @@ jobs:
           python3 stage6_public/find_badge_writers.py "$BASE" stage6_public_artifacts/badge-writers.json
           python3 stage6_public/dump_badge_data_flow.py "$BASE" stage6_public_artifacts/badge-data-flow.txt
           python3 stage6_public/dump_badge_chain.py "$BASE" stage6_public_artifacts/badge-chain-disasm.txt
+          python3 stage6_public/find_image_load_paths.py "$BASE" stage6_public_artifacts/image-load-paths.json
           python3 - <<'PY'
           import json
           p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
@@ -56,6 +57,8 @@ jobs:
           chain=open('stage6_public_artifacts/badge-chain-disasm.txt',encoding='utf-8').read()
           assert 'CLASS=Lcom/newstargames/newstarsoccer/c_ImageAsset;' in chain
           assert 'name=m_CreateClub' in chain and 'name=m_GetAtlasedImage' in chain
+          paths=json.load(open('stage6_public_artifacts/image-load-paths.json',encoding='utf-8'))
+          assert paths['hits']
           print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
           PY
       - name: Upload Stage6 discovery evidence
