@@ -21,3 +21,56 @@ jobs:
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check pillow
           PYTHONPATH=stage6_runtime python3 -m unittest stage6_runtime/test_stage6_patchers.py stage6_runtime/test_verify_fixture_apk.py -v
+          bash -n stage6_runtime/build_fixture_apk.sh
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage6-stock/xapk" stage6_runtime_artifacts
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage6-stock/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/stage6-stock/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage6-stock/nss431.xapk" -d "$RUNNER_TEMP/stage6-stock/xapk"
+          BASE="$RUNNER_TEMP/stage6-stock/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "STOCK_XAPK_DIR=$RUNNER_TEMP/stage6-stock/xapk" >> "$GITHUB_ENV"
+      - name: Download pinned smali toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage6-tools"
+          BAK="$RUNNER_TEMP/stage6-tools/baksmali-3.0.10-fat-release.jar"
+          SMA="$RUNNER_TEMP/stage6-tools/smali-3.0.10-fat-release.jar"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/v3.0.10/baksmali-3.0.10-fat-release.jar' -o "$BAK"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/v3.0.10/smali-3.0.10-fat-release.jar' -o "$SMA"
+          echo '37ae4a41a8886e15c20b8362fa4250f96bbdb55e1a608199ad8b5dff068b588f  '"$BAK" | sha256sum -c -
+          echo '32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a  '"$SMA" | sha256sum -c -
+          java -jar "$BAK" --version
+          java -jar "$SMA" --version
+          echo "BAKSMALI_JAR=$BAK" >> "$GITHUB_ENV"
+          echo "SMALI_JAR=$SMA" >> "$GITHUB_ENV"
+      - name: Build and structurally verify Stage6 fixture
+        run: |
+          set -euo pipefail
+          bash stage6_runtime/build_fixture_apk.sh \
+            "$BASE" "$STOCK_XAPK_DIR" "$RUNNER_TEMP/stage6-fixture-work" \
+            stage6_runtime_artifacts "$BAKSMALI_JAR" "$SMALI_JAR"
+          grep -q '^STAGE6_FIXTURE_BUILD=PASS$' stage6_runtime_artifacts/evidence/build-gates.txt
+          python3 - <<'PY'
+          import json
+          for name in ('fixture-structure-unsigned.json','fixture-structure-signed.json'):
+              p=json.load(open('stage6_runtime_artifacts/evidence/'+name))
+              assert p['key_key_unchanged'] is True
+              assert p['club_ids_unchanged'] is True
+              assert p['custom_draw_counts']=={'3141':6,'3163':6}
+              assert p['stock_fallback_present'] is True
+              assert p['fixture_assets']==[3141,3163]
+              assert p['classes3_changed'] is True
+          print('VERDICT=STAGE6_FIXTURE_STRUCTURE_PASS')
+          PY
+      - name: Upload Stage6 fixture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage6-real-logo-fixture
+          path: stage6_runtime_artifacts/**
