@@ -19,24 +19,24 @@ MAIN_UI='''Import:(ButtonDefs.uis)\nCAT:(BootMenu,EXC)\nDraw:(White,0,0,720,1280
 SHIELD_UI='''
 Img:(RebornBadge3141,NewGUI/RebornBadges/3141.png)
 Img:(RebornBadge3163,NewGUI/RebornBadges/3163.png)
-Animation:(5000,Loop,80) ref:ShieldScale1
-{
-    During:(30,79)
-    {
-        Draw:(MapShieldWhite,0,0,-105,142)
-        Rect:(0,0,0,0)
-            ColReadout(MatchColours,Badge1Col2)
-            Selector(MatchColours,BadgeStyle1)
+        Animation:(5000,Loop,80) ref:ShieldScale1
         {
-            Rect:(0,0,0,0)
-            Draw:(MapShieldDesign7,0,0,-105,142)
-            Draw:(MapShieldDesign15,0,0,-105,142)
-            Draw:(RebornBadge3141,0,0,-105,142)
-            Draw:(RebornBadge3163,0,0,-105,142)
+            During:(30,79)
+            {
+                Draw:(MapShieldWhite,0,0,-105,142)
+                Rect:(0,0,0,0)
+                    ColReadout(MatchColours,Badge1Col2)
+                    Selector(MatchColours,BadgeStyle1)
+                {
+                    Rect:(0,0,0,0)
+                    Draw:(MapShieldDesign7,0,0,-105,142)
+                    Draw:(MapShieldDesign15,0,0,-105,142)
+                    Draw:(RebornBadge3141,0,0,-105,142)
+                    Draw:(RebornBadge3163,0,0,-105,142)
+                }
+                Draw:(MapShieldFrameAll,0,0,-105,142)
+            }
         }
-        Draw:(MapShieldFrameAll,0,0,-105,142)
-    }
-}
 '''
 
 
@@ -46,7 +46,7 @@ class MainMenuSmaliProbeTests(unittest.TestCase):
         self.assertIn('invoke-static {}, Lcom/newstargames/newstarsoccer/c_TScreen_MainMenu;->m_Stage6LoadBadgeProbes()V',out)
         self.assertIn('const/16 v0, 0xc45',out)
         self.assertIn('const/16 v0, 0xc5b',out)
-        self.assertIn('const/16 v0, 0xc55',out)  # 3157 fallback
+        self.assertIn('const/16 v0, 0xc55',out)
         self.assertEqual(out.count('->m_LoadClub(I)Lcom/newstargames/newstarsoccer/c_TClub;'),3)
         self.assertIn('const-string v1, "Stage6A"',out)
         self.assertIn('const-string v1, "Stage6B"',out)
