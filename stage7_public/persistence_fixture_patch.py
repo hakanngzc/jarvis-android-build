@@ -16,23 +16,45 @@ def _method_block(text,name,expected_return='I'):
     return hits[0],ret
 
 
-def _expand_locals(block,extra):
-    hits=list(re.finditer(r'(?m)^(\s*)\.locals\s+(\d+)\s*$',block))
-    if len(hits)!=1:
-        raise ValueError(f'expected exactly one .locals directive, found {len(hits)}')
-    m=hits[0]; old=int(m.group(2)); new=old+extra
-    # Increasing .locals is safe only when baksmali used p-register aliases for
-    # parameters. Explicit vN references at/above old locals would change meaning.
-    for r in re.finditer(r'\bv(\d+)\b',block):
-        if int(r.group(1))>=old:
-            raise ValueError(f'explicit parameter register {r.group(0)} prevents .locals expansion')
-    repl=f'{m.group(1)}.locals {new}'
-    return block[:m.start()]+repl+block[m.end():],old,new
+def _expand_frame(block,extra,param_count):
+    locals_hits=list(re.finditer(r'(?m)^(\s*)\.locals\s+(\d+)\s*$',block))
+    regs_hits=list(re.finditer(r'(?m)^(\s*)\.registers\s+(\d+)\s*$',block))
+    if len(locals_hits)+len(regs_hits)!=1:
+        raise ValueError(f'expected exactly one .locals/.registers directive, found locals={len(locals_hits)} registers={len(regs_hits)}')
+    if locals_hits:
+        m=locals_hits[0]; old_locals=int(m.group(2)); old_registers=None
+        directive='locals'; new_locals=old_locals+extra; new_registers=None
+        # Under .locals, explicit vN at/above the old local boundary aliases a
+        # parameter register. Expanding locals would move that parameter.
+        for r in re.finditer(r'\bv(\d+)\b',block):
+            if int(r.group(1))>=old_locals:
+                raise ValueError(f'explicit parameter register {r.group(0)} prevents .locals expansion')
+        repl=f'{m.group(1)}.locals {new_locals}'
+        scratch_base=old_locals
+    else:
+        m=regs_hits[0]; old_registers=int(m.group(2))
+        if old_registers < param_count:
+            raise ValueError(f'.registers {old_registers} smaller than parameter count {param_count}')
+        old_locals=old_registers-param_count
+        new_locals=old_locals+extra; new_registers=old_registers+extra
+        directive='registers'
+        # With .registers, the final param_count registers are parameters. The
+        # patch is safe only when stock code addresses those through pN aliases.
+        for r in re.finditer(r'\bv(\d+)\b',block):
+            if int(r.group(1))>=old_locals:
+                raise ValueError(f'explicit parameter register {r.group(0)} prevents .registers expansion')
+        repl=f'{m.group(1)}.registers {new_registers}'
+        scratch_base=old_locals
+    patched=block[:m.start()]+repl+block[m.end():]
+    meta={'directive':directive,'old_locals':old_locals,'new_locals':new_locals,'scratch_base':scratch_base}
+    if old_registers is not None:
+        meta.update({'old_registers':old_registers,'new_registers':new_registers})
+    return patched,meta
 
 
-def _inject_after_locals(block,addition):
-    m=re.search(r'(?m)^\s*\.locals\s+\d+\s*$',block)
-    if not m: raise ValueError('.locals missing after expansion')
+def _inject_after_frame(block,addition):
+    m=re.search(r'(?m)^\s*\.(?:locals|registers)\s+\d+\s*$',block)
+    if not m: raise ValueError('.locals/.registers missing after expansion')
     return block[:m.end()]+addition+block[m.end():]
 
 
@@ -40,8 +62,8 @@ def patch_mutator_text(text):
     marker='STAGE7_TEST_MUTATOR_BEGIN'
     if marker in text: raise ValueError('mutator already present')
     m,ret=_method_block(text,'p_SaveCareer','I'); block=m.group(0)
-    block,base,new=_expand_locals(block,3)
-    a,b,c=base,base+1,base+2
+    block,frame=_expand_frame(block,3,param_count=1)
+    a,b,c=frame['scratch_base'],frame['scratch_base']+1,frame['scratch_base']+2
     add=f'''
 
     # {marker}
@@ -99,9 +121,10 @@ def patch_mutator_text(text):
     iput v{a}, p0, {PLAYER}->m_trainingattempts:I
     # STAGE7_TEST_MUTATOR_END
 '''
-    patched=_inject_after_locals(block,add)
+    patched=_inject_after_frame(block,add)
     out=text[:m.start()]+patched+text[m.end():]
-    return out,{'method':'p_SaveCareer','return_type':ret,'old_locals':base,'new_locals':new}
+    meta={'method':'p_SaveCareer','return_type':ret,**frame,'scratch':[f'v{a}',f'v{b}',f'v{c}']}
+    return out,meta
 
 
 def patch_verifier_text(text):
@@ -112,8 +135,8 @@ def patch_verifier_text(text):
     if len(returns)!=1:
         raise ValueError(f'expected exactly one int return in m_LoadCareer, found {len(returns)}')
     return_reg=returns[0].group(2)
-    block,base,new=_expand_locals(block,1)
-    reg=base
+    block,frame=_expand_frame(block,1,param_count=0)
+    reg=frame['scratch_base']
     if reg<16:
         invoke=f'invoke-virtual {{v{reg}}}, {PLAYER}->p_SaveCareer()I'
     else:
@@ -124,11 +147,9 @@ def patch_verifier_text(text):
     move-result v{reg}
     # STAGE7_TEST_VERIFY_RESAVE_END
 '''
-    # Locate the unique original return again after .locals expansion, then insert
-    # immediately before it without changing its register/value.
     r=list(re.finditer(r'(?m)^(\s*)return\s+'+re.escape(return_reg)+r'\s*$',block))
-    if len(r)!=1: raise ValueError('unique original return lost after locals expansion')
+    if len(r)!=1: raise ValueError('unique original return lost after frame expansion')
     pos=r[0].start()
     block=block[:pos]+add+block[pos:]
     out=text[:m.start()]+block+text[m.end():]
-    return out,{'method':'m_LoadCareer','return_type':ret,'return_register':return_reg,'old_locals':base,'new_locals':new,'scratch':f'v{reg}'}
+    return out,{'method':'m_LoadCareer','return_type':ret,'return_register':return_reg,**frame,'scratch':f'v{reg}'}
