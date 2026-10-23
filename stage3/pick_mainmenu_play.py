@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Locate the NSS 4.31 MainMenu Play button visually without OCR.
 
-The stock menu renders Play / Practice / Options as three wide green horizontal
-buttons. We identify those bands in the central-lower viewport and choose the
-first one (Play), then use the actual green extent to choose a safe center tap.
+The verified stock 4.31 API29 render exposes two wide green horizontal action
+bands in this viewport: Play followed by Practice.  Older assumptions expected
+an additional Options band and caused a false failure before any match runtime
+was reached.  Detect the real green bands and choose the first/top band (Play),
+then use its actual green extent for a safe center tap.
 """
 from __future__ import annotations
 
@@ -43,8 +45,11 @@ def pick(path: Path) -> tuple[int, int, list[tuple[int, int]]]:
             start = prev = y
     if prev - start >= max(20, int(h * 0.025)):
         groups.append((start, prev))
-    if len(groups) < 3:
-        raise SystemExit(f'Expected Play/Practice/Options bands, found {groups}')
+
+    # The canonical API29 4.31 render has two actionable green bands here:
+    # Play and Practice.  Require both so random green artwork cannot be chosen.
+    if len(groups) < 2:
+        raise SystemExit(f'Expected Play/Practice bands, found {groups}')
 
     y0, y1 = groups[0]
     y = (y0 + y1) // 2
@@ -52,7 +57,7 @@ def pick(path: Path) -> tuple[int, int, list[tuple[int, int]]]:
     if len(green_x) < int(w * 0.15):
         raise SystemExit('Play band green extent too small')
     x = (min(green_x) + max(green_x)) // 2
-    return x, y, groups[:3]
+    return x, y, groups[:2]
 
 
 def main() -> int:
