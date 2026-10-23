@@ -9,11 +9,16 @@ on:
 permissions:
   contents: read
 jobs:
-  stock-inventory:
+  residual-runtime:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate public-safe test harness
+        run: |
+          set -euo pipefail
+          bash -n stage1_public/runtime_gate.sh
+          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -26,28 +31,58 @@ jobs:
           BASE="$RUNNER_TEMP/stage1-public/xapk/com.newstargames.newstarsoccer.apk"
           echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
           echo "BASE=$BASE" >> "$GITHUB_ENV"
-      - name: Extract SaveSlot and MainMenu UI sources
+          echo "STOCK_XAPK_DIR=$RUNNER_TEMP/stage1-public/xapk" >> "$GITHUB_ENV"
+      - name: Extract and verify stock UI geometry
         run: |
           set -euo pipefail
           python3 - "$BASE" stage1_public_artifacts <<'PY'
           import sys,zipfile,pathlib
           apk,out=sys.argv[1:]; out=pathlib.Path(out); out.mkdir(exist_ok=True)
           with zipfile.ZipFile(apk) as z:
-              for suffix in ('/saveslot.uis','/mainmenu.uis','/messagebuttons.uih','/message.uih','/chooseclub.uis','/choosenation.uis'):
+              for suffix in ('/saveslot.uis','/mainmenu.uis','/messagebuttons.uih','/chooseclub.uis','/choosenation.uis'):
                   hits=[n for n in z.namelist() if n.lower().endswith(suffix)]
-                  print(suffix, hits)
-                  for n in hits:
-                      data=z.read(n); p=out/pathlib.Path(n).name; p.write_bytes(data)
-                      print('EXTRACTED',n,'bytes',len(data),'->',p)
+                  if len(hits)!=1: raise SystemExit(f'{suffix}: expected one hit, got {hits}')
+                  n=hits[0]; data=z.read(n); p=out/pathlib.Path(n).name; p.write_bytes(data)
+                  print('EXTRACTED',n,'bytes',len(data),'->',p)
           PY
-          echo '--- saveslot.uis interesting lines ---'
-          grep -Ein 'slot|delete|button|footer|message' stage1_public_artifacts/saveslot.uis || true
-          echo '--- mainmenu.uis interesting lines ---'
-          grep -Ein 'career|play|button|save|continue' stage1_public_artifacts/mainmenu.uis || true
-          echo 'VERDICT=STAGE1_PUBLIC_STOCK_UI_INVENTORY_PASS'
-      - name: Upload inventory evidence
+          grep -q 'PushOrigin:(13,210)' stage1_public_artifacts/saveslot.uis
+          grep -q 'PushOrigin:(13,384)' stage1_public_artifacts/saveslot.uis
+          grep -q 'PushOrigin:(13,558)' stage1_public_artifacts/saveslot.uis
+          grep -q 'Click(saveslot.btn_DeleteSlot?SLOTNUM?)' stage1_public_artifacts/saveslot.uis
+          grep -q 'Click(saveslot.btn_Slot?SLOTNUM?)' stage1_public_artifacts/saveslot.uis
+          grep -q 'Click(mainmenu.btn_Career)' stage1_public_artifacts/mainmenu.uis
+          echo 'VERDICT=STAGE1_PUBLIC_STOCK_UI_GEOMETRY_PASS'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run stock residual persistence runtime gate
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: bash stage1_public/runtime_gate.sh
+      - name: Require final residual verdict
+        run: |
+          set -euo pipefail
+          grep -q '^SLOT1_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          grep -q '^SLOT2_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          grep -q '^DIRECTCAREERLOAD_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          grep -q '^DELETECAREER_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          grep -q '^RESIDUAL_STAGE1_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          echo 'VERDICT=STAGE1_PUBLIC_STOCK_RESIDUAL_RUNTIME_PASS'
+      - name: Upload Stage1 residual evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: nss-stage1-public-stock-ui-inventory
+          name: nss-stage1-public-residual-runtime
           path: stage1_public_artifacts/**
