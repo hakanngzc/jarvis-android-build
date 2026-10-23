@@ -17,5 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Run Stage5 name-only patch contract
-        run: python -m unittest stage5/test_name_only_patch.py -v
+      - name: Run Stage5 contracts
+        run: |
+          python -m unittest stage5/test_name_only_patch.py -v
+          python -m unittest stage5/test_runtime_gate_contract.py -v
