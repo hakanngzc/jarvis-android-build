@@ -5,12 +5,15 @@ PLAYER='Lcom/newstargames/newstarsoccer/c_TPlayer;'
 BB='Lcom/newstargames/newstarsoccer/bb_;'
 
 
-def _method_block(text,name):
-    pat=re.compile(rf'(?ms)^\.method[^\n]*\b{re.escape(name)}\(\)V\n.*?^\.end method\s*$')
+def _method_block(text,name,expected_return='I'):
+    pat=re.compile(rf'(?ms)^\.method[^\n]*\b{re.escape(name)}\(\)(\S+)\n.*?^\.end method\s*$')
     hits=list(pat.finditer(text))
     if len(hits)!=1:
-        raise ValueError(f'expected exactly one {name}()V method, found {len(hits)}')
-    return hits[0]
+        raise ValueError(f'expected exactly one {name}() method, found {len(hits)}')
+    ret=hits[0].group(1)
+    if ret!=expected_return:
+        raise ValueError(f'{name} return type mismatch: expected {expected_return}, got {ret}')
+    return hits[0],ret
 
 
 def _expand_locals(block,extra):
@@ -24,7 +27,7 @@ def _expand_locals(block,extra):
         if int(r.group(1))>=old:
             raise ValueError(f'explicit parameter register {r.group(0)} prevents .locals expansion')
     repl=f'{m.group(1)}.locals {new}'
-    return block[:m.start()]+repl+block[m.end():],old,new,m.start()+len(repl)
+    return block[:m.start()]+repl+block[m.end():],old,new
 
 
 def _inject_after_locals(block,addition):
@@ -36,8 +39,8 @@ def _inject_after_locals(block,addition):
 def patch_mutator_text(text):
     marker='STAGE7_TEST_MUTATOR_BEGIN'
     if marker in text: raise ValueError('mutator already present')
-    m=_method_block(text,'p_SaveCareer'); block=m.group(0)
-    block,base,new,_=_expand_locals(block,3)
+    m,ret=_method_block(text,'p_SaveCareer','I'); block=m.group(0)
+    block,base,new=_expand_locals(block,3)
     a,b,c=base,base+1,base+2
     add=f'''
 
@@ -98,26 +101,34 @@ def patch_mutator_text(text):
 '''
     patched=_inject_after_locals(block,add)
     out=text[:m.start()]+patched+text[m.end():]
-    return out,{'method':'p_SaveCareer','old_locals':base,'new_locals':new}
+    return out,{'method':'p_SaveCareer','return_type':ret,'old_locals':base,'new_locals':new}
 
 
 def patch_verifier_text(text):
     marker='STAGE7_TEST_VERIFY_RESAVE_BEGIN'
     if marker in text: raise ValueError('verifier already present')
-    m=_method_block(text,'m_LoadCareer'); block=m.group(0)
-    if block.count('return-void')!=1:
-        raise ValueError(f'expected exactly one return-void in m_LoadCareer, found {block.count("return-void")}')
-    block,base,new,_=_expand_locals(block,1)
+    m,ret=_method_block(text,'m_LoadCareer','I'); block=m.group(0)
+    returns=list(re.finditer(r'(?m)^(\s*)return\s+(v\d+|p\d+)\s*$',block))
+    if len(returns)!=1:
+        raise ValueError(f'expected exactly one int return in m_LoadCareer, found {len(returns)}')
+    return_reg=returns[0].group(2)
+    block,base,new=_expand_locals(block,1)
     reg=base
     if reg<16:
-        invoke=f'invoke-virtual {{v{reg}}}, {PLAYER}->p_SaveCareer()V'
+        invoke=f'invoke-virtual {{v{reg}}}, {PLAYER}->p_SaveCareer()I'
     else:
-        invoke=f'invoke-virtual/range {{v{reg} .. v{reg}}}, {PLAYER}->p_SaveCareer()V'
+        invoke=f'invoke-virtual/range {{v{reg} .. v{reg}}}, {PLAYER}->p_SaveCareer()I'
     add=f'''    # {marker}
     sget-object v{reg}, {BB}->g_player:{PLAYER}
     {invoke}
+    move-result v{reg}
     # STAGE7_TEST_VERIFY_RESAVE_END
-    return-void'''
-    block=block.replace('    return-void',add,1)
+'''
+    # Locate the unique original return again after .locals expansion, then insert
+    # immediately before it without changing its register/value.
+    r=list(re.finditer(r'(?m)^(\s*)return\s+'+re.escape(return_reg)+r'\s*$',block))
+    if len(r)!=1: raise ValueError('unique original return lost after locals expansion')
+    pos=r[0].start()
+    block=block[:pos]+add+block[pos:]
     out=text[:m.start()]+block+text[m.end():]
-    return out,{'method':'m_LoadCareer','old_locals':base,'new_locals':new,'scratch':f'v{reg}'}
+    return out,{'method':'m_LoadCareer','return_type':ret,'return_register':return_reg,'old_locals':base,'new_locals':new,'scratch':f'v{reg}'}
