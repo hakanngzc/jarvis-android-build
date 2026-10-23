@@ -78,7 +78,36 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           disable-animations: true
           disable-spellchecker: true
-          script: bash stage1_public/runtime_gate_v2.sh
+          script: |
+            set -euo pipefail
+            mkdir -p stage1_public_artifacts/runtime
+            PKG=com.newstargames.newstarsoccer
+            MEASUREMENT="$PKG/com.google.android.gms.measurement.AppMeasurementService"
+            bash stage1_public/runtime_gate_v2.sh &
+            gate_pid=$!
+            guard_ok=0
+            for i in $(seq 1 600); do
+              if adb shell pm path "$PKG" >/dev/null 2>&1; then
+                {
+                  echo "package_seen_attempt=$i"
+                  adb shell pm disable-user --user 0 "$MEASUREMENT"
+                  adb shell pm disable-user --user 0 "$PKG/com.google.android.gms.measurement.AppMeasurementJobService" || true
+                  echo 'MEASUREMENT_SERVICE_GUARD=PASS'
+                } | tee stage1_public_artifacts/runtime/measurement-service-guard.txt
+                guard_ok=1
+                break
+              fi
+              if ! kill -0 "$gate_pid" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 0.1
+            done
+            if [ "$guard_ok" -ne 1 ]; then
+              echo 'MEASUREMENT_SERVICE_GUARD=FAIL' | tee stage1_public_artifacts/runtime/measurement-service-guard.txt
+              wait "$gate_pid" || true
+              exit 126
+            fi
+            wait "$gate_pid"
       - name: Require final residual verdict
         run: |
           set -euo pipefail
@@ -87,6 +116,7 @@ jobs:
           grep -q '^DIRECTCAREERLOAD_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
           grep -q '^DELETECAREER_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
           grep -q '^RESIDUAL_STAGE1_RUNTIME=PASS$' stage1_public_artifacts/runtime/residual-gates.txt
+          grep -q '^MEASUREMENT_SERVICE_GUARD=PASS$' stage1_public_artifacts/runtime/measurement-service-guard.txt
           echo 'VERDICT=STAGE1_PUBLIC_STOCK_RESIDUAL_RUNTIME_PASS'
       - name: Upload Stage1 residual evidence
         if: always()
