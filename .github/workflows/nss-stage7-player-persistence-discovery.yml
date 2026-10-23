@@ -17,7 +17,7 @@ jobs:
       - name: Validate Stage7 discovery harness
         run: |
           set -euo pipefail
-          python3 -m py_compile stage7_public/dump_player_persistence.py stage1_public/dex_inspect.py
+          python3 -m py_compile stage7_public/dump_player_persistence.py stage7_public/dump_stage7_core.py stage1_public/dex_inspect.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -34,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 stage7_public/dump_player_persistence.py "$BASE" stage7_public_artifacts
+          python3 stage7_public/dump_stage7_core.py "$BASE" stage7_public_artifacts/stage7-core-writers-disasm.txt
           python3 - <<'PY'
           import json
           p=json.load(open('stage7_public_artifacts/stage7-player-persistence-inventory.json',encoding='utf-8'))
