@@ -66,7 +66,8 @@ def build_probe_units(*, mode: str, fixture_field_id: int, matchtype_field_id: i
         half_const,
         0x0167, half_field_id,
         0x0071, do_half_ends_method_id, 0x0000,
-        0x000E,
+        0x0112,
+        0x010F,
     ]
 
 
@@ -86,6 +87,14 @@ def _unique_index(items, owner: str, name: str, kind: str) -> int:
     return hits[0]
 
 
+def _method_return_type(d: Dex, method_id: int) -> str:
+    proto_idx = d.methods[method_id][2]
+    _shorty_idx, return_type_idx, _parameters_off = struct.unpack_from(
+        '<III', d.b, d.proto_off + proto_idx * 12
+    )
+    return d.types[return_type_idx]
+
+
 def _method_code_info(d: Dex, data: bytes, name: str) -> dict:
     hits = [m for m in (d.class_methods(MATCH) or []) if m[2][1] == name and m[4]]
     if len(hits) != 1:
@@ -96,6 +105,7 @@ def _method_code_info(d: Dex, data: bytes, name: str) -> dict:
     return {
         'method': name,
         'method_id': method_id,
+        'return_type': _method_return_type(d, method_id),
         'code_offset': code,
         'access': access,
         'registers': registers,
@@ -123,6 +133,9 @@ def patch_dex(data: bytes, dex_name: str, mode: str) -> tuple[bytes, bool, dict 
         _kind, method_id, _method_tuple, access, code = starts[0]
         if not (access & 0x8):
             raise ValueError('m_StartMatch is not static; probe encoding would be unsafe')
+        return_type = _method_return_type(d, method_id)
+        if return_type != 'I':
+            raise ValueError(f'm_StartMatch return type changed; expected I, found {return_type}')
 
         fixture_field_id = _unique_index(d.fields, MATCH, 'm_fixture', 'field')
         matchtype_field_id = _unique_index(d.fields, FIXTURE, 'm_matchtype', 'field')
@@ -166,11 +179,13 @@ def patch_dex(data: bytes, dex_name: str, mode: str) -> tuple[bytes, bool, dict 
             'mode': mode,
             'patched_method': f'{MATCH}->{START_MATCH}',
             'patched_method_id': method_id,
+            'patched_method_return_type': return_type,
             'patched_code_offset': code,
             'seed_matchtype': 3,
             'seed_score': '0-0',
             'seed_half': VALID_MODES[mode],
             'handoff': f'{MATCH}->{DO_HALF_ENDS}',
+            'probe_return_value': 0,
             'stock_methods_untouched': stock_methods,
             'test_only_never_ship': True,
         }
