@@ -1,0 +1,21 @@
+name: NSS Stage6 Badge Override Unit
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage6-badge-atlas-discovery-20261023]
+    paths:
+      - 'stage6_public/test_patch_club_badge_override.py'
+      - 'stage6_public/patch_club_badge_override.py'
+      - '.github/workflows/nss-stage6-badge-override-unit.yml'
+permissions:
+  contents: read
+jobs:
+  badge-override-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Run badge override contract
+        run: |
+          set -euo pipefail
+          PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_patch_club_badge_override.py -v
