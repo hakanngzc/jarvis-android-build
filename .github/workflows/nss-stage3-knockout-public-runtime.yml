@@ -28,6 +28,19 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install pinned Python image dependency
         run: python -m pip install --disable-pip-version-check pillow==12.0.0
+      - name: Normalize helper signing function
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('nss_stage3_knockout_runtime.sh')
+          text = p.read_text(encoding='utf-8')
+          old = '  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"\n'
+          new = '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"\n'
+          if old not in text:
+              raise SystemExit('expected sign_one declaration not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          bash -n nss_stage3_knockout_runtime.sh
       - name: Enable KVM access
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
