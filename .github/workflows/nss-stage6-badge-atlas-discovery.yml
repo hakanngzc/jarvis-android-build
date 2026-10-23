@@ -1,0 +1,52 @@
+name: NSS Stage6 Badge Atlas Discovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage6-badge-atlas-discovery-20261023]
+    paths:
+      - 'stage6_public/**'
+      - '.github/workflows/nss-stage6-badge-atlas-discovery.yml'
+permissions:
+  contents: read
+jobs:
+  badge-atlas-discovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Stage6 discovery unit contract
+        run: |
+          set -euo pipefail
+          PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py -v
+          python3 -m py_compile stage6_public/discover_badge_atlas.py
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage6-public/xapk" stage6_public_artifacts
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage6-public/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/stage6-public/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage6-public/nss431.xapk" -d "$RUNNER_TEMP/stage6-public/xapk"
+          BASE="$RUNNER_TEMP/stage6-public/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+      - name: Discover stock badge and atlas architecture
+        run: |
+          set -euo pipefail
+          python3 stage6_public/discover_badge_atlas.py "$BASE" stage6_public_artifacts
+          python3 - <<'PY'
+          import json
+          p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
+          assert p['shield_ui']['files']
+          assert p['atlas_symbols']
+          assert any(x['name'].startswith('MapShield') for x in p['atlas_symbols'])
+          assert p['clubs']['fields']
+          print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
+          PY
+      - name: Upload Stage6 discovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage6-badge-atlas-discovery
+          path: stage6_public_artifacts/**
