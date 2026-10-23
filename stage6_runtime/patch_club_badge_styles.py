@@ -26,37 +26,32 @@ def patch_text(text: str) -> str:
     if len(sites) != 1:
         raise ValueError(f'expected exactly one stock badge-style site, found {len(sites)}')
 
-    locals_hits = list(re.finditer(r'(?m)^(?P<i>[ \t]*)\.locals (?P<n>\d+)\s*$', body))
-    if len(locals_hits) != 1:
-        raise ValueError(f'expected exactly one .locals directive, found {len(locals_hits)}')
-    lm = locals_hits[0]
-    locals_n = int(lm.group('n'))
-    tmp = f'v{locals_n}'
-    body = body[:lm.start()] + f"{lm.group('i')}.locals {locals_n + 1}" + body[lm.end():]
-
-    # Re-find after the .locals edit because offsets changed.
-    site = STOCK_RE.search(body)
-    if not site:
-        raise ValueError('stock badge-style site disappeared after locals update')
+    site = sites[0]
     i = site.group('i')
     style = site.group('style')
     obj = site.group('obj')
     div = site.group('div')
+    # Re-use the same two compact registers as the stock modulo block. The
+    # stock fallback is committed before the target checks, so every other club
+    # keeps its original club_id % 15 value. No new v16+ register is introduced.
     replacement = (
         f'{i}iget {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_id:I\n\n'
         f'{i}const/16 {div}, 0xf\n\n'
         f'{i}rem-int/2addr {style}, {div}\n\n'
-        f'{i}iget {tmp}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_id:I\n\n'
+        f'{i}iput {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I\n\n'
+        f'{i}iget {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_id:I\n\n'
         f'{i}const/16 {div}, 0xc45\n\n'
-        f'{i}if-ne {tmp}, {div}, :reborn_check_3163\n\n'
+        f'{i}if-ne {style}, {div}, :reborn_check_3163\n\n'
         f'{i}const/16 {style}, 0x10\n\n'
+        f'{i}iput {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I\n\n'
         f'{i}goto :reborn_badge_done\n\n'
         f'{i}:reborn_check_3163\n'
+        f'{i}iget {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_id:I\n\n'
         f'{i}const/16 {div}, 0xc5b\n\n'
-        f'{i}if-ne {tmp}, {div}, :reborn_badge_done\n\n'
+        f'{i}if-ne {style}, {div}, :reborn_badge_done\n\n'
         f'{i}const/16 {style}, 0x11\n\n'
-        f'{i}:reborn_badge_done\n'
-        f'{i}iput {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I'
+        f'{i}iput {style}, {obj}, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I\n\n'
+        f'{i}:reborn_badge_done'
     )
     body = body[:site.start()] + replacement + body[site.end():]
     return text[:method.start('body')] + body + text[method.end('body'):]
