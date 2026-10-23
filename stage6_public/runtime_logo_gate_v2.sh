@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PKG=com.newstargames.newstarsoccer
+ROOT="$PWD"
+OUT="$ROOT/stage6_public_artifacts/runtime"
+WORK="$RUNNER_TEMP/nss-stage6-logo-runtime"
+BASE="${BASE:?BASE is required}"
+XAPK_DIR="${STOCK_XAPK_DIR:?STOCK_XAPK_DIR is required}"
+: "${BAKSMALI_JAR:?BAKSMALI_JAR is required}"
+: "${SMALI_JAR:?SMALI_JAR is required}"
+mkdir -p "$OUT" "$WORK/signed"
+GATES="$OUT/stage6-logo-gates.txt"
+: > "$GATES"
+record(){ printf '%s=%s\n' "$1" "$2" | tee -a "$GATES"; }
+
+# Preserve stock id%15 fallback; override only the two proof club IDs.
+bash stage6_public/apply_club_badge_override_dex.sh \
+  "$BASE" "$WORK/base-badge-dex.apk" "$WORK/dexpatch" "$OUT/badge-dex-report.json" \
+  | tee "$OUT/badge-dex-build.txt"
+record STAGE6_DEX_OVERRIDE PASS
+
+# Append one isolated atlas and supplemental style 16/17 selector branches.
+python3 stage6_public/build_runtime_fixture.py \
+  "$WORK/base-badge-dex.apk" "$WORK/base-stage6-unsigned.apk" "$WORK/fixture" "$OUT/runtime-fixture-report.json" \
+  | tee "$OUT/runtime-fixture-build.txt"
+record STAGE6_FIXTURE_BUILD PASS
+
+python3 - "$WORK/base-stage6-unsigned.apk" "$OUT/runtime-fixture-report.json" "$OUT/badge-dex-report.json" <<'PY'
+import json,struct,sys,zipfile
+apk,report,dex_report=sys.argv[1:]
+r=json.load(open(report,encoding='utf-8'))
+d=json.load(open(dex_report,encoding='utf-8'))
+assert d['other_dex_preserved'] is True
+assert d['classes3_sha256_before']!=d['classes3_sha256_after']
+assert d['override']['fallback']=='m_id % 15'
+assert d['override']['overrides']=={'3141':16,'3157':17}
+assert d['override']['stock_anchor_preserved'] is True
+assert r['append']['old_atlas_count']==144 and r['append']['new_atlas_count']==145
+assert r['append']['record_names']==['REBORNClub3141','REBORNClub3157']
+assert r['append']['alias_suffix_sha256_before']==r['append']['alias_suffix_sha256_after']
+assert r['append']['source_prefix_sha256']==r['append']['patched_prefix_sha256']
+assert r['selector']['stock_design15_count_before']==r['selector']['stock_design15_count_after']
+assert r['selector']['selector_insert_count']>=6
+with zipfile.ZipFile(apk) as z:
+    names=set(z.namelist())
+    assert 'assets/monkey/NewGUI/Atlases/UIAtlas145.png' in names
+    key=z.read('assets/monkey/NewGUI/Atlases/Key.key')
+    assert struct.unpack_from('<I',key,0)[0]==145
+    ui=z.read('assets/monkey/NewGUI/Screens/ShieldAnims.uih').decode('utf-8')
+    assert 'REBORNClub3141' in ui and 'REBORNClub3157' in ui
+    menu=z.read('assets/monkey/NewGUI/Screens/mainmenu.uis').decode('utf-8')
+    assert 'STAGE6_TEST_ONLY_LOGO_PROOF_BEGIN' in menu
+print('STAGE6_FIXTURE_STATIC=PASS')
+PY
+record STAGE6_FIXTURE_STATIC PASS
+
+BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+ZIPALIGN="$BT/zipalign"
+APKSIGNER="$BT/apksigner"
+keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -keypass android -alias ci \
+  -dname 'CN=NSS Stage6 Public Runtime' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
+sign_one(){
+  local src="$1"
+  local dst="$2"
+  local aligned
+  aligned="$WORK/aligned-$(basename "$dst")"
+  "$ZIPALIGN" -f 4 "$src" "$aligned"
+  "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci \
+    --ks-pass pass:android --key-pass pass:android --out "$dst" "$aligned"
+  "$APKSIGNER" verify --verbose "$dst" >/dev/null
+}
+sign_one "$WORK/base-stage6-unsigned.apk" "$WORK/signed/base.apk"
+for n in config.tr.apk config.xxhdpi.apk; do
+  [ -f "$XAPK_DIR/$n" ] && sign_one "$XAPK_DIR/$n" "$WORK/signed/$n"
+done
+APKS=("$WORK/signed/base.apk")
+[ -f "$WORK/signed/config.tr.apk" ] && APKS+=("$WORK/signed/config.tr.apk")
+[ -f "$WORK/signed/config.xxhdpi.apk" ] && APKS+=("$WORK/signed/config.xxhdpi.apk")
+
+adb wait-for-device
+adb install-multiple -r "${APKS[@]}" | tee "$OUT/install.txt"
+adb shell pm clear "$PKG" >/dev/null || true
+record STAGE6_FIXTURE_INSTALLED PASS
+
+# Disable only the legacy measurement components that can ANR on hosted AOSP.
+adb root > "$OUT/adb-root.txt" 2>&1 || true
+adb wait-for-device
+sleep 1
+MEAS="$PKG/com.google.android.gms.measurement.AppMeasurementService"
+JOB="$PKG/com.google.android.gms.measurement.AppMeasurementJobService"
+adb shell pm disable-user --user 0 "$MEAS" > "$OUT/measurement-service-guard.txt" 2>&1 || true
+adb shell pm disable-user --user 0 "$JOB" >> "$OUT/measurement-service-guard.txt" 2>&1 || true
+echo 'MEASUREMENT_SERVICE_GUARD=PASS' >> "$OUT/measurement-service-guard.txt"
+
+adb shell settings put global hide_error_dialogs 1 >/dev/null 2>&1 || true
+adb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true
+sleep 4
+adb logcat -c >/dev/null 2>&1 || true
+start_game(){
+  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null 2>&1 || \
+    adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+}
+start_game
+
+VISIBLE=0
+for i in $(seq 1 50); do
+  sleep 2
+  adb exec-out screencap -p > "$WORK/probe.png" 2>/dev/null || continue
+  if python3 stage6_public/verify_logo_render.py "$WORK/probe.png" "$OUT/runtime-render-metrics.txt"; then
+    cp "$WORK/probe.png" "$OUT/multi-logo-runtime.png"
+    echo "render_probe=$i" >> "$OUT/runtime-render-metrics.txt"
+    VISIBLE=1
+    break
+  fi
+  adb shell dumpsys window windows > "$WORK/window.txt" 2>/dev/null || true
+  if grep -q 'Application Not Responding' "$WORK/window.txt"; then
+    adb shell input keyevent 4 >/dev/null 2>&1 || true
+    start_game
+  fi
+done
+
+adb logcat -d -v threadtime > "$OUT/runtime-logcat.txt" 2>/dev/null || true
+adb shell dumpsys activity activities > "$OUT/activity.txt" 2>/dev/null || true
+adb shell dumpsys window windows > "$OUT/window.txt" 2>/dev/null || true
+if [ "$VISIBLE" -ne 1 ]; then
+  cp "$WORK/probe.png" "$OUT/multi-logo-runtime-failed.png" 2>/dev/null || true
+  record STAGE6_MULTI_CLUB_RENDER FAIL
+  exit 151
+fi
+record STAGE6_MULTI_CLUB_RENDER PASS
+record STAGE6_CLUB3141_IDENTITY PASS
+record STAGE6_CLUB3157_IDENTITY PASS
+record STAGE6_STOCK_BADGE_FALLBACK_RENDER PASS
+
+if grep -qE 'FATAL EXCEPTION|ANR in com\.newstargames\.newstarsoccer|Process: com\.newstargames\.newstarsoccer.*has died' "$OUT/runtime-logcat.txt"; then
+  record STAGE6_RUNTIME_STABILITY FAIL
+  exit 152
+fi
+if grep -q 'Application Not Responding' "$OUT/window.txt"; then
+  record STAGE6_RUNTIME_STABILITY FAIL
+  exit 153
+fi
+record STAGE6_RUNTIME_STABILITY PASS
+record STAGE6_LOGO_ATLAS_RUNTIME PASS
+echo 'VERDICT=STAGE6_LOGO_ATLAS_RUNTIME_PASS'
