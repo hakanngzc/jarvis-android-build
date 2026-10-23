@@ -20,8 +20,6 @@ def headers(data):
 
 
 def variable_triangles_end(data,p):
-    # m_ReadSlicedImage/m_ReadStrippedImage consume groups of 12 floats and
-    # stop when the first float of the next group is -1.0.
     groups=0
     while p+4<=len(data):
         first=struct.unpack_from('<f',data,p)[0]
@@ -46,28 +44,23 @@ def parse_record_end(data,pos):
     except Exception: return None,{'reason':'non-ascii-name','flags':flags,'name_hex':raw.hex()}
     p=align(ns+1+n,4)
     base={'flags':flags,'name':name,'body_offset':p}
-
-    # Bit 0 adds extra unpack metadata in normal/sliced readers. Do not guess
-    # its exact stripped-image variant; stop and report the first real example.
     if flags & 1:
         return None,{**base,'reason':'bit1-extra-metadata-needs-layout-proof'}
-
-    if flags & 2:  # sliced wins before stripped/packed in stock loader
-        # 4 shorts (original/trim dimensions) + 2 shorts, then 12-float groups.
+    if flags & 2:
         q=p+12
         end,groups=variable_triangles_end(data,q)
         return end,{**base,'layout':'sliced','triangle_groups':groups}
-    if flags & 8:  # stripped wins before packed
-        # 2 shorts (original dimensions), then 12-float groups.
+    if flags & 8:
         q=p+4
         end,groups=variable_triangles_end(data,q)
         return end,{**base,'layout':'stripped','triangle_groups':groups}
     if flags & 4:
-        # m_ReadPackedImage reads four shorts and no render float block.
-        return p+8,{**base,'layout':'packed'}
+        dims=list(struct.unpack_from('<4H',data,p)) if p+8<=len(data) else None
+        return p+8,{**base,'layout':'packed','dimensions':dims}
     if flags==0:
-        # m_ReadImage reads 4 shorts + 8 floats.
-        return p+40,{**base,'layout':'normal'}
+        if p+40>len(data): return None,{**base,'reason':'eof-normal-body'}
+        dims=list(struct.unpack_from('<4H',data,p)); rd=list(struct.unpack_from('<8f',data,p+8))
+        return p+40,{**base,'layout':'normal','dimensions':dims,'render_data':rd}
     return None,{**base,'reason':'unsupported-flags'}
 
 
@@ -97,11 +90,12 @@ def main():
     counts={}
     for r in recs:
         k=r.get('layout','STOP'); counts[k]=counts.get(k,0)+1
+    normal_samples=[r for r in recs if r.get('layout')=='normal'][:5]
     report={'key_size':len(data),'atlas_count_prefix':struct.unpack_from('<I',data,0)[0],
             'header_count_found':len(hs),'last_atlas':h,'parsed_record_count':len(recs) if parsed else max(0,len(recs)-1),
-            'layout_counts':counts,'records':recs,'parsed_all_last_atlas_records':parsed,
+            'layout_counts':counts,'normal_samples':normal_samples,'records':recs,'parsed_all_last_atlas_records':parsed,
             'stop_record':stop,'alias_probe':alias}
     out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(report,indent=2)+'\n')
-    print(f"KEY_TAIL_SCAN last={h['name']} count={h['count']} parsed_records={report['parsed_record_count']} all={parsed} layouts={counts} alias_offset={alias.get('offset')} stop={stop.get('name')}:{stop.get('flags')}")
+    print(f"KEY_TAIL_SCAN last={h['name']} count={h['count']} parsed_records={report['parsed_record_count']} all={parsed} layouts={counts} alias_offset={alias.get('offset')} normal_samples={len(normal_samples)}")
 
 if __name__=='__main__': main()
