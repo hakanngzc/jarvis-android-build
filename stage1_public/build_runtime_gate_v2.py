@@ -31,6 +31,30 @@ python3 - "$WORK/base-hook-cloud.apk" "$WORK/base-test-unsigned.apk" "$WORK/onbo
 if old_hook not in s: raise SystemExit('cloud harness insertion anchor missing')
 s=s.replace(old_hook,new_hook,1)
 
+old_coords='''python3 - "$OUT/coords.txt" <<'PY'
+import re,subprocess,sys
+s=subprocess.check_output(['adb','shell','wm','size'],text=True)
+m=re.findall(r'(\\d+)x(\\d+)',s)
+if not m: raise SystemExit(s)
+w,h=map(int,m[-1]); scale=w/640.0
+B=h/scale; n=(B-960.0)*0.7+744.0
+logical={
+ 'career':(471,541),
+ 'slot0':(326,320),'slot1':(326,494),'slot2':(326,668),
+ 'delete0':(567,319),'delete1':(567,493),'delete2':(567,667),
+ 'footer_ok':(553,n+85),'message_accept':(477,n+85),
+}
+with open(sys.argv[1],'w') as f:
+    f.write(f'physical={w}x{h}\\nscale={scale:.6f}\\nlogical_B={B:.3f}\\nlogical_n={n:.3f}\\n')
+    for k,(x,y) in logical.items(): f.write(f'{k}={round(x*scale)},{round(y*scale)}\\n')
+print(open(sys.argv[1]).read())
+PY
+'''
+new_coords='''python3 "$ROOT/stage1_public/stock_ui_coords.py" "$OUT/coords.txt"
+'''
+if old_coords not in s: raise SystemExit('stock coordinate block anchor missing')
+s=s.replace(old_coords,new_coords,1)
+
 anchor='''wait_main_or_load(){
   wait_log 'Create Screen:[[:space:]]*mainmenu|Create Screen:mainmenu|LoadCareer saveslot:[[:space:]]*[0-2]' 150 'MainMenu or DirectCareerLoad'
 }
@@ -143,4 +167,4 @@ if count != 3: raise SystemExit(f'expected 3 Career fixed taps, got {count}')
 s=s.replace(old_press,'press_career_when_ready')
 
 out.write_text(s)
-print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic')
+print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic stock_coords=offset-aware')
