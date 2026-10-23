@@ -33,7 +33,8 @@ else: out,meta=patch_verifier_text(text)
 Path(path).write_text(out,encoding='utf-8')
 meta['mode']=mode
 Path(meta_path).write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
-print(f'STAGE7_SMALI_PATCH=PASS mode={mode} method={meta["method"]} return={meta["return_type"]} locals={meta["old_locals"]}->{meta["new_locals"]}')
+frame=(f"registers={meta['old_registers']}->{meta['new_registers']}" if meta['directive']=='registers' else f"locals={meta['old_locals']}->{meta['new_locals']}")
+print(f'STAGE7_SMALI_PATCH=PASS mode={mode} method={meta["method"]} return={meta["return_type"]} {frame}')
 PY
 
 BEFORE_CLASSES="$(find "$WORK/smali" -name '*.smali' -type f | wc -l | tr -d ' ')"
@@ -45,28 +46,10 @@ test -s "$VERIFY"
 AFTER_CLASSES="$(find "$WORK/verify" -name '*.smali' -type f | wc -l | tr -d ' ')"
 test "$BEFORE_CLASSES" = "$AFTER_CLASSES"
 
-python3 - "$VERIFY" "$MODE" "$WORK/patch-meta.json" "$REPORT_DIR/${STEM}-rebuilt-target.smali.txt" <<'PY'
-import json,re,sys
-from pathlib import Path
-src,mode,meta_path,out=sys.argv[1:]
-text=Path(src).read_text(encoding='utf-8'); meta=json.load(open(meta_path,encoding='utf-8'))
-name='p_SaveCareer' if mode=='mutator' else 'm_LoadCareer'
-m=re.search(r'(?ms)^\.method[^\n]*\b'+re.escape(name)+r'\(\)I\n.*?^\.end method\s*$',text)
-if not m: raise SystemExit('rebuilt target method missing or wrong return type: '+name)
-block=m.group(0); Path(out).write_text(block+'\n',encoding='utf-8')
-if mode=='mutator':
-    req=['STAGE7_TEST_MUTATOR_BEGIN','->m_bank:I','->m_wage:I','->m_goalbonus:I','->m_assistbonus:I','->m_relationboss:F','->m_relationsponsors:F','->m_spenttime:I','->m_gambling:I','->m_technique:[I','->m_pace:[I','->m_vision:[I','->m_setpieces:[I','->m_power:[I','->m_donetraining:I','->m_trainingattempts:I']
-    if block.count('STAGE7_TEST_MUTATOR_BEGIN')!=1: raise SystemExit('mutator marker count invalid')
-else:
-    req=['STAGE7_TEST_VERIFY_RESAVE_BEGIN','Lcom/newstargames/newstarsoccer/bb_;->g_player:','Lcom/newstargames/newstarsoccer/c_TPlayer;->p_SaveCareer()I','move-result']
-    if block.count('STAGE7_TEST_VERIFY_RESAVE_BEGIN')!=1: raise SystemExit('verifier marker count invalid')
-    returns=re.findall(r'(?m)^\s*return\s+(v\d+|p\d+)\s*$',block)
-    if len(returns)!=1: raise SystemExit(f'verifier rebuilt return count invalid: {returns}')
-    if returns[0]!=meta['return_register']: raise SystemExit(f'verifier changed original return register: {returns[0]} != {meta["return_register"]}')
-for needle in req:
-    if needle not in block: raise SystemExit('rebuilt semantic verification missing: '+needle)
-print(f'STAGE7_REBUILT_VERIFY=PASS mode={mode} method={name} return=I marker_count=1')
-PY
+PYTHONPATH="$ROOT/stage7_public" python3 "$ROOT/stage7_public/verify_rebuilt_persistence_fixture.py" \
+  "$VERIFY" "$MODE" "$WORK/patch-meta.json" \
+  "$REPORT_DIR/${STEM}-rebuilt-target.smali.txt" \
+  "$REPORT_DIR/${STEM}-rebuilt-semantic.json"
 
 python3 - "$BASE" "$OUT" "$WORK/classes3-patched.dex" "$WORK/patch-meta.json" "$REPORT" "$MODE" "$BEFORE_CLASSES" <<'PY'
 import hashlib,json,sys,zipfile
