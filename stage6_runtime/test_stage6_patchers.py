@@ -64,9 +64,12 @@ class ClubBadgeStylePatchTests(unittest.TestCase):
         self.assertIn('const/16 v13, 0xc5b', out)  # 3163
         self.assertIn('const/16 v12, 0x11', out)
         self.assertIn(':reborn_badge_done', out)
-        self.assertEqual(out.count('->m_badgestyle:I'), 1)
-        self.assertIn('.locals 17', out)
-        self.assertNotIn('.locals 16', out)
+        # Stock fallback is committed first; target clubs get one conditional overwrite.
+        self.assertEqual(out.count('->m_badgestyle:I'), 3)
+        self.assertIn('.locals 16', out)
+        self.assertNotIn('.locals 17', out)
+        # Do not introduce v16+, which compact iget/if formats cannot encode.
+        self.assertNotRegex(out, r'\bv(?:1[6-9]|[2-9]\d)\b')
 
     def test_smali_patch_refuses_second_application(self):
         once = clubpatch.patch_text(STOCK_SMALI)
