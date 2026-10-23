@@ -27,6 +27,27 @@ ALT_REGISTERS='''
 .end method
 '''
 
+STOCK_BAKSMALI='''
+.method public static m_CreateClub([Ljava/lang/String;ILcom/newstargames/newstarsoccer/c_ArrayList10;Z)Lcom/newstargames/newstarsoccer/c_TClub;
+    .registers 20
+
+    :cond_135
+    iget v12, v4, Lcom/newstargames/newstarsoccer/c_TClub;->m_id:I
+
+    const/16 v13, 0xf
+
+    rem-int/2addr v12, v13
+
+    iput v12, v4, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I
+
+    aget-object v12, p0, v6
+
+    invoke-static {v12}, Lcom/newstargames/newstarsoccer/bb_numberparser;->g_TryStrToInt(Ljava/lang/String;)I
+
+    move-result v12
+.end method
+'''
+
 
 class ClubBadgeOverrideTests(unittest.TestCase):
     def test_preserves_stock_fallback_and_overrides_only_two_ids(self):
@@ -54,6 +75,15 @@ class ClubBadgeOverrideTests(unittest.TestCase):
         self.assertIn('const/16 v11, 0xc55',out)
         self.assertIn('const/16 v7, 0x11',out)
         self.assertIn('iput v7, v2, Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I',out)
+
+    def test_accepts_exact_stock_baksmali_blank_lines(self):
+        out,report=patch_smali_text(STOCK_BAKSMALI)
+        self.assertEqual(report['anchor_count'],1)
+        self.assertEqual(report['captured_registers'],{'id':'v12','club':'v4','divisor':'v13'})
+        self.assertIn('const/16 v13, 0xc45',out)
+        self.assertIn('const/16 v12, 0x10',out)
+        self.assertIn(':nss_reborn_badge_done',out)
+        self.assertLess(out.index(':nss_reborn_badge_done'),out.index('aget-object v12, p0, v6'))
 
     def test_rejects_missing_or_multiple_stock_anchor(self):
         with self.assertRaises(ValueError):
