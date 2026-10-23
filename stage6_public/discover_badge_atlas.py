@@ -3,6 +3,7 @@ import csv
 import hashlib
 import io
 import json
+import math
 import re
 import struct
 import sys
@@ -47,28 +48,76 @@ def find_pascal_positions(data,name):
     return out
 
 
+def plausible_record_starts(data):
+    """Return aligned Pascal-name record starts without assuming an asset extension."""
+    out=[]
+    for i in range(4,len(data)-4,4):
+        n=data[i]
+        if not 3 <= n <= 96 or i+1+n > len(data):
+            continue
+        raw=data[i+1:i+1+n]
+        if not re.fullmatch(rb'[A-Za-z0-9_./-]+',raw):
+            continue
+        if not re.search(rb'[A-Za-z]',raw):
+            continue
+        flags=struct.unpack_from('<I',data,i-4)[0]
+        if flags > 15:
+            continue
+        try: name=raw.decode('ascii')
+        except Exception: continue
+        out.append((i,name,flags))
+    return out
+
+
+def next_record_start(data,current):
+    for i,name,flags in plausible_record_starts(data):
+        if i>current:
+            return i,name,flags
+    return None
+
+
 def read_normal_record(data,name,key_path):
     headers=scan_atlas_headers(data)
     for i in find_pascal_positions(data,name):
         if i<4: continue
         flags=struct.unpack_from('<I',data,i-4)[0]
-        # Only the two layouts observed/covered here are accepted. Unknown packed
-        # variants stay fail-closed rather than being decoded with a guessed layout.
+        # Only layouts independently covered by tests/evidence are accepted.
         if flags not in (0,8):
             continue
         p=align(i+1+len(name.encode('utf-8')),4)
         atlas=nearest_header(headers,i)
         if not atlas:
             continue
+        mesh_vertex_count=None; mesh_terminal_u32=None; next_name=None
         if flags==8:
-            if p+68>len(data):
+            if p+4>len(data):
                 continue
-            ow,oh=struct.unpack_from('<2H',data,p); p+=4
-            verts=struct.unpack_from('<16f',data,p)
-            us=[verts[2],verts[6],verts[10],verts[14]]
-            vs=[verts[3],verts[7],verts[11],verts[15]]
+            ow,oh=struct.unpack_from('<2H',data,p); vertex_start=p+4
+            nxt=next_record_start(data,i)
+            if not nxt:
+                continue
+            next_i,next_name,_=nxt
+            # The next record's flags occupy the 4 bytes immediately before its
+            # aligned Pascal name. Stock flag8 records additionally end with one
+            # 4-byte terminal field after the variable vertex mesh.
+            payload_end=next_i-4
+            if payload_end-vertex_start < 20:
+                continue
+            mesh_end=payload_end-4
+            mesh_len=mesh_end-vertex_start
+            if mesh_len<=0 or mesh_len%16:
+                continue
+            mesh_vertex_count=mesh_len//16
+            vals=struct.unpack_from(f'<{mesh_vertex_count*4}f',data,vertex_start)
+            verts=[vals[j:j+4] for j in range(0,len(vals),4)]
+            if not verts or not all(math.isfinite(v) for row in verts for v in row):
+                continue
+            us=[row[2] for row in verts]; vs=[row[3] for row in verts]
+            if min(us)<-0.01 or max(us)>1.01 or min(vs)<-0.01 or max(vs)>1.01:
+                continue
             u0,u1=min(us),max(us); v0,v1=min(vs),max(vs)
-            record_layout='flag8_quad'
+            mesh_terminal_u32=struct.unpack_from('<I',data,mesh_end)[0]
+            record_layout='flag8_mesh'
             tw=round((u1-u0)*atlas['width']); th=round((v1-v0)*atlas['height'])
         else:
             if p+40>len(data):
@@ -84,7 +133,8 @@ def read_normal_record(data,name,key_path):
             'name':name,'key_path':key_path,'flags':flags,'record_layout':record_layout,'offset':i,
             'atlas':atlas['name'],'atlas_width':atlas['width'],'atlas_height':atlas['height'],
             'original_width':ow,'original_height':oh,'trimmed_width':tw,'trimmed_height':th,
-            'box':box,
+            'box':box,'mesh_vertex_count':mesh_vertex_count,'mesh_terminal_u32':mesh_terminal_u32,
+            'next_record_name':next_name,
         }
     return None
 
@@ -109,12 +159,13 @@ def occurrence_diagnostics(data):
     headers=scan_atlas_headers(data); out=[]
     for m in re.finditer(rb'MapShield[A-Za-z0-9_]{0,64}',data):
         off=m.start(); name=m.group().decode('ascii','replace'); h=nearest_header(headers,off)
+        pascal=off-1
         lo=max(0,off-20); hi=min(len(data),off+len(m.group())+64)
         out.append({
             'name':name,'ascii_offset':off,'ascii_offset_mod4':off%4,
             'byte_before':data[off-1] if off else None,
             'expected_pascal_length':len(m.group()),
-            'preceding_u32_le':struct.unpack_from('<I',data,off-5)[0] if off>=5 else None,
+            'record_flags_u32':struct.unpack_from('<I',data,pascal-4)[0] if pascal>=4 else None,
             'window_start':lo,'window_hex':data[lo:hi].hex(),
             'nearest_atlas':h['name'] if h else None,
             'nearest_atlas_offset':h['offset'] if h else None,
