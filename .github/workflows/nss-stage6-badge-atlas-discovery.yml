@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py -v
-          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py
+          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -36,14 +36,20 @@ jobs:
           set -euo pipefail
           python3 stage6_public/discover_badge_atlas.py "$BASE" stage6_public_artifacts
           python3 stage6_public/dump_atlas_manager.py "$BASE" stage6_public_artifacts/atlas-manager-disasm.txt
+          python3 stage6_public/find_badge_writers.py "$BASE" stage6_public_artifacts/badge-writers.json
           python3 - <<'PY'
           import json
           p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
-          assert p['shield_ui']['files']
-          assert p['atlas_symbols']
-          assert any(x['name'].startswith('MapShield') for x in p['atlas_symbols'])
+          shield=[x for x in p['atlas_symbols'] if x['name'].startswith('MapShield')]
+          assert len(shield)==19, len(shield)
+          assert all(x['flags']==8 for x in shield)
+          assert all(x['record_layout']=='stripped_triangles' for x in shield)
+          assert all(x['sentinel_found'] and x['triangle_count']>0 and not x['contiguous_atlas_box'] for x in shield)
           assert p['clubs']['fields']
-          assert 'CLASS=Lcom/newstargames/newstarsoccer/c_AtlasManager;' in open('stage6_public_artifacts/atlas-manager-disasm.txt',encoding='utf-8').read()
+          text=open('stage6_public_artifacts/atlas-manager-disasm.txt',encoding='utf-8').read()
+          assert 'name=m_ReadStrippedImage' in text
+          w=json.load(open('stage6_public_artifacts/badge-writers.json',encoding='utf-8'))
+          assert w['field_candidates']
           print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
           PY
       - name: Upload Stage6 discovery evidence
