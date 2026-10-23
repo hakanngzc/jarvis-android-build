@@ -79,10 +79,11 @@ jobs:
           disable-animations: true
           disable-spellchecker: true
           script: |
-            set -euo pipefail
+            set -eu
             mkdir -p stage1_public_artifacts/runtime
             PKG=com.newstargames.newstarsoccer
             MEASUREMENT="$PKG/com.google.android.gms.measurement.AppMeasurementService"
+            GUARD_FILE=stage1_public_artifacts/runtime/measurement-service-guard.txt
             bash stage1_public/runtime_gate_v2.sh &
             gate_pid=$!
             guard_ok=0
@@ -93,7 +94,8 @@ jobs:
                   adb shell pm disable-user --user 0 "$MEASUREMENT"
                   adb shell pm disable-user --user 0 "$PKG/com.google.android.gms.measurement.AppMeasurementJobService" || true
                   echo 'MEASUREMENT_SERVICE_GUARD=PASS'
-                } | tee stage1_public_artifacts/runtime/measurement-service-guard.txt
+                } > "$GUARD_FILE" 2>&1
+                cat "$GUARD_FILE"
                 guard_ok=1
                 break
               fi
@@ -103,7 +105,8 @@ jobs:
               sleep 0.1
             done
             if [ "$guard_ok" -ne 1 ]; then
-              echo 'MEASUREMENT_SERVICE_GUARD=FAIL' | tee stage1_public_artifacts/runtime/measurement-service-guard.txt
+              echo 'MEASUREMENT_SERVICE_GUARD=FAIL' > "$GUARD_FILE"
+              cat "$GUARD_FILE"
               wait "$gate_pid" || true
               exit 126
             fi
