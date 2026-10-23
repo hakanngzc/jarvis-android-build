@@ -19,8 +19,10 @@ echo "$EXPECTED_XAPK  $XAPK" | sha256sum -c -
 unzip -q "$XAPK" -d "$ROOT"
 echo "$EXPECTED_BASE  $ROOT/com.newstargames.newstarsoccer.apk" | sha256sum -c -
 
-# Near-stock interaction fixture: remove only first-run/privacy overlays. The
-# stock main menu and all Java/DEX gameplay code remain untouched in this probe.
+# Near-stock interaction fixture. First-run/privacy overlays are removed and two
+# already-verified TEST-ONLY DEX gates are applied: force the stock Cloud state
+# machine down its own offline branch, and bypass unrelated FTUE/trial input.
+# Match gameplay methods remain stock in this discovery run.
 python3 - "$ROOT/com.newstargames.newstarsoccer.apk" "$WORK/base-ui-probe.apk" <<'PY'
 import sys, zipfile
 src,dst=sys.argv[1:]
@@ -42,6 +44,8 @@ with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst,'w') as zout:
 missing=set(repl)-seen
 if missing: raise SystemExit(f'missing UI entries: {sorted(missing)}')
 PY
+python3 tools/patch_cloud_startup_bypass_for_persistence_test.py "$WORK/base-ui-probe.apk" "$WORK/base-cloud-probe.apk"
+python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe.apk"
 
 BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 ZIPALIGN="$BT/zipalign"
@@ -50,13 +54,15 @@ keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -
   -alias ci -dname 'CN=NSS Stage3 Public Runtime Probe' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
 
 sign_one(){
-  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"
+  local src="$1"
+  local dst="$2"
+  local aligned="$WORK/aligned-$(basename "$dst")"
   "$ZIPALIGN" -f 4 "$src" "$aligned"
   "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci --ks-pass pass:android --key-pass pass:android --out "$dst" "$aligned"
   "$APKSIGNER" verify --min-sdk-version 24 --verbose "$dst" >/dev/null
 }
 
-sign_one "$WORK/base-ui-probe.apk" "$SIGNED/base.apk"
+sign_one "$WORK/base-career-probe.apk" "$SIGNED/base.apk"
 sign_one "$ROOT/config.tr.apk" "$SIGNED/config.tr.apk"
 sign_one "$ROOT/config.xxhdpi.apk" "$SIGNED/config.xxhdpi.apk"
 adb install-multiple -r "$SIGNED/base.apk" "$SIGNED/config.tr.apk" "$SIGNED/config.xxhdpi.apk" >/dev/null
@@ -68,7 +74,7 @@ fatal_check(){
 }
 
 start_menu(){
-  local i
+  local i last
   adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
   adb logcat -c >/dev/null 2>&1 || true
   adb shell am start -n "$PKG/.MonkeyGame" >/dev/null 2>&1 || true
@@ -76,10 +82,13 @@ start_menu(){
     sleep 1
     fatal_check || return 1
     adb logcat -d -v brief > "$WORK/start.log" 2>/dev/null || true
-    if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu' "$WORK/start.log"; then
+    last="$(grep -Ei 'SetActive:[[:space:]]*[A-Za-z0-9_]+' "$WORK/start.log" | tail -1 || true)"
+    if grep -qiE 'SetActive:[[:space:]]*mainmenu' <<<"$last"; then
+      echo "Rendered stock MainMenu after ${i}s"
       return 0
     fi
   done
+  cp "$WORK/start.log" "$OUT/start-menu-timeout.log" 2>/dev/null || true
   return 1
 }
 
@@ -88,8 +97,6 @@ adb exec-out screencap -p > "$OUT/stock-mainmenu.png"
 adb shell wm size > "$OUT/wm-size.txt"
 adb shell wm density > "$OUT/wm-density.txt"
 
-# Candidate grid proven useful by the earlier stock touch-control. Restart the
-# process after every miss so each attempt begins from a clean MainMenu state.
 POINTS=(
   '810 850' '810 1000' '810 1150' '810 1300' '810 1450' '810 1600'
   '650 850' '650 1000' '650 1150' '650 1300' '650 1450' '650 1600'
@@ -106,7 +113,7 @@ for P in "${POINTS[@]}"; do
   sleep 3
   adb logcat -d -v brief > "$OUT/probe-$N.log" 2>/dev/null || true
   adb exec-out screencap -p > "$OUT/probe-$N.png" 2>/dev/null || true
-  LAST="$(grep -Ei 'Create Screen:|SetActive:|SETTING ACTIVE:' "$OUT/probe-$N.log" | tail -8 || true)"
+  LAST="$(grep -Ei 'Create Screen:|SetActive:|SETTING ACTIVE:' "$OUT/probe-$N.log" | tail -12 || true)"
   printf 'probe=%s point=%s,%s\n%s\n---\n' "$N" "$X" "$Y" "$LAST" >> "$OUT/career-probe-summary.txt"
   if grep -qiE 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' "$OUT/probe-$N.log"; then
     echo "$X $Y" > "$OUT/career-point.txt"
