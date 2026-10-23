@@ -84,9 +84,25 @@ def is_metadata_candidate(name,data):
     low=name.lower()
     if low.endswith('.key'):
         return True
-    # Packed metadata has appeared under different names across builds; follow
-    # content signatures, not an extension contract.
     return b'MapShield' in data or (b'UIAtlas' in data and not low.endswith(('.png','.jpg','.jpeg','.webp')))
+
+
+def occurrence_diagnostics(data):
+    headers=scan_atlas_headers(data); out=[]
+    for m in re.finditer(rb'MapShield[A-Za-z0-9_]{0,64}',data):
+        off=m.start(); name=m.group().decode('ascii','replace'); h=nearest_header(headers,off)
+        lo=max(0,off-20); hi=min(len(data),off+len(m.group())+64)
+        out.append({
+            'name':name,'ascii_offset':off,'ascii_offset_mod4':off%4,
+            'byte_before':data[off-1] if off else None,
+            'expected_pascal_length':len(m.group()),
+            'preceding_u32_le':struct.unpack_from('<I',data,off-4)[0] if off>=4 else None,
+            'window_start':lo,'window_hex':data[lo:hi].hex(),
+            'nearest_atlas':h['name'] if h else None,
+            'nearest_atlas_offset':h['offset'] if h else None,
+            'distance_from_atlas_header':off-h['offset'] if h else None,
+        })
+    return out
 
 
 def discover(apk_path,out_dir):
@@ -120,19 +136,19 @@ def discover(apk_path,out_dir):
                         (out_dir/'ShieldAnims.uih.txt').write_text(text,encoding='utf-8')
             if re.search(r'(?:^|/)UIAtlas\d+(?:_VOL)?\.png$',name):
                 report['atlas_files'].append(name)
-            # Avoid reading large raster/dex payloads solely for signature scanning.
             if info.is_dir() or info.file_size>32*1024*1024 or low.endswith(('.png','.jpg','.jpeg','.webp','.dex')):
                 continue
             try: data=z.read(name)
             except Exception: continue
             if is_metadata_candidate(name,data):
-                headers=scan_atlas_headers(data)
+                headers=scan_atlas_headers(data); diags=occurrence_diagnostics(data)
                 metadata_blobs.append((name,data))
                 report['metadata_files'].append({
                     'path':name,'size':len(data),
                     'mapshield_ascii_occurrences':data.count(b'MapShield'),
                     'atlas_headers':[h['name'] for h in headers],
                     'atlas_header_count':len(headers),
+                    'mapshield_record_diagnostics':diags,
                 })
         clubs=[n for n in names if n.endswith('/v2025/Clubs.txt')]
         if len(clubs)==1:
