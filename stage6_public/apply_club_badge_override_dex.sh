@@ -50,13 +50,33 @@ VERIFY_TARGET="$WORK/verify/com/newstargames/newstarsoccer/c_TClub.smali"
 AFTER_CLASSES="$(find "$WORK/verify" -name '*.smali' -type f | wc -l | tr -d ' ')"
 [ "$BEFORE_CLASSES" = "$AFTER_CLASSES" ]
 
-grep -q 'const/16 v13, 0xc45' "$VERIFY_TARGET"
-grep -q 'const/16 v12, 0x10' "$VERIFY_TARGET"
-grep -q 'const/16 v13, 0xc55' "$VERIFY_TARGET"
-grep -q 'const/16 v12, 0x11' "$VERIFY_TARGET"
-grep -q ':nss_reborn_badge_check_3157' "$VERIFY_TARGET"
-grep -q ':nss_reborn_badge_done' "$VERIFY_TARGET"
-grep -q 'rem-int/2addr v12, v13' "$VERIFY_TARGET"
+# baksmali is free to choose register names. Verify the rebuilt DEX using the
+# exact registers captured from the stock semantic anchor instead of fixed v12/v13.
+python3 - "$VERIFY_TARGET" "$WORK/override-report.json" <<'PY'
+import json,sys
+smali_path,report_path=sys.argv[1:]
+text=open(smali_path,encoding='utf-8').read()
+r=json.load(open(report_path,encoding='utf-8'))
+regs=r['captured_registers']; i=regs['id']; c=regs['club']; d=regs['divisor']
+style='Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I'
+required=[
+    f'const/16 {d}, 0xc45', f'const/16 {i}, 0x10',
+    f'const/16 {d}, 0xc55', f'const/16 {i}, 0x11',
+    ':nss_reborn_badge_check_3157', ':nss_reborn_badge_done',
+    f'rem-int/2addr {i}, {d}',
+    f'iput {i}, {c}, {style}',
+]
+for needle in required:
+    if needle not in text:
+        raise SystemExit('rebuilt override verification missing: '+needle)
+done=text.index(':nss_reborn_badge_done')
+restored=text.find(f'const/16 {d}, 0xf',done)
+if restored < 0:
+    raise SystemExit('divisor register restore missing after override')
+if not r.get('divisor_register_restored'):
+    raise SystemExit('override report does not attest divisor restoration')
+print('REBUILT_BADGE_OVERRIDE_VERIFY=PASS registers='+json.dumps(regs,sort_keys=True)+' divisor_restored=true')
+PY
 
 python3 - "$BASE" "$OUT" "$WORK/classes3-patched.dex" "$WORK/override-report.json" "$REPORT" "$BEFORE_CLASSES" <<'PY'
 import hashlib,json,sys,zipfile
@@ -94,5 +114,5 @@ report={
 }
 Path(report_path).parent.mkdir(parents=True,exist_ok=True)
 Path(report_path).write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-print('CLUB_BADGE_OVERRIDE_DEX=PASS classes3_only=changed fallback=id%15 overrides=3141:16,3157:17')
+print('CLUB_BADGE_OVERRIDE_DEX=PASS classes3_only=changed fallback=id%15 overrides=3141:16,3157:17 divisor_restored=true')
 PY
