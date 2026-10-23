@@ -7,15 +7,16 @@ if [ "$#" -ne 6 ]; then
 fi
 BASE="$1"; XAPK_DIR="$2"; WORK="$3"; OUT="$4"; BAK="$5"; SMALI="$6"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SHIELD_UI='assets/monkey/NewGUI/Screens/ShieldAnims.uih'
 rm -rf "$WORK" "$OUT"
 mkdir -p "$WORK/extract" "$WORK/smali3" "$WORK/fixtures" "$OUT/signed" "$OUT/evidence"
 
-python3 - "$BASE" "$WORK/extract" <<'PY'
+python3 - "$BASE" "$WORK/extract" "$SHIELD_UI" <<'PY'
 import sys,zipfile,pathlib
-apk,out=sys.argv[1:]; out=pathlib.Path(out)
+apk,out,shield=sys.argv[1:]; out=pathlib.Path(out)
 need={
  'classes3.dex':'classes3.dex',
- 'assets/monkey/NewGUI/Common/ShieldAnims.uih':'ShieldAnims.uih',
+ shield:'ShieldAnims.uih',
  'assets/monkey/NewGUI/Atlases/Key.key':'Key.key',
 }
 with zipfile.ZipFile(apk) as z:
@@ -23,7 +24,7 @@ with zipfile.ZipFile(apk) as z:
         try: data=z.read(member)
         except KeyError: raise SystemExit(f'missing stock member: {member}')
         (out/dst).write_bytes(data)
-print('STAGE6_STOCK_MEMBERS_EXTRACTED=PASS')
+print('STAGE6_STOCK_MEMBERS_EXTRACTED=PASS shield='+shield)
 PY
 
 java -jar "$BAK" disassemble "$WORK/extract/classes3.dex" -o "$WORK/smali3"
@@ -38,12 +39,12 @@ java -jar "$SMALI" assemble "$WORK/smali3" -o "$WORK/classes3-patched.dex"
 python3 "$ROOT/stage6_runtime/patch_shield_ui.py" "$WORK/extract/ShieldAnims.uih" "$WORK/ShieldAnims.patched.uih"
 python3 "$ROOT/stage6_runtime/generate_fixture_badges.py" "$WORK/fixtures"
 
-python3 - "$BASE" "$WORK/base-stage6-unsigned.apk" "$WORK/classes3-patched.dex" "$WORK/ShieldAnims.patched.uih" "$WORK/fixtures/3141.png" "$WORK/fixtures/3163.png" <<'PY'
+python3 - "$BASE" "$WORK/base-stage6-unsigned.apk" "$WORK/classes3-patched.dex" "$WORK/ShieldAnims.patched.uih" "$WORK/fixtures/3141.png" "$WORK/fixtures/3163.png" "$SHIELD_UI" <<'PY'
 import sys,zipfile
-src,dst,dex,ui,p3141,p3163=sys.argv[1:]
+src,dst,dex,ui,p3141,p3163,shield=sys.argv[1:]
 repl={
  'classes3.dex':open(dex,'rb').read(),
- 'assets/monkey/NewGUI/Common/ShieldAnims.uih':open(ui,'rb').read(),
+ shield:open(ui,'rb').read(),
 }
 adds={
  'assets/monkey/NewGUI/RebornBadges/3141.png':open(p3141,'rb').read(),
@@ -66,7 +67,7 @@ with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst,'w',allowZip64=True) as zo
         raise SystemExit(f'missing replacement members: {set(repl)-seen}')
     for name,data in adds.items():
         zout.writestr(name,data,compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
-print('STAGE6_BASE_PATCHED=PASS')
+print('STAGE6_BASE_PATCHED=PASS shield='+shield)
 PY
 
 python3 "$ROOT/stage6_runtime/verify_fixture_apk.py" "$BASE" "$WORK/base-stage6-unsigned.apk" "$CLUB_SMALI" "$OUT/evidence/fixture-structure-unsigned.json"
