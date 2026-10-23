@@ -6,7 +6,7 @@ DECLS=('Img:(RebornBadge3141,NewGUI/RebornBadges/3141.png)\n'
        'Img:(RebornBadge3163,NewGUI/RebornBadges/3163.png)\n')
 
 def extract_animation(text,ref='ShieldScale1'):
-    m=re.search(r'Animation:\([^\n]+\) ref:'+re.escape(ref)+r'\s*\n\{',text)
+    m=re.search(r'Animation:\([^\n]+\) ref:'+re.escape(ref)+r'\s*\n\s*\{',text)
     if not m: raise ValueError(f'animation {ref} not found')
     start=m.start(); brace=text.find('{',m.start()); depth=0; i=brace
     while i<len(text):
