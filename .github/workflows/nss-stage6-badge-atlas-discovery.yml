@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py -v
-          python3 -m py_compile stage6_public/discover_badge_atlas.py
+          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -35,6 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 stage6_public/discover_badge_atlas.py "$BASE" stage6_public_artifacts
+          python3 stage6_public/dump_atlas_manager.py "$BASE" stage6_public_artifacts/atlas-manager-disasm.txt
           python3 - <<'PY'
           import json
           p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
@@ -42,6 +43,7 @@ jobs:
           assert p['atlas_symbols']
           assert any(x['name'].startswith('MapShield') for x in p['atlas_symbols'])
           assert p['clubs']['fields']
+          assert 'CLASS=Lcom/newstargames/newstarsoccer/c_AtlasManager;' in open('stage6_public_artifacts/atlas-manager-disasm.txt',encoding='utf-8').read()
           print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
           PY
       - name: Upload Stage6 discovery evidence
