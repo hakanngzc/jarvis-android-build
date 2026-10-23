@@ -63,7 +63,6 @@ for y in rows:
     else: groups[-1].append(y)
 groups=[g for g in groups if g[-1]-g[0]>=18]
 if not groups: raise SystemExit(1)
-# Career is the upper large green menu button. Prefer the first substantial band.
 g=sorted(groups,key=lambda a:a[0])[0]
 ya,yb=g[0],g[-1]
 pts=[]
@@ -89,9 +88,54 @@ PY
   echo 'Rendered stock Career/Play button was not detected'
   return 1
 }
+
+SAVESLOT_PROBE_N=0
+detect_saveslot_rows(){
+  local png="$1" target="$WORK/saveslot-targets.txt"
+  SAVESLOT_PROBE_N=$((SAVESLOT_PROBE_N+1))
+  python3 - "$png" "$target" <<'PY'
+from PIL import Image
+import sys
+im=Image.open(sys.argv[1]).convert('RGB'); w,h=im.size
+x0,x1=int(w*.02),int(w*.98); y0,y1=int(h*.20),int(h*.72)
+def green(p):
+    r,g,b=p
+    return g>=100 and g-r>=30 and g-b>=20 and g>=r*1.15
+rows=[]
+for y in range(y0,y1,2):
+    hits=sum(green(im.getpixel((x,y))) for x in range(x0,x1,3))
+    if hits>=max(40,int((x1-x0)/3*.10)): rows.append(y)
+groups=[]
+for y in rows:
+    if not groups or y-groups[-1][-1]>4: groups.append([y])
+    else: groups[-1].append(y)
+groups=[g for g in groups if g[-1]-g[0]>=35]
+if len(groups)!=3:
+    raise SystemExit(f'expected 3 SaveSlot green bands, got {[(g[0],g[-1]) for g in groups]}')
+centers=[(g[0]+g[-1])//2 for g in groups]
+main_x=round(w*.50); delete_x=round(w*.90)
+open(sys.argv[2],'w').write(f'{main_x} {delete_x} {centers[0]} {centers[1]} {centers[2]}\n')
+print('saveslot_targets',main_x,delete_x,*centers)
+PY
+  read -r SLOT_MAIN_X SLOT_DELETE_X SLOT0_Y SLOT1_Y SLOT2_Y < "$target"
+  SLOT0_X=$SLOT_MAIN_X; SLOT1_X=$SLOT_MAIN_X; SLOT2_X=$SLOT_MAIN_X
+  DEL1_X=$SLOT_DELETE_X; DEL1_Y=$SLOT1_Y
+  printf 'saveslot_probe_%s=main:%s delete:%s rows:%s,%s,%s\n' \
+    "$SAVESLOT_PROBE_N" "$SLOT_MAIN_X" "$SLOT_DELETE_X" "$SLOT0_Y" "$SLOT1_Y" "$SLOT2_Y" | tee -a "$SUMMARY"
+}
 '''
 if s.count(anchor)!=1: raise SystemExit(f'wait_main anchor count={s.count(anchor)}')
 s=s.replace(anchor,insert,1)
+
+old_reach='''      shot "${stem}-saveslot"
+      return 0
+'''
+new_reach='''      shot "${stem}-saveslot"
+      detect_saveslot_rows "$OUT/${stem}-saveslot.png"
+      return 0
+'''
+if s.count(old_reach)!=1: raise SystemExit(f'saveslot screenshot anchor count={s.count(old_reach)}')
+s=s.replace(old_reach,new_reach,1)
 
 old_press='press "$CAREER_X" "$CAREER_Y" 3'
 count=s.count(old_press)
@@ -99,4 +143,4 @@ if count != 3: raise SystemExit(f'expected 3 Career fixed taps, got {count}')
 s=s.replace(old_press,'press_career_when_ready')
 
 out.write_text(s)
-print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled')
+print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic')
