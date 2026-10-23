@@ -8,14 +8,15 @@ CLUB='Lcom/newstargames/newstarsoccer/c_TClub;'
 ID_FIELD=CLUB+'->m_id:I'
 STYLE_FIELD=CLUB+'->m_badgestyle:I'
 REG=r'[vp]\d+'
+BLANK=r'(?:[ \t]*\r?\n)*'
 
-# Match the exact stock semantic sequence, but do not assume baksmali chose the
-# same register numbers as our synthetic unit fixture.
+# Match the exact stock semantic sequence, while tolerating baksmali's optional
+# blank lines and without assuming fixed register numbers.
 ANCHOR_RE=re.compile(
     r'(?P<anchor>'
-    r'(?P<indent>^[ \t]*)iget (?P<idreg>'+REG+r'), (?P<clubreg>'+REG+r'), '+re.escape(ID_FIELD)+r'\r?\n'
-    r'(?P=indent)const/16 (?P<divreg>'+REG+r'), 0xf\r?\n'
-    r'(?P=indent)rem-int/2addr (?P=idreg), (?P=divreg)\r?\n'
+    r'(?P<indent>^[ \t]*)iget (?P<idreg>'+REG+r'), (?P<clubreg>'+REG+r'), '+re.escape(ID_FIELD)+r'\r?\n'+BLANK+
+    r'(?P=indent)const/16 (?P<divreg>'+REG+r'), 0xf\r?\n'+BLANK+
+    r'(?P=indent)rem-int/2addr (?P=idreg), (?P=divreg)\r?\n'+BLANK+
     r'(?P=indent)iput (?P=idreg), (?P=clubreg), '+re.escape(STYLE_FIELD)+r'\r?\n'
     r')',
     re.M,
@@ -58,6 +59,7 @@ def patch_smali_text(text):
         'stock_anchor_preserved':anchor in out,
         'inserted_label':'nss_reborn_badge_done',
         'captured_registers':{'id':idreg,'club':clubreg,'divisor':divreg},
+        'blank_line_tolerant':True,
     }
     return out,report
 
