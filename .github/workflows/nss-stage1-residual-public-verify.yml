@@ -26,6 +26,7 @@ jobs:
           python3 stage1_public/test_chooseclub_intro_gate.py
           python3 stage1_public/test_direct_one_shot_entry_retry.py
           bash -n stage1_public/runtime_gate_v2.sh
+          bash -n stage1_public/run_runtime_with_measurement_guard.sh
           python3 -m pip install --disable-pip-version-check pillow
       - name: Download exact publisher-stock NSS 4.31
         run: |
@@ -78,39 +79,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           disable-animations: true
           disable-spellchecker: true
-          script: |
-            set -eu
-            mkdir -p stage1_public_artifacts/runtime
-            PKG=com.newstargames.newstarsoccer
-            MEASUREMENT="$PKG/com.google.android.gms.measurement.AppMeasurementService"
-            GUARD_FILE=stage1_public_artifacts/runtime/measurement-service-guard.txt
-            bash stage1_public/runtime_gate_v2.sh &
-            gate_pid=$!
-            guard_ok=0
-            for i in $(seq 1 600); do
-              if adb shell pm path "$PKG" >/dev/null 2>&1; then
-                {
-                  echo "package_seen_attempt=$i"
-                  adb shell pm disable-user --user 0 "$MEASUREMENT"
-                  adb shell pm disable-user --user 0 "$PKG/com.google.android.gms.measurement.AppMeasurementJobService" || true
-                  echo 'MEASUREMENT_SERVICE_GUARD=PASS'
-                } > "$GUARD_FILE" 2>&1
-                cat "$GUARD_FILE"
-                guard_ok=1
-                break
-              fi
-              if ! kill -0 "$gate_pid" >/dev/null 2>&1; then
-                break
-              fi
-              sleep 0.1
-            done
-            if [ "$guard_ok" -ne 1 ]; then
-              echo 'MEASUREMENT_SERVICE_GUARD=FAIL' > "$GUARD_FILE"
-              cat "$GUARD_FILE"
-              wait "$gate_pid" || true
-              exit 126
-            fi
-            wait "$gate_pid"
+          script: bash stage1_public/run_runtime_with_measurement_guard.sh
       - name: Require final residual verdict
         run: |
           set -euo pipefail
