@@ -65,6 +65,12 @@ jobs:
           java -jar "$SMA" --version | tee stage6_public_artifacts/runtime/smali-version.txt
           echo "BAKSMALI_JAR=$BAK" >> "$GITHUB_ENV"
           echo "SMALI_JAR=$SMA" >> "$GITHUB_ENV"
+      - name: Preflight exact stock DEX override
+        run: |
+          set -euo pipefail
+          bash stage6_public/apply_club_badge_override_dex.sh \
+            "$BASE" "$RUNNER_TEMP/stage6-preflight.apk" "$RUNNER_TEMP/stage6-preflight-work" \
+            stage6_public_artifacts/runtime/preflight-badge-dex-report.json
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
