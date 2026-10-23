@@ -20,10 +20,11 @@ jobs:
       - name: Validate public-safe test harness
         run: |
           set -euo pipefail
-          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py stage1_public/patch_cloud_startup_bypass_for_persistence_test.py stage1_public/stock_ui_coords.py stage1_public/test_stock_ui_coords.py stage1_public/test_chooseclub_intro_gate.py stage1_public/build_runtime_gate_v2.py
+          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py stage1_public/patch_cloud_startup_bypass_for_persistence_test.py stage1_public/stock_ui_coords.py stage1_public/test_stock_ui_coords.py stage1_public/test_chooseclub_intro_gate.py stage1_public/test_direct_one_shot_entry_retry.py stage1_public/build_runtime_gate_v2.py
           PYTHONPATH=stage1_public python3 stage1_public/test_stock_ui_coords.py
           python3 stage1_public/build_runtime_gate_v2.py
           python3 stage1_public/test_chooseclub_intro_gate.py
+          python3 stage1_public/test_direct_one_shot_entry_retry.py
           bash -n stage1_public/runtime_gate_v2.sh
           python3 -m pip install --disable-pip-version-check pillow
       - name: Download exact publisher-stock NSS 4.31
