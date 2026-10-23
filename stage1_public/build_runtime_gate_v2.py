@@ -181,5 +181,64 @@ count=s.count(old_press)
 if count != 3: raise SystemExit(f'expected 3 Career fixed taps, got {count}')
 s=s.replace(old_press,'press_career_when_ready')
 
+old_one_shot='''# The hint was reset to -1 by p_DirectCareerLoad. Next Career entry must expose
+# SaveSlot rather than automatically load slot2 again.
+adb logcat -c >/dev/null 2>&1 || true
+start_nss
+wait_log 'Create Screen:[[:space:]]*mainmenu|Create Screen:mainmenu' 150 'MainMenu after direct hint consumed'
+sleep 3
+adb logcat -c >/dev/null 2>&1 || true
+press_career_when_ready
+wait_log 'Create Screen:[[:space:]]*saveslot|Create Screen:saveslot|LoadCareer saveslot:[[:space:]]*2' 70 'one-shot decision'
+snapshot_logs
+if grep -qiE 'LoadCareer saveslot:[[:space:]]*2' "$LOG"; then
+  record directcareerload_one_shot FAIL
+  exit 124
+fi
+record directcareerload_one_shot PASS
+shot directcareerload-one-shot-saveslot
+record DIRECTCAREERLOAD_RUNTIME PASS
+'''
+new_one_shot='''# The hint was reset to -1 by p_DirectCareerLoad. Next Career entry must expose
+# SaveSlot rather than automatically load slot2 again. Stock startup may first
+# show a single front-door Play control; that press is navigation, not Career.
+adb logcat -c >/dev/null 2>&1 || true
+start_nss
+wait_log 'Create Screen:[[:space:]]*mainmenu|Create Screen:mainmenu' 150 'MainMenu after direct hint consumed'
+one_shot_decision=none
+for decision_attempt in 1 2 3; do
+  sleep 3
+  snapshot_logs
+  if grep -qiE 'LoadCareer saveslot:[[:space:]]*2' "$LOG"; then
+    record directcareerload_one_shot FAIL
+    exit 124
+  fi
+  adb logcat -c >/dev/null 2>&1 || true
+  press_career_when_ready
+  if wait_log 'Create Screen:[[:space:]]*saveslot|Create Screen:saveslot|LoadCareer saveslot:[[:space:]]*2' 14 "one-shot decision attempt $decision_attempt"; then
+    snapshot_logs
+    if grep -qiE 'LoadCareer saveslot:[[:space:]]*2' "$LOG"; then
+      record directcareerload_one_shot FAIL
+      exit 124
+    fi
+    if grep -qiE 'Create Screen:[[:space:]]*saveslot|Create Screen:saveslot' "$LOG"; then
+      one_shot_decision=saveslot
+      break
+    fi
+  else
+    record "directcareerload_entry_retry_${decision_attempt}" no_decision
+  fi
+done
+if [ "$one_shot_decision" != saveslot ]; then
+  record directcareerload_one_shot FAIL
+  exit 125
+fi
+record directcareerload_one_shot PASS
+shot directcareerload-one-shot-saveslot
+record DIRECTCAREERLOAD_RUNTIME PASS
+'''
+if s.count(old_one_shot)!=1: raise SystemExit(f'direct one-shot anchor count={s.count(old_one_shot)}')
+s=s.replace(old_one_shot,new_one_shot,1)
+
 out.write_text(s)
-print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic stock_coords=offset-aware chooseclub_intro=handled')
+print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic stock_coords=offset-aware chooseclub_intro=handled direct_one_shot_retry=enabled')
