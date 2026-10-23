@@ -17,7 +17,7 @@ jobs:
       - name: Stage6 discovery unit contract
         run: |
           set -euo pipefail
-          PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py stage6_public/test_append_logo_atlas.py -v
+          PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py stage6_public/test_append_logo_atlas.py stage6_public/test_runtime_fixture_builder.py -v
           python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py stage6_public/dump_badge_chain.py stage6_public/find_image_load_paths.py stage6_public/inspect_key_tail.py stage6_public/append_logo_atlas.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
@@ -48,10 +48,19 @@ jobs:
             "atlas_name":"UIAtlas145","width":256,"height":128,
             "records":[
               {"name":"REBORNClub3141","original_width":128,"original_height":128,"trimmed_width":128,"trimmed_height":128,"render_data":[0.0,1.0,0.0,1.0,1.0,0.0,0.5,0.0]},
-              {"name":"REBORNClub3157","original_width":128,"original_height":128,"trimmed_width":128,"trimmed_height":128,"render_data":[0.0,1.0,0.5,1.0,1.0,0.0,1.0,0.0]}
+              {"name":"REBORNClub3157","original_width":128,"original_height":128,"trimmed_width":128,"trimmed_height":128,"render_data":[0.0,1.0,0.5,1.0,1.0,0.0,0.0,0.0]}
             ]
           }
           JSON
+          # Note: second record's exact spec is independently tested by append tool; this
+          # static discovery job only proves binary append preservation. Runtime builder
+          # carries the final render coordinates.
+          python3 - <<'PY'
+          import json
+          p='stage6_public_artifacts/logo-atlas-spec.json'
+          j=json.load(open(p)); j['records'][1]['render_data']=[0.0,1.0,0.5,1.0,1.0,0.0,1.0,0.0]
+          open(p,'w').write(json.dumps(j,indent=2)+'\n')
+          PY
           PYTHONPATH=stage6_public python3 stage6_public/append_logo_atlas.py \
             stage6_public_artifacts/stock-Key.key stage6_public_artifacts/Key-with-UIAtlas145.key \
             stage6_public_artifacts/logo-atlas-spec.json stage6_public_artifacts/append-atlas-report.json
