@@ -9,8 +9,11 @@ BASE="$1"; OUT="$2"; WORK="$3"; REPORT="$4"
 : "${BAKSMALI_JAR:?BAKSMALI_JAR is required}"
 : "${SMALI_JAR:?SMALI_JAR is required}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPORT_DIR="$(dirname "$REPORT")"
+REPORT_STEM="$(basename "$REPORT" .json)"
+DIAG="$REPORT_DIR/${REPORT_STEM}-stock-m_CreateClub.smali.txt"
 rm -rf "$WORK"
-mkdir -p "$WORK/smali" "$WORK/verify"
+mkdir -p "$WORK/smali" "$WORK/verify" "$REPORT_DIR"
 
 unzip -p "$BASE" classes3.dex > "$WORK/classes3-stock.dex"
 [ -s "$WORK/classes3-stock.dex" ]
@@ -18,6 +21,22 @@ java -jar "$BAKSMALI_JAR" d "$WORK/classes3-stock.dex" -o "$WORK/smali"
 TARGET="$WORK/smali/com/newstargames/newstarsoccer/c_TClub.smali"
 [ -s "$TARGET" ]
 cp "$TARGET" "$WORK/c_TClub-stock.smali"
+
+# Persist only the exact target method into the uploaded evidence directory
+# BEFORE attempting any patch. This makes anchor mismatches diagnosable without
+# guessing at baksmali's register/literal formatting.
+python3 - "$TARGET" "$DIAG" <<'PY'
+import re,sys
+src,out=sys.argv[1:]
+text=open(src,encoding='utf-8').read()
+m=re.search(r'(?ms)^\.method[^\n]*\bm_CreateClub\([^\n]*\n.*?^\.end method\s*$',text)
+if not m:
+    raise SystemExit('m_CreateClub method not found in stock baksmali output')
+block=m.group(0)
+open(out,'w',encoding='utf-8').write(block+'\n')
+print('STOCK_M_CREATE_CLUB_DIAG=PASS lines='+str(len(block.splitlines())))
+PY
+
 python3 "$ROOT/stage6_public/patch_club_badge_override.py" \
   "$TARGET" "$WORK/c_TClub-patched.smali" "$WORK/override-report.json"
 mv "$WORK/c_TClub-patched.smali" "$TARGET"
