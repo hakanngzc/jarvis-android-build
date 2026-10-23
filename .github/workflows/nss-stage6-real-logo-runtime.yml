@@ -20,7 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check pillow
-          PYTHONPATH=stage6_runtime python3 -m unittest stage6_runtime/test_stage6_patchers.py stage6_runtime/test_verify_fixture_apk.py -v
+          PYTHONPATH=stage6_runtime python3 -m unittest stage6_runtime/test_stage6_patchers.py stage6_runtime/test_verify_fixture_apk.py stage6_runtime/test_stage6_runtime_probe_patchers.py -v
           python3 -m py_compile stage6_runtime/dump_club_accessors.py
           bash -n stage6_runtime/build_fixture_apk.sh
       - name: Download exact publisher-stock NSS 4.31
