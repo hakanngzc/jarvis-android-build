@@ -61,7 +61,8 @@ jobs:
           paths=json.load(open('stage6_public_artifacts/image-load-paths.json',encoding='utf-8'))
           assert paths['hits']
           tail=json.load(open('stage6_public_artifacts/key-tail-layout.json',encoding='utf-8'))
-          assert tail['last_atlas']['name']=='UIAtlas143'
+          assert tail['atlas_count_prefix']==144 and tail['header_count_found']==144
+          assert tail['last_atlas']['name']=='UIAtlas144'
           print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
           PY
       - name: Upload Stage6 discovery evidence
