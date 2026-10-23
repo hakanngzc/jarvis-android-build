@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 
 KEY='assets/monkey/NewGUI/Atlases/Key.key'
-UI='assets/monkey/NewGUI/Common/ShieldAnims.uih'
+UI='assets/monkey/NewGUI/Screens/ShieldAnims.uih'
 CLUBS='assets/monkey/MyData/v2025/Clubs.txt'
 FIXTURES={3141:'assets/monkey/NewGUI/RebornBadges/3141.png',3163:'assets/monkey/NewGUI/RebornBadges/3163.png'}
 
