@@ -52,18 +52,36 @@ def read_normal_record(data,name,key_path):
     for i in find_pascal_positions(data,name):
         if i<4: continue
         flags=struct.unpack_from('<I',data,i-4)[0]
-        if flags & (2|4|8): continue
+        # Only the two layouts observed/covered here are accepted. Unknown packed
+        # variants stay fail-closed rather than being decoded with a guessed layout.
+        if flags not in (0,8):
+            continue
         p=align(i+1+len(name.encode('utf-8')),4)
-        if p+40>len(data): continue
-        ow,oh,tw,th=struct.unpack_from('<4H',data,p); p+=8
-        rd=struct.unpack_from('<8f',data,p)
         atlas=nearest_header(headers,i)
-        if not atlas: continue
-        u0,u1=sorted((rd[2],rd[6])); v0,v1=sorted((rd[3],rd[7]))
+        if not atlas:
+            continue
+        if flags==8:
+            if p+68>len(data):
+                continue
+            ow,oh=struct.unpack_from('<2H',data,p); p+=4
+            verts=struct.unpack_from('<16f',data,p)
+            us=[verts[2],verts[6],verts[10],verts[14]]
+            vs=[verts[3],verts[7],verts[11],verts[15]]
+            u0,u1=min(us),max(us); v0,v1=min(vs),max(vs)
+            record_layout='flag8_quad'
+            tw=round((u1-u0)*atlas['width']); th=round((v1-v0)*atlas['height'])
+        else:
+            if p+40>len(data):
+                continue
+            ow,oh,tw,th=struct.unpack_from('<4H',data,p); p+=8
+            rd=struct.unpack_from('<8f',data,p)
+            u0,u1=sorted((rd[2],rd[6])); v0,v1=sorted((rd[3],rd[7]))
+            record_layout='normal'
         box=[round(u0*atlas['width']),round(v0*atlas['height']),round(u1*atlas['width']),round(v1*atlas['height'])]
-        if box[2] <= box[0] or box[3] <= box[1]: continue
+        if box[2] <= box[0] or box[3] <= box[1]:
+            continue
         return {
-            'name':name,'key_path':key_path,'flags':flags,'offset':i,
+            'name':name,'key_path':key_path,'flags':flags,'record_layout':record_layout,'offset':i,
             'atlas':atlas['name'],'atlas_width':atlas['width'],'atlas_height':atlas['height'],
             'original_width':ow,'original_height':oh,'trimmed_width':tw,'trimmed_height':th,
             'box':box,
@@ -96,7 +114,7 @@ def occurrence_diagnostics(data):
             'name':name,'ascii_offset':off,'ascii_offset_mod4':off%4,
             'byte_before':data[off-1] if off else None,
             'expected_pascal_length':len(m.group()),
-            'preceding_u32_le':struct.unpack_from('<I',data,off-4)[0] if off>=4 else None,
+            'preceding_u32_le':struct.unpack_from('<I',data,off-5)[0] if off>=5 else None,
             'window_start':lo,'window_hex':data[lo:hi].hex(),
             'nearest_atlas':h['name'] if h else None,
             'nearest_atlas_offset':h['offset'] if h else None,
