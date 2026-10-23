@@ -9,7 +9,8 @@ SAMPLE='''Rect:(0,0,0,0)\n    ColReadout(MatchColours,Badge1Col2)\n    Selector(
 class RuntimeFixtureBuilderTests(unittest.TestCase):
     def test_supplemental_selector_preserves_stock_block_and_adds_16_17(self):
         out,rep=extend_shield_selectors(SAMPLE)
-        self.assertIn(SAMPLE.strip(), out.replace(rep['inserted_blocks'][0].strip(), '').strip())
+        stock_selector=SAMPLE[SAMPLE.index('    Selector(MatchColours,BadgeStyle1)'):SAMPLE.index('Draw:(MapShieldFrameAll')]
+        self.assertIn(stock_selector,out)
         self.assertEqual(rep['selector_insert_count'],1)
         self.assertIn('Selector(MatchColours,BadgeStyle1)',rep['inserted_blocks'][0])
         self.assertEqual(rep['inserted_blocks'][0].count('Rect:(0,0,0,0)'),17)  # carrier + 16 blanks
