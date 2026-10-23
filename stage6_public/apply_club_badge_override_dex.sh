@@ -12,6 +12,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$(dirname "$REPORT")"
 REPORT_STEM="$(basename "$REPORT" .json)"
 DIAG="$REPORT_DIR/${REPORT_STEM}-stock-m_CreateClub.smali.txt"
+REBUILT_DIAG="$REPORT_DIR/${REPORT_STEM}-rebuilt-m_CreateClub.smali.txt"
 rm -rf "$WORK"
 mkdir -p "$WORK/smali" "$WORK/verify" "$REPORT_DIR"
 
@@ -22,20 +23,22 @@ TARGET="$WORK/smali/com/newstargames/newstarsoccer/c_TClub.smali"
 [ -s "$TARGET" ]
 cp "$TARGET" "$WORK/c_TClub-stock.smali"
 
-# Persist only the exact target method into the uploaded evidence directory
-# BEFORE attempting any patch. This makes anchor mismatches diagnosable without
-# guessing at baksmali's register/literal formatting.
-python3 - "$TARGET" "$DIAG" <<'PY'
+extract_method(){
+  local src="$1" out="$2" label="$3"
+  python3 - "$src" "$out" "$label" <<'PY'
 import re,sys
-src,out=sys.argv[1:]
+src,out,label=sys.argv[1:]
 text=open(src,encoding='utf-8').read()
 m=re.search(r'(?ms)^\.method[^\n]*\bm_CreateClub\([^\n]*\n.*?^\.end method\s*$',text)
 if not m:
-    raise SystemExit('m_CreateClub method not found in stock baksmali output')
+    raise SystemExit('m_CreateClub method not found in '+src)
 block=m.group(0)
 open(out,'w',encoding='utf-8').write(block+'\n')
-print('STOCK_M_CREATE_CLUB_DIAG=PASS lines='+str(len(block.splitlines())))
+print(label+'=PASS lines='+str(len(block.splitlines())))
 PY
+}
+
+extract_method "$TARGET" "$DIAG" STOCK_M_CREATE_CLUB_DIAG
 
 python3 "$ROOT/stage6_public/patch_club_badge_override.py" \
   "$TARGET" "$WORK/c_TClub-patched.smali" "$WORK/override-report.json"
@@ -49,11 +52,13 @@ VERIFY_TARGET="$WORK/verify/com/newstargames/newstarsoccer/c_TClub.smali"
 [ -s "$VERIFY_TARGET" ]
 AFTER_CLASSES="$(find "$WORK/verify" -name '*.smali' -type f | wc -l | tr -d ' ')"
 [ "$BEFORE_CLASSES" = "$AFTER_CLASSES" ]
+extract_method "$VERIFY_TARGET" "$REBUILT_DIAG" REBUILT_M_CREATE_CLUB_DIAG
 
-# baksmali is free to choose register names. Verify the rebuilt DEX using the
-# exact registers captured from the stock semantic anchor instead of fixed v12/v13.
-python3 - "$VERIFY_TARGET" "$WORK/override-report.json" <<'PY'
-import json,sys
+# DEX does not preserve source label names. Verify rebuilt semantics: both ID
+# comparisons, both style writes, two conditional branches, stock modulo-15,
+# and restoration of the stock divisor register before later field parsing.
+python3 - "$REBUILT_DIAG" "$WORK/override-report.json" <<'PY'
+import json,re,sys
 smali_path,report_path=sys.argv[1:]
 text=open(smali_path,encoding='utf-8').read()
 r=json.load(open(report_path,encoding='utf-8'))
@@ -62,20 +67,28 @@ style='Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I'
 required=[
     f'const/16 {d}, 0xc45', f'const/16 {i}, 0x10',
     f'const/16 {d}, 0xc55', f'const/16 {i}, 0x11',
-    ':nss_reborn_badge_check_3157', ':nss_reborn_badge_done',
     f'rem-int/2addr {i}, {d}',
-    f'iput {i}, {c}, {style}',
 ]
 for needle in required:
     if needle not in text:
         raise SystemExit('rebuilt override verification missing: '+needle)
-done=text.index(':nss_reborn_badge_done')
-restored=text.find(f'const/16 {d}, 0xf',done)
-if restored < 0:
+if text.count(f'iput {i}, {c}, {style}') < 3:
+    raise SystemExit('expected stock fallback + two badge style writes after rebuild')
+if len(re.findall(r'^\s*if-ne\s+'+re.escape(i)+r',\s*'+re.escape(d)+r',\s*:\S+',text,re.M)) < 2:
+    raise SystemExit('expected two rebuilt conditional ID branches')
+# The divisor is changed to 0xc55 in the second comparison. A later stock
+# aget-object uses the same register as field index 15, so a 0xf restore must
+# occur after 0xc55 and before that next array read.
+pos_c55=text.index(f'const/16 {d}, 0xc55')
+pos_restore=text.find(f'const/16 {d}, 0xf',pos_c55)
+if pos_restore < 0:
     raise SystemExit('divisor register restore missing after override')
+pos_next_aget=text.find(f'aget-object {d},',pos_c55)
+if pos_next_aget >= 0 and pos_restore > pos_next_aget:
+    raise SystemExit('divisor restore occurs after next array-index use')
 if not r.get('divisor_register_restored'):
     raise SystemExit('override report does not attest divisor restoration')
-print('REBUILT_BADGE_OVERRIDE_VERIFY=PASS registers='+json.dumps(regs,sort_keys=True)+' divisor_restored=true')
+print('REBUILT_BADGE_OVERRIDE_VERIFY=PASS registers='+json.dumps(regs,sort_keys=True)+' label_independent=true divisor_restored=true')
 PY
 
 python3 - "$BASE" "$OUT" "$WORK/classes3-patched.dex" "$WORK/override-report.json" "$REPORT" "$BEFORE_CLASSES" <<'PY'
