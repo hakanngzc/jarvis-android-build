@@ -1,0 +1,112 @@
+name: NSS Stage5 Name Save Compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage5-name-save-compat-20261023]
+    paths:
+      - 'stage1_public/**'
+      - 'stage5_public/**'
+      - '.github/workflows/nss-stage5-name-save-compat.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nss-stage5-name-save-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  name-save-compat-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate public-safe Stage5 harness
+        run: |
+          set -euo pipefail
+          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py stage1_public/patch_cloud_startup_bypass_for_persistence_test.py stage1_public/stock_ui_coords.py stage1_public/test_stock_ui_coords.py stage1_public/test_chooseclub_intro_gate.py stage1_public/test_direct_one_shot_entry_retry.py stage1_public/build_runtime_gate_v2.py stage5_public/build_name_save_compat_gate.py stage5_public/test_build_name_save_compat_gate.py
+          PYTHONPATH=stage1_public python3 stage1_public/test_stock_ui_coords.py
+          python3 stage1_public/build_runtime_gate_v2.py
+          python3 stage5_public/test_build_name_save_compat_gate.py
+          python3 stage5_public/build_name_save_compat_gate.py
+          python3 stage1_public/test_chooseclub_intro_gate.py
+          python3 stage1_public/test_direct_one_shot_entry_retry.py
+          bash -n stage5_public/runtime_name_save_compat.sh
+          bash -n stage5_public/run_runtime_with_measurement_guard.sh
+          python3 -m pip install --disable-pip-version-check pillow
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage5-public/xapk" stage5_public_artifacts
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage5-public/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/stage5-public/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage5-public/nss431.xapk" -d "$RUNNER_TEMP/stage5-public/xapk"
+          BASE="$RUNNER_TEMP/stage5-public/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "STOCK_XAPK_DIR=$RUNNER_TEMP/stage5-public/xapk" >> "$GITHUB_ENV"
+      - name: Verify target stock football identity
+        run: |
+          set -euo pipefail
+          python3 - "$BASE" stage5_public_artifacts <<'PY'
+          import csv,io,json,pathlib,sys,zipfile
+          apk,out=sys.argv[1:]; out=pathlib.Path(out); out.mkdir(exist_ok=True)
+          with zipfile.ZipFile(apk) as z:
+              asset=[n for n in z.namelist() if n.endswith('/v2025/Clubs.txt')]
+              if len(asset)!=1: raise SystemExit(asset)
+              raw=z.read(asset[0]).decode('utf-8-sig')
+          rows=list(csv.DictReader(io.StringIO(raw),delimiter='\t'))
+          hits=[r for r in rows if str(r.get('id','')).strip()=='3141']
+          if len(hits)!=1: raise SystemExit(f'club 3141 hits={len(hits)}')
+          row=hits[0]
+          if row.get('shortname')!='Beşiktaş': raise SystemExit(f"unexpected shortname {row.get('shortname')!r}")
+          refs={k:row.get(k) for k in ('nationid','leagueid','continentalcompid','bteamof')}
+          (out/'stock-club-3141.json').write_text(json.dumps({'id':3141,'shortname':row['shortname'],'persistent_references':refs},indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          print('VERDICT=STAGE5_STOCK_TARGET_IDENTITY_PASS',row['shortname'],refs)
+          PY
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run old-save name-only compatibility runtime gate
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: bash stage5_public/run_runtime_with_measurement_guard.sh
+      - name: Require final Stage5 compatibility verdict
+        run: |
+          set -euo pipefail
+          G=stage5_public_artifacts/runtime/stage5-gates.txt
+          grep -q '^STAGE5_PATCH_ID_CONTRACT=PASS$' "$G"
+          grep -q '^STAGE5_SAVE_UNCHANGED_AFTER_UPDATE=PASS$' "$G"
+          grep -q '^STAGE5_PATCHED_TABLE_INSTALLED=PASS$' "$G"
+          grep -q '^STAGE5_OLD_SAVE_LOAD=PASS$' "$G"
+          grep -q '^STAGE5_NAME_SAVE_COMPAT=PASS$' "$G"
+          grep -q '^MEASUREMENT_SERVICE_GUARD=PASS$' stage5_public_artifacts/runtime/measurement-service-guard.txt
+          python3 - <<'PY'
+          import json
+          p=json.load(open('stage5_public_artifacts/runtime/stage5-name-patch-report.json',encoding='utf-8'))
+          assert p['club_id']==3141
+          assert p['changed_columns']==['shortname']
+          assert p['shortname_before']=='Beşiktaş'
+          assert p['shortname_after']=='Beşiktaş REBORN'
+          assert p['numeric_id_order_preserved'] is True
+          assert p['persistent_references_preserved'] is True
+          assert p['old_save_id_resolution_contract']=='preserved'
+          print('VERDICT=STAGE5_PUBLIC_NAME_SAVE_COMPAT_PASS')
+          PY
+      - name: Upload Stage5 compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage5-name-save-compat-runtime
+          path: stage5_public_artifacts/**
