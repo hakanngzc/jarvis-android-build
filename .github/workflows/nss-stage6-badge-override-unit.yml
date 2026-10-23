@@ -6,6 +6,8 @@ on:
     paths:
       - 'stage6_public/test_patch_club_badge_override.py'
       - 'stage6_public/patch_club_badge_override.py'
+      - 'stage6_public/test_verify_rebuilt_badge_override.py'
+      - 'stage6_public/verify_rebuilt_badge_override.py'
       - '.github/workflows/nss-stage6-badge-override-unit.yml'
 permissions:
   contents: read
@@ -18,4 +20,6 @@ jobs:
       - name: Run badge override contract
         run: |
           set -euo pipefail
-          PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_patch_club_badge_override.py -v
+          PYTHONPATH=stage6_public python3 -m unittest \
+            stage6_public/test_patch_club_badge_override.py \
+            stage6_public/test_verify_rebuilt_badge_override.py -v
