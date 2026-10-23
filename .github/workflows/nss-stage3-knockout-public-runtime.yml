@@ -28,17 +28,23 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install pinned Python image dependency
         run: python -m pip install --disable-pip-version-check pillow==12.0.0
-      - name: Normalize helper signing function
+      - name: Normalize helper runtime harness
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('nss_stage3_knockout_runtime.sh')
           text = p.read_text(encoding='utf-8')
-          old = '  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"\n'
-          new = '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"\n'
-          if old not in text:
+          old_sign = '  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"\n'
+          new_sign = '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"\n'
+          if old_sign not in text:
               raise SystemExit('expected sign_one declaration not found')
-          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text = text.replace(old_sign, new_sign, 1)
+          old_slot = 'find_slot0_target "$OUT/saveslot.png" "$WORK/slot0.txt"\n'
+          new_slot = 'python3 stage3/pick_saveslot.py "$OUT/saveslot.png" "$WORK/slot0.txt"\n'
+          if old_slot not in text:
+              raise SystemExit('expected SaveSlot selector call not found')
+          text = text.replace(old_slot, new_slot, 1)
+          p.write_text(text, encoding='utf-8')
           PY
           bash -n nss_stage3_knockout_runtime.sh
       - name: Enable KVM access
