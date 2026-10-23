@@ -17,8 +17,10 @@ jobs:
       - name: Validate public-safe test harness
         run: |
           set -euo pipefail
-          bash -n stage1_public/runtime_gate.sh
-          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py
+          python3 -m py_compile stage1_public/dex_inspect.py stage1_public/patch_career_test_hook.py stage1_public/build_runtime_gate_v2.py
+          python3 stage1_public/build_runtime_gate_v2.py
+          bash -n stage1_public/runtime_gate_v2.sh
+          python3 -m pip install --disable-pip-version-check pillow
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -70,7 +72,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           disable-animations: true
           disable-spellchecker: true
-          script: bash stage1_public/runtime_gate.sh
+          script: bash stage1_public/runtime_gate_v2.sh
       - name: Require final residual verdict
         run: |
           set -euo pipefail
