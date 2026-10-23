@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=stage6_public python3 -m unittest stage6_public/test_discover_badge_atlas.py -v
-          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py
+          python3 -m py_compile stage6_public/discover_badge_atlas.py stage6_public/dump_atlas_manager.py stage6_public/find_badge_writers.py stage6_public/dump_badge_data_flow.py
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
@@ -37,6 +37,7 @@ jobs:
           python3 stage6_public/discover_badge_atlas.py "$BASE" stage6_public_artifacts
           python3 stage6_public/dump_atlas_manager.py "$BASE" stage6_public_artifacts/atlas-manager-disasm.txt
           python3 stage6_public/find_badge_writers.py "$BASE" stage6_public_artifacts/badge-writers.json
+          python3 stage6_public/dump_badge_data_flow.py "$BASE" stage6_public_artifacts/badge-data-flow.txt
           python3 - <<'PY'
           import json
           p=json.load(open('stage6_public_artifacts/stage6-badge-atlas-discovery.json',encoding='utf-8'))
@@ -50,6 +51,10 @@ jobs:
           assert 'name=m_ReadStrippedImage' in text
           w=json.load(open('stage6_public_artifacts/badge-writers.json',encoding='utf-8'))
           assert w['field_candidates']
+          flow=open('stage6_public_artifacts/badge-data-flow.txt',encoding='utf-8').read()
+          assert 'm_badgestyle' in flow
+          assert 'm_SetUpTeamShield' in flow
+          assert 'BadgeStyle1' in flow
           print('VERDICT=STAGE6_BADGE_ATLAS_DISCOVERY_PASS')
           PY
       - name: Upload Stage6 discovery evidence
