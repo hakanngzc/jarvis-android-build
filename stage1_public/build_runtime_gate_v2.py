@@ -161,10 +161,25 @@ new_reach='''      shot "${stem}-saveslot"
 if s.count(old_reach)!=1: raise SystemExit(f'saveslot screenshot anchor count={s.count(old_reach)}')
 s=s.replace(old_reach,new_reach,1)
 
+old_chooseclub='''  shot "$stem-chooseclub"
+  # Stock blank-name behavior: first OK supplies default name, second advances.
+  press "$OK_X" "$OK_Y" 2
+  press "$OK_X" "$OK_Y" 3
+'''
+new_chooseclub='''  shot "$stem-chooseclub"
+  # A fresh stock Career can show a welcome message over ChooseClub first.
+  # Dismiss it separately, then preserve the stock two-OK blank-name flow.
+  accept_message_if_present
+  press "$OK_X" "$OK_Y" 2
+  press "$OK_X" "$OK_Y" 3
+'''
+if s.count(old_chooseclub)!=1: raise SystemExit(f'chooseclub flow anchor count={s.count(old_chooseclub)}')
+s=s.replace(old_chooseclub,new_chooseclub,1)
+
 old_press='press "$CAREER_X" "$CAREER_Y" 3'
 count=s.count(old_press)
 if count != 3: raise SystemExit(f'expected 3 Career fixed taps, got {count}')
 s=s.replace(old_press,'press_career_when_ready')
 
 out.write_text(s)
-print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic stock_coords=offset-aware')
+print(f'RUNTIME_GATE_V2_PATCHED=PASS career_taps={count} cloud_harness=enabled saveslot_rows=dynamic stock_coords=offset-aware chooseclub_intro=handled')
