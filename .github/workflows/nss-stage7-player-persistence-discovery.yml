@@ -20,7 +20,8 @@ jobs:
           python3 -m py_compile stage7_public/dump_player_persistence.py stage7_public/dump_stage7_core.py stage1_public/dex_inspect.py
           PYTHONPATH=stage7_public python3 -m unittest \
             stage7_public/test_persistence_fixture_patch.py \
-            stage7_public/test_verify_player_tokens.py -v
+            stage7_public/test_verify_player_tokens.py \
+            stage7_public/test_verify_rebuilt_persistence_fixture.py -v
           bash -n stage7_public/apply_persistence_fixture_dex.sh
       - name: Download exact publisher-stock NSS 4.31
         run: |
