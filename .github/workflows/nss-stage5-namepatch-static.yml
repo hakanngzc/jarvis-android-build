@@ -1,0 +1,21 @@
+name: NSS Stage5 Name-Only Patch Static
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-stage5-save-compat-20261023
+    paths:
+      - '.github/workflows/nss-stage5-namepatch-static.yml'
+      - 'stage5/**'
+
+permissions:
+  contents: read
+
+jobs:
+  namepatch-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Run Stage5 name-only patch contract
+        run: python -m unittest stage5/test_name_only_patch.py -v
