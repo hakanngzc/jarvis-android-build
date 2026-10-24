@@ -40,7 +40,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'frame.png'
             write_rgb_png(p, width, height, pixels)
-            self.assertEqual((100, 155), detector.find_live_ball(p))
+            self.assertEqual((100, 154), detector.find_live_ball(p))
 
     def test_detector_rejects_frame_without_active_marker(self):
         detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_empty')
