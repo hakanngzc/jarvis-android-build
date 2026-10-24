@@ -9,25 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  inspect-residual-targets:
+  residual-contract-red:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download exact NSS 4.31 publisher stock
-        run: |
-          set -euo pipefail
-          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
-          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
-          curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o /tmp/nss431.xapk
-          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  /tmp/nss431.xapk' | sha256sum -c -
-          unzip -p /tmp/nss431.xapk com.newstargames.newstarsoccer.apk > /tmp/base.apk
-          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  /tmp/base.apk' | sha256sum -c -
-      - name: Dump target methods
-        run: python3 stage2_residual_tools/inspect_residual_targets.py /tmp/base.apk | tee residual-targets.txt
-      - name: Upload inspection
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: residual-dex-targets
-          path: residual-targets.txt
-          retention-days: 7
+      - name: Run residual contract tests
+        run: python3 -m unittest test_stage2_residual_contract.py test_stage4_natural_policy.py -v
