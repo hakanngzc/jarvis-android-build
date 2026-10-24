@@ -19,6 +19,10 @@ from dex_inspect import Dex  # noqa: E402
 
 ANDROID_GAME = 'Lcom/newstargames/newstarsoccer/AndroidGame;'
 ACTIVITY = 'Landroid/app/Activity;'
+# Dalvik invoke-super uses a non-interface method_id to dispatch to the closest
+# superclass implementation. Reusing AndroidGame's existing method refs avoids
+# adding Activity.onStart/onRestart entries to the DEX method-id table.
+SUPER_REF_OWNER = ANDROID_GAME
 TARGET_SUPERS = {
     'onRestart': 'onRestart',
     'onStart': 'onStart',
@@ -64,7 +68,7 @@ def patch_dex(data: bytes, dex_name: str) -> tuple[bytes, bool, list[dict] | Non
             raise ValueError(f'partial AndroidGame lifecycle target set: found {present}, expected {sorted(TARGET_SUPERS)}')
 
         resume_id = _unique_method_ref(d, ACTIVITY, 'onResume')
-        target_refs = {name: _unique_method_ref(d, ACTIVITY, super_name) for name, super_name in TARGET_SUPERS.items()}
+        target_refs = {name: _unique_method_ref(d, SUPER_REF_OWNER, name) for name in TARGET_SUPERS}
         blob = bytearray(data)
         evidence_rows: list[dict] = []
 
@@ -73,6 +77,11 @@ def patch_dex(data: bytes, dex_name: str) -> tuple[bytes, bool, list[dict] | Non
             if len(hits) != 1:
                 raise ValueError(f'expected one coded {ANDROID_GAME}->{method_name}, found {len(hits)}')
             _kind, method_id, _method_tuple, access, code = hits[0]
+            if target_refs[method_name] != method_id:
+                raise ValueError(
+                    f'{ANDROID_GAME}->{method_name} declaration ref mismatch: '
+                    f'{target_refs[method_name]} != {method_id}'
+                )
             registers, ins, outs, tries, insns_size, _ = d.disasm(code)
             if tries:
                 raise ValueError(f'AndroidGame.{method_name} has try handlers; refusing unsafe patch')
@@ -107,9 +116,10 @@ def patch_dex(data: bytes, dex_name: str) -> tuple[bytes, bool, list[dict] | Non
                 'after_insns_sha256': hashlib.sha256(struct.pack('<28H', *replacement)).hexdigest(),
                 'changed_code_unit_indices': diffs,
                 'activity_onresume_method_ref': resume_id,
-                'target_activity_method_ref': target_refs[method_name],
+                'target_super_method_ref_owner': SUPER_REF_OWNER,
+                'target_super_method_ref': target_refs[method_name],
                 'before': 'invoke-super Activity.onResume',
-                'after': f'invoke-super Activity.{super_name}',
+                'after': f'invoke-super AndroidGame.{super_name} (closest-superclass dispatch)',
                 'candidate_fix': True,
             })
 
@@ -160,14 +170,14 @@ def main() -> int:
     args.output_apk.write_bytes(patched)
     args.evidence.parent.mkdir(parents=True, exist_ok=True)
     args.evidence.write_text(json.dumps({
-        'schema': 2,
+        'schema': 3,
         'input_apk': str(args.input_apk),
         'output_apk': str(args.output_apk),
         'patches': evidence,
         'verdict': 'LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED',
     }, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     for row in evidence:
-        print(f"ANDROIDGAME_{row['method'].upper()}_SUPER={row['after'].split('Activity.', 1)[1]}")
+        print(f"ANDROIDGAME_{row['method'].upper()}_SUPER_REF={ANDROID_GAME}->{row['method']}")
     print('ANDROIDGAME_ONPAUSE_UNCHANGED=true')
     print('ANDROIDGAME_ONRESUME_UNCHANGED=true')
     print('VERDICT=LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED')
