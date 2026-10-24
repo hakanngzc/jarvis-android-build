@@ -1,9 +1,18 @@
 import unittest
 
-from patch_activity_super_lifecycle import rewrite_super_call
+from patch_activity_super_lifecycle import TARGET_SUPERS, rewrite_super_call
 
 
 class ActivitySuperLifecyclePatchTest(unittest.TestCase):
+    def test_exact_broken_stock_super_calls_are_targeted(self):
+        self.assertEqual(TARGET_SUPERS, {
+            'onRestart': 'onRestart',
+            'onStart': 'onStart',
+            'onStop': 'onStop',
+        })
+        self.assertNotIn('onPause', TARGET_SUPERS)
+        self.assertNotIn('onResume', TARGET_SUPERS)
+
     def test_rewrites_only_invoke_super_method_index(self):
         stock=[0x106f,23,0x0002,0x0154,0x1234,0x0054]
         out=rewrite_super_call(stock, resume_method_id=23, target_method_id=25)
