@@ -1,5 +1,15 @@
+import importlib.util
 import unittest
 from pathlib import Path
+
+
+def load_module(path_str: str, name: str):
+    path = Path(path_str)
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
@@ -34,6 +44,19 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
             'fatal_check',
         ):
             self.assertIn(required, text)
+
+    def test_prematch_preparer_requires_stock_play_hit_before_live_match(self):
+        p = Path('stage4_tools/prepare_stage4_prematch.py')
+        self.assertTrue(p.exists(), 'Stage4 prematch hardener must exist')
+        module = load_module(str(p), 'prepare_stage4_prematch')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        self.assertIn("HitGadget: match.btn_Play", prepared)
+        self.assertIn('prematch Play attempt $kickoff_attempt/4', prepared)
+        self.assertIn('kickoff_hit=0', prepared)
+        self.assertIn('could not register stock match.btn_Play after 4 attempts', prepared)
+        self.assertNotIn('patch_stage4_new_season_probe.py', prepared)
+        self.assertNotIn('m_skipMatches', prepared)
+        self.assertNotIn('m_Simulate', prepared)
 
 
 if __name__ == '__main__':
