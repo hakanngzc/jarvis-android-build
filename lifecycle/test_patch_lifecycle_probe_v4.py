@@ -7,7 +7,7 @@ from patch_lifecycle_probe_v4 import (
     CAREER_ROUNDTRIP_ANCHOR,
     harden_fatal_check,
     harden_generated_script,
-    inject_gl_resume_patch,
+    inject_gl_context_survival_patch,
     inject_stress_roundtrips,
 )
 
@@ -67,11 +67,13 @@ class LifecyclePatchV4Test(unittest.TestCase):
         with self.assertRaises(ValueError):
             harden_fatal_check('fatal_check(){ echo changed; }')
 
-    def test_injects_candidate_gl_resume_race_patch_after_startup_harness(self):
-        out = inject_gl_resume_patch(GL_DRIVER_ANCHOR)
+    def test_injects_candidate_gl_context_survival_patch_after_startup_harness(self):
+        out = inject_gl_context_survival_patch(GL_DRIVER_ANCHOR)
         self.assertIn('base-career-probe-pre-gl.apk', out)
-        self.assertIn('lifecycle/patch_gl_resume_race.py', out)
-        self.assertIn('LIFECYCLE_GL_RESUME_PATCH.json', out)
+        self.assertIn('lifecycle/patch_gl_context_survival.py', out)
+        self.assertIn('LIFECYCLE_GL_CONTEXT_SURVIVAL_PATCH.json', out)
+        self.assertNotIn('patch_gl_resume_race.py', out)
+        self.assertNotIn('LIFECYCLE_GL_RESUME_PATCH.json', out)
 
     def test_stresses_real_recents_roundtrip_five_times(self):
         out = inject_stress_roundtrips(CAREER_ROUNDTRIP_ANCHOR)
