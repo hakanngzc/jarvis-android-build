@@ -145,9 +145,23 @@ restart_saved_career(){
   fatal_check
 }
 
+capture_season_entry_diagnostics(){
+  local season="$1" attempt="$2" prefix
+  prefix="$OUT/season-${season}-leaguefixtures-attempt-${attempt}"
+  shot "season-${season}-leaguefixtures-attempt-${attempt}-before"
+  adb shell dumpsys activity activities > "${prefix}-activity.txt" 2>/dev/null || true
+  adb shell dumpsys window windows > "${prefix}-window.txt" 2>/dev/null || true
+  adb shell pidof "$PKG" > "${prefix}-pid.txt" 2>/dev/null || true
+  adb logcat -d -v threadtime > "${prefix}-before-logcat.txt" 2>/dev/null || true
+  adb shell uiautomator dump /sdcard/endurance-entry.xml >/dev/null 2>&1 || true
+  adb shell cat /sdcard/endurance-entry.xml > "${prefix}-ui.xml" 2>/dev/null || true
+  printf 'last_active=%s\n' "$(last_active_screen)" > "${prefix}-state.txt"
+}
+
 enter_leaguefixtures(){
   local season="$1" attempt
   for attempt in 1 2 3; do
+    capture_season_entry_diagnostics "$season" "$attempt"
     clear_log
     press_play 3
     if wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 10 "season-${season}-leaguefixtures-attempt-${attempt}"; then
