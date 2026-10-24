@@ -79,6 +79,16 @@ class Stage2ResidualContractTests(unittest.TestCase):
                 self.assertIn('SAVE CAREER', prepared)
                 self.assertNotIn('settle_bootstrap_to_gamemenu', prepared)
 
+    def test_prepared_gates_use_proven_visual_chooseclub_progression(self):
+        preparer = load_preparer()
+        for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
+            with self.subTest(gate=gate):
+                prepared = preparer.prepare_text(Path(gate).read_text(encoding='utf-8'))
+                self.assertIn('press_and_require_change', prepared)
+                self.assertIn('fresh-setup-ok-$n', prepared)
+                self.assertIn('ChooseClub visual step did not change', prepared)
+                self.assertIn('Create Screen:[[:space:]]*choosenation', prepared)
+
     def test_gate_preparer_accepts_both_residual_gate_sources(self):
         preparer = load_preparer()
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
