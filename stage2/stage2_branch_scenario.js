@@ -35,67 +35,90 @@ Java.perform(function () {
     return offer;
   }
 
-  try {
-    const Globals = Java.use('com.newstargames.newstarsoccer.bb_');
-    const Offer = Java.use('com.newstargames.newstarsoccer.c_TContractOffer');
-    const Club = Java.use('com.newstargames.newstarsoccer.c_TClub');
-    const Contract = Java.use('com.newstargames.newstarsoccer.c_TScreen_Contract');
-    const Retirement = Java.use('com.newstargames.newstarsoccer.c_TScreen_Retirement');
-    const player = Globals.g_player.value;
-    if (player === null) throw new Error('g_player is null');
+  const Globals = Java.use('com.newstargames.newstarsoccer.bb_');
+  const Offer = Java.use('com.newstargames.newstarsoccer.c_TContractOffer');
+  const Club = Java.use('com.newstargames.newstarsoccer.c_TClub');
+  const Contract = Java.use('com.newstargames.newstarsoccer.c_TScreen_Contract');
+  const Retirement = Java.use('com.newstargames.newstarsoccer.c_TScreen_Retirement');
+  const BBAndroidGame = Java.use('com.newstargames.newstarsoccer.BBAndroidGame');
+  const Thread = Java.use('java.lang.Thread');
 
-    const before = readState(player);
-    let targetClubId = before.clubid;
-    let branchReturn = null;
+  function executeScenario() {
+    try {
+      const player = Globals.g_player.value;
+      if (player === null) throw new Error('g_player is null');
 
-    if (SCENARIO === 'accept') {
-      const offer = makeOffer(Offer, player.m_myclub.value);
-      Contract.m_SetUpScreen(offer, false);
-      branchReturn = Contract.m_ButtonAccept(false);
-    } else if (SCENARIO === 'reject') {
-      const offer = makeOffer(Offer, player.m_myclub.value);
-      Contract.m_SetUpScreen(offer, false);
-      branchReturn = Contract.m_ButtonReject();
-    } else if (SCENARIO === 'transfer') {
-      let target = null;
-      for (let delta = 1; delta <= 256; delta++) {
-        const candidate = Club.m_SelectById(before.clubid + delta, false);
-        if (candidate !== null && candidate.m_id.value !== before.clubid) {
-          target = candidate;
-          break;
+      const before = readState(player);
+      let targetClubId = before.clubid;
+      let branchReturn = null;
+
+      if (SCENARIO === 'accept') {
+        const offer = makeOffer(Offer, player.m_myclub.value);
+        Contract.m_SetUpScreen(offer, false);
+        branchReturn = Contract.m_ButtonAccept(false);
+      } else if (SCENARIO === 'reject') {
+        const offer = makeOffer(Offer, player.m_myclub.value);
+        Contract.m_SetUpScreen(offer, false);
+        branchReturn = Contract.m_ButtonReject();
+      } else if (SCENARIO === 'transfer') {
+        let target = null;
+        for (let delta = 1; delta <= 256; delta++) {
+          const candidate = Club.m_SelectById(before.clubid + delta, false);
+          if (candidate !== null && candidate.m_id.value !== before.clubid) {
+            target = candidate;
+            break;
+          }
         }
+        if (target === null) throw new Error('could not find a different valid club within +256 IDs');
+        targetClubId = target.m_id.value;
+        const offer = makeOffer(Offer, target);
+        Contract.m_SetUpScreen(offer, false);
+        branchReturn = Contract.m_ButtonAccept(false);
+      } else if (SCENARIO === 'retirement') {
+        Retirement.m_SetUpScreen();
+        const score = Retirement.m_score.value;
+        score[0] = SENTINEL_RETIRED;
+        branchReturn = Retirement.m_ButtonPlay();
+      } else {
+        throw new Error('unknown Stage2 scenario: ' + SCENARIO);
       }
-      if (target === null) throw new Error('could not find a different valid club within +256 IDs');
-      targetClubId = target.m_id.value;
-      const offer = makeOffer(Offer, target);
-      Contract.m_SetUpScreen(offer, false);
-      branchReturn = Contract.m_ButtonAccept(false);
-    } else if (SCENARIO === 'retirement') {
-      Retirement.m_SetUpScreen();
-      const score = Retirement.m_score.value;
-      score[0] = SENTINEL_RETIRED;
-      branchReturn = Retirement.m_ButtonPlay();
-    } else {
-      throw new Error('unknown Stage2 scenario: ' + SCENARIO);
-    }
 
-    const after = readState(player);
-    send({
-      type: 'stage2-scenario',
-      ok: true,
-      scenario: SCENARIO,
-      before: before,
-      after: after,
-      target_clubid: targetClubId,
-      branch_return: branchReturn,
-      sentinels: {
-        wage: SENTINEL_WAGE,
-        goalbonus: SENTINEL_GOAL,
-        assistbonus: SENTINEL_ASSIST,
-        retired: SENTINEL_RETIRED
-      }
-    });
-  } catch (e) {
-    send({type: 'stage2-scenario', ok: false, scenario: SCENARIO, error: String(e), stack: e.stack || ''});
+      const after = readState(player);
+      send({
+        type: 'stage2-scenario',
+        ok: true,
+        scenario: SCENARIO,
+        thread_name: Thread.currentThread().getName().toString(),
+        before: before,
+        after: after,
+        target_clubid: targetClubId,
+        branch_return: branchReturn,
+        sentinels: {
+          wage: SENTINEL_WAGE,
+          goalbonus: SENTINEL_GOAL,
+          assistbonus: SENTINEL_ASSIST,
+          retired: SENTINEL_RETIRED
+        }
+      });
+    } catch (e) {
+      send({
+        type: 'stage2-scenario',
+        ok: false,
+        scenario: SCENARIO,
+        thread_name: Thread.currentThread().getName().toString(),
+        error: String(e),
+        stack: e.stack || ''
+      });
+    }
   }
+
+  let fired = false;
+  const onDrawFrame = BBAndroidGame.onDrawFrame.overload('javax.microedition.khronos.opengles.GL10');
+  onDrawFrame.implementation = function (gl) {
+    if (!fired) {
+      fired = true;
+      executeScenario();
+    }
+    return onDrawFrame.call(this, gl);
+  };
 });
