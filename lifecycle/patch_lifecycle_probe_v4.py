@@ -62,6 +62,73 @@ for lifecycle_cycle in 1 2 3 4 5; do
   lifecycle_background_roundtrip "career-${lifecycle_cycle}"
 done'''
 
+NAV_ANCHOR = r'''# Drive normal stock UI to the next playable match.
+state=gamemenu
+MATCH_REACHED=0
+for step in $(seq 1 32); do
+  clear_log
+  case "$state" in
+    gamemenu|leaguefixtures|league) press_play 3 ;;
+    message) press_message_accept 3 ;;
+    match) MATCH_REACHED=1; break ;;
+    *) sleep 2 ;;
+  esac
+  state="$(wait_state 'match message leaguefixtures league gamemenu' 25 || true)"
+  {
+    echo "step=$step state=$state"
+    adb logcat -d -v brief 2>/dev/null || true
+  } >> "$OUT/navigation.log"
+  if [ "$state" = match ]; then MATCH_REACHED=1; break; fi
+done
+[ "$MATCH_REACHED" -eq 1 ] || { echo 'No playable Career match reached'; shot no-match; exit 203; }'''
+
+NAV_REPLACEMENT = r'''# Drive normal stock UI to the next playable match. Preserve the last known
+# screen when a single emulator touch is dropped; retry that same action only
+# within a strict budget instead of falling into a long unknown-state loop.
+state=gamemenu
+last_known=gamemenu
+unknown_retries=0
+MATCH_REACHED=0
+for step in $(seq 1 32); do
+  if [ "$state" = unknown ]; then
+    state="$last_known"
+  fi
+  clear_log
+  case "$state" in
+    gamemenu|leaguefixtures|league) press_play 3 ;;
+    message) press_message_accept 3 ;;
+    match) MATCH_REACHED=1; break ;;
+    *) echo "unexpected navigation state=$state"; sleep 1 ;;
+  esac
+  next_state="$(wait_state 'match message leaguefixtures league gamemenu' 10 || true)"
+  fatal_check
+  {
+    echo "step=$step state=$state next_state=$next_state last_known=$last_known unknown_retries=$unknown_retries"
+    adb logcat -d -v brief 2>/dev/null || true
+  } >> "$OUT/navigation.log"
+  if [ "$next_state" = match ]; then
+    state=match
+    last_known=match
+    MATCH_REACHED=1
+    break
+  fi
+  if [ "$next_state" = unknown ]; then
+    unknown_retries=$((unknown_retries+1))
+    if [ "$unknown_retries" -le 3 ]; then
+      state="$last_known"
+      shot "navigation-${last_known}-retry-${unknown_retries}"
+      continue
+    fi
+    echo "navigation touch/state retry budget exhausted at $last_known"
+    shot navigation-retry-exhausted
+    exit 203
+  fi
+  unknown_retries=0
+  state="$next_state"
+  last_known="$next_state"
+done
+[ "$MATCH_REACHED" -eq 1 ] || { echo 'No playable Career match reached'; shot no-match; exit 203; }'''
+
 HIERARCHY_REPLACEMENT = r'''  adb shell uiautomator dump /sdcard/nss-recents.xml >/dev/null 2>&1 || true
   adb shell cat /sdcard/nss-recents.xml > "$OUT/lifecycle-${tag}-recents-ui.xml" 2>/dev/null || true
   python3 - "$OUT/lifecycle-${tag}-recents-ui.xml" "$WORK/lifecycle-${tag}-recents-target.txt" <<'PY'
@@ -184,12 +251,20 @@ def inject_stress_roundtrips(text: str) -> str:
     return text.replace(CAREER_ROUNDTRIP_ANCHOR, CAREER_ROUNDTRIP_REPLACEMENT, 1)
 
 
+def harden_match_navigation(text: str) -> str:
+    count = text.count(NAV_ANCHOR)
+    if count != 1:
+        raise ValueError(f'expected one match navigation anchor, found {count}')
+    return text.replace(NAV_ANCHOR, NAV_REPLACEMENT, 1)
+
+
 def patch_script(text: str) -> str:
     generated = v3_patch_script(text)
     generated = harden_generated_script(generated)
     generated = harden_fatal_check(generated)
     generated = inject_gl_context_survival_patch(generated)
     generated = inject_stress_roundtrips(generated)
+    generated = harden_match_navigation(generated)
     return generated
 
 
