@@ -68,14 +68,16 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('NSS-owned ANR detected', text, 'all other package ANRs must still fail the runtime gate')
         self.assertIn('runtime-fatal-logcat.txt', text, 'real crash/ANR evidence must still be preserved')
 
-    def test_both_gates_use_durable_save_then_restart_instead_of_news_settlement(self):
+    def test_prepared_gates_use_durable_save_then_restart_not_news_settlement(self):
+        preparer = load_preparer()
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
-                text = Path(gate).read_text(encoding='utf-8')
-                self.assertIn('Fresh Career save evidence missing', text)
-                self.assertIn('bootstrap-restart', text)
-                self.assertIn('SAVE CAREER', text)
-                self.assertNotIn('settle_bootstrap_to_gamemenu', text)
+                source = Path(gate).read_text(encoding='utf-8')
+                prepared = preparer.prepare_text(source)
+                self.assertIn('Fresh Career save evidence missing', prepared)
+                self.assertIn('bootstrap-restart', prepared)
+                self.assertIn('SAVE CAREER', prepared)
+                self.assertNotIn('settle_bootstrap_to_gamemenu', prepared)
 
     def test_gate_preparer_accepts_both_residual_gate_sources(self):
         preparer = load_preparer()
@@ -87,7 +89,6 @@ class Stage2ResidualContractTests(unittest.TestCase):
                 self.assertIn('tap 795 1399', prepared)
                 self.assertIn('tap 935 1850', prepared)
                 self.assertIn('Fresh Career save evidence missing', prepared)
-                self.assertNotIn('settle_bootstrap_to_gamemenu', prepared)
 
 
 if __name__ == '__main__':
