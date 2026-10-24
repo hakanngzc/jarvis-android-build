@@ -50,6 +50,14 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('tap 795 1399', text, 'use the proven API29 Pixel4 Career target')
         self.assertIn('tap 935 1850', text, 'use the proven API29 Pixel4 Play target')
 
+    def test_gate_preparer_distinguishes_gms_measurement_anr(self):
+        p = Path('stage2_residual_tools/prepare_stage2_gate.py')
+        text = p.read_text(encoding='utf-8')
+        self.assertIn('AppMeasurementService', text, 'known GMS-free measurement-service ANR must be classified explicitly')
+        self.assertIn('ignored-gms-measurement-anr.txt', text, 'ignored measurement ANR must remain preserved as evidence')
+        self.assertIn('NSS-owned ANR detected', text, 'all other package ANRs must still fail the runtime gate')
+        self.assertIn('runtime-fatal-logcat.txt', text, 'real crash/ANR evidence must still be preserved')
+
 
 if __name__ == '__main__':
     unittest.main()
