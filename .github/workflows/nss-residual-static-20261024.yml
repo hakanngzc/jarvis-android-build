@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Unit regressions
         working-directory: residual_static
-        run: python3 -m unittest test_nss_residual_static_analysis.py -v
+        run: python3 -m unittest test_nss_residual_static_analysis.py test_refine_catchall_owners.py -v
       - name: Download and verify public stock NSS 4.31
         run: |
           set -euo pipefail
@@ -39,11 +39,15 @@ jobs:
             --xapk "$RUNNER_TEMP/nss-residual-static/stock.xapk" \
             --out "$RUNNER_TEMP/nss-residual-static/out/NSS431_RESIDUAL_STATIC_ANALYSIS.json" \
             | tee "$RUNNER_TEMP/nss-residual-static/out/summary.txt"
+          python3 residual_static/refine_catchall_owners.py \
+            "$RUNNER_TEMP/nss-residual-static/base.apk" \
+            --out "$RUNNER_TEMP/nss-residual-static/out/NSS431_CATCHALL_OWNER_REFINEMENT.json" \
+            | tee "$RUNNER_TEMP/nss-residual-static/out/owner-refinement-summary.txt"
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          p=Path(os.environ['RUNNER_TEMP'])/'nss-residual-static/out/NSS431_RESIDUAL_STATIC_ANALYSIS.json'
-          d=json.loads(p.read_text())
+          root=Path(os.environ['RUNNER_TEMP'])/'nss-residual-static/out'
+          d=json.loads((root/'NSS431_RESIDUAL_STATIC_ANALYSIS.json').read_text())
           c=d['class_counts']; s=d['screen_reconciliation']; r=d['catchall_relationship_summary']
           assert c['app_classes']==2747,c
           assert c['canonical_screen_surfaces']==92,c
@@ -54,6 +58,9 @@ jobs:
           assert len(s['canonical_only'])==5,s
           assert not s['legacy_only'],s
           assert r['classes_mapped']==934,r
+          o=json.loads((root/'NSS431_CATCHALL_OWNER_REFINEMENT.json').read_text())
+          assert o['classes_mapped']==934,o
+          assert all('incoming_owners' in x and 'declared_methods' in x and 'declared_fields' in x for x in o['classes'])
           print('VERDICT=NSS_RESIDUAL_STATIC_RECONCILIATION_PASS')
           PY
       - name: Upload static evidence
@@ -62,4 +69,4 @@ jobs:
         with:
           name: nss-residual-static-20261024
           path: ${{ runner.temp }}/nss-residual-static/out/
-          retention-days: 2
+          retention-days: 90
