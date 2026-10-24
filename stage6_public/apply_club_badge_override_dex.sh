@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 4 ]; then
-  echo "usage: $0 BASE.apk OUT.apk WORK_DIR REPORT.json" >&2
+if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
+  echo "usage: $0 BASE.apk OUT.apk WORK_DIR REPORT.json [OVERRIDES_OR_MANIFEST.json]" >&2
   exit 2
 fi
-BASE="$1"; OUT="$2"; WORK="$3"; REPORT="$4"
+BASE="$1"; OUT="$2"; WORK="$3"; REPORT="$4"; MAPPING="${5:-}"
 : "${BAKSMALI_JAR:?BAKSMALI_JAR is required}"
 : "${SMALI_JAR:?SMALI_JAR is required}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,8 +30,7 @@ import re,sys
 src,out,label=sys.argv[1:]
 text=open(src,encoding='utf-8').read()
 m=re.search(r'(?ms)^\.method[^\n]*\bm_CreateClub\([^\n]*\n.*?^\.end method\s*$',text)
-if not m:
-    raise SystemExit('m_CreateClub method not found in '+src)
+if not m: raise SystemExit('m_CreateClub method not found in '+src)
 block=m.group(0)
 open(out,'w',encoding='utf-8').write(block+'\n')
 print(label+'=PASS lines='+str(len(block.splitlines())))
@@ -39,9 +38,9 @@ PY
 }
 
 extract_method "$TARGET" "$DIAG" STOCK_M_CREATE_CLUB_DIAG
-
-python3 "$ROOT/stage6_public/patch_club_badge_override.py" \
-  "$TARGET" "$WORK/c_TClub-patched.smali" "$WORK/override-report.json"
+PATCH=(python3 "$ROOT/stage6_public/patch_club_badge_override.py" "$TARGET" "$WORK/c_TClub-patched.smali" "$WORK/override-report.json")
+if [ -n "$MAPPING" ]; then PATCH+=("$MAPPING"); fi
+"${PATCH[@]}"
 mv "$WORK/c_TClub-patched.smali" "$TARGET"
 
 BEFORE_CLASSES="$(find "$WORK/smali" -name '*.smali' -type f | wc -l | tr -d ' ')"
@@ -53,43 +52,7 @@ VERIFY_TARGET="$WORK/verify/com/newstargames/newstarsoccer/c_TClub.smali"
 AFTER_CLASSES="$(find "$WORK/verify" -name '*.smali' -type f | wc -l | tr -d ' ')"
 [ "$BEFORE_CLASSES" = "$AFTER_CLASSES" ]
 extract_method "$VERIFY_TARGET" "$REBUILT_DIAG" REBUILT_M_CREATE_CLUB_DIAG
-
-# DEX does not preserve source label names. Verify rebuilt semantics: both ID
-# comparisons, both style writes, two conditional branches, stock modulo-15,
-# and restoration of the stock divisor register before later field parsing.
-python3 - "$REBUILT_DIAG" "$WORK/override-report.json" <<'PY'
-import json,re,sys
-smali_path,report_path=sys.argv[1:]
-text=open(smali_path,encoding='utf-8').read()
-r=json.load(open(report_path,encoding='utf-8'))
-regs=r['captured_registers']; i=regs['id']; c=regs['club']; d=regs['divisor']
-style='Lcom/newstargames/newstarsoccer/c_TClub;->m_badgestyle:I'
-required=[
-    f'const/16 {d}, 0xc45', f'const/16 {i}, 0x10',
-    f'const/16 {d}, 0xc55', f'const/16 {i}, 0x11',
-    f'rem-int/2addr {i}, {d}',
-]
-for needle in required:
-    if needle not in text:
-        raise SystemExit('rebuilt override verification missing: '+needle)
-if text.count(f'iput {i}, {c}, {style}') < 3:
-    raise SystemExit('expected stock fallback + two badge style writes after rebuild')
-if len(re.findall(r'^\s*if-ne\s+'+re.escape(i)+r',\s*'+re.escape(d)+r',\s*:\S+',text,re.M)) < 2:
-    raise SystemExit('expected two rebuilt conditional ID branches')
-# The divisor is changed to 0xc55 in the second comparison. A later stock
-# aget-object uses the same register as field index 15, so a 0xf restore must
-# occur after 0xc55 and before that next array read.
-pos_c55=text.index(f'const/16 {d}, 0xc55')
-pos_restore=text.find(f'const/16 {d}, 0xf',pos_c55)
-if pos_restore < 0:
-    raise SystemExit('divisor register restore missing after override')
-pos_next_aget=text.find(f'aget-object {d},',pos_c55)
-if pos_next_aget >= 0 and pos_restore > pos_next_aget:
-    raise SystemExit('divisor restore occurs after next array-index use')
-if not r.get('divisor_register_restored'):
-    raise SystemExit('override report does not attest divisor restoration')
-print('REBUILT_BADGE_OVERRIDE_VERIFY=PASS registers='+json.dumps(regs,sort_keys=True)+' label_independent=true divisor_restored=true')
-PY
+PYTHONPATH="$ROOT/stage6_public" python3 "$ROOT/stage6_public/verify_rebuilt_badge_override.py" "$REBUILT_DIAG" "$WORK/override-report.json"
 
 python3 - "$BASE" "$OUT" "$WORK/classes3-patched.dex" "$WORK/override-report.json" "$REPORT" "$BEFORE_CLASSES" <<'PY'
 import hashlib,json,sys,zipfile
@@ -99,8 +62,7 @@ src=Path(src); dst=Path(dst); dex_path=Path(dex_path)
 newdex=dex_path.read_bytes(); override=json.load(open(override_path,encoding='utf-8'))
 def sha(b): return hashlib.sha256(b).hexdigest()
 def signature(n):
-    u=n.upper()
-    return u=='META-INF/MANIFEST.MF' or (u.startswith('META-INF/') and u.endswith(('.SF','.RSA','.DSA','.EC')))
+    u=n.upper(); return u=='META-INF/MANIFEST.MF' or (u.startswith('META-INF/') and u.endswith(('.SF','.RSA','.DSA','.EC')))
 with zipfile.ZipFile(src) as zin:
     olddex=zin.read('classes3.dex')
     dex_hashes_before={n:sha(zin.read(n)) for n in zin.namelist() if n.startswith('classes') and n.endswith('.dex')}
@@ -126,6 +88,7 @@ report={
   'override':override,
 }
 Path(report_path).parent.mkdir(parents=True,exist_ok=True)
-Path(report_path).write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-print('CLUB_BADGE_OVERRIDE_DEX=PASS classes3_only=changed fallback=id%15 overrides=3141:16,3157:17 divisor_restored=true')
+Path(report_path).write_text(json.dumps(report,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+pairs=','.join(f'{k}:{v}' for k,v in sorted(override['overrides'].items(),key=lambda kv:int(kv[0])))
+print(f'CLUB_BADGE_OVERRIDE_DEX=PASS classes3_only=changed fallback=id%15 overrides={pairs} divisor_restored=true')
 PY
