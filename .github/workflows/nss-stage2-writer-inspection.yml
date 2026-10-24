@@ -1,0 +1,52 @@
+name: NSS Stage2 Writer Inspection
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-stage2-writer-inspection.yml'
+      - 'stage2/inspect_stage2_writers.py'
+      - 'residual_static/nss_residual_static_analysis.py'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-writers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download verified public stock NSS 4.31
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/nss-stage2-writers"; mkdir -p "$WORK/out"
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' \
+            -e 'https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31' \
+            'https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137' -o "$WORK/stock.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$WORK/stock.xapk" | sha256sum -c -
+          unzip -p "$WORK/stock.xapk" com.newstargames.newstarsoccer.apk > "$WORK/base.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$WORK/base.apk" | sha256sum -c -
+      - name: Inspect exact writers and callers
+        run: |
+          WORK="$RUNNER_TEMP/nss-stage2-writers"
+          python3 stage2/inspect_stage2_writers.py "$WORK/base.apk" --out "$WORK/out/STAGE2_WRITER_INSPECTION.json" | tee "$WORK/out/summary.txt"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'nss-stage2-writers/out/STAGE2_WRITER_INSPECTION.json').read_text())
+          assert len(d['targets'])==3
+          for t in d['targets']:
+              assert t['insns_sha256'] and t['instruction_units']>0,t
+              assert t['return'] is not None,t
+          print('VERDICT=STAGE2_WRITER_INSPECTION_PASS')
+          PY
+      - name: Upload writer inspection evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage2-writer-inspection-20261024
+          path: ${{ runner.temp }}/nss-stage2-writers/out/
+          retention-days: 30
