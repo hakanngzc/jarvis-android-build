@@ -10,6 +10,44 @@ CENTER_ANCHOR = r'''  size="$(adb shell wm size 2>/dev/null | tr -d '\r' | grep 
   adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
   sleep 4'''
 
+FATAL_ANCHOR = r'''fatal_check(){
+  adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
+  if grep -qE 'ANR in com\.newstargames\.newstarsoccer|Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt"; then
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+}'''
+
+FATAL_REPLACEMENT = r'''fatal_check(){
+  adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
+
+  # Crash markers are never ignored.
+  if grep -qE 'Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt"; then
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+
+  # API29 AOSP images have no Play Services. NSS 4.31's legacy measurement
+  # service can therefore ANR even while the game's own process/UI remains
+  # healthy. Ignore only that exact service-only ANR; every other NSS ANR
+  # remains fail-closed.
+  local anr_count measurement_count
+  anr_count="$(grep -cE 'ANR in com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt" || true)"
+  measurement_count="$(grep -cE 'Reason: executing service com\.newstargames\.newstarsoccer/com\.google\.android\.gms\.measurement\.AppMeasurementService' "$WORK/live-logcat.txt" || true)"
+  if [ "$anr_count" -gt 0 ]; then
+    if [ "$anr_count" -eq "$measurement_count" ]; then
+      cp "$WORK/live-logcat.txt" "$OUT/runtime-ignored-appmeasurement-anr.txt" || true
+      echo 'Ignoring AppMeasurementService-only emulator ANR'
+      return 0
+    fi
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+}'''
+
 PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
 PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 553 900); press_physical "$x" "$y" "${1:-2}"; }'
 
@@ -99,8 +137,17 @@ PY
   fi
   read -r x y < "$WORK/lifecycle-${tag}-recents-target.txt"
   lifecycle_record "${tag}_recents_target_found" PASS
-  adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
-  sleep 4'''
+  local recents_attempt
+  for recents_attempt in 1 2 3; do
+    adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
+    sleep 2
+    adb shell dumpsys activity activities > "$WORK/lifecycle-${tag}-recents-attempt-${recents_attempt}.txt" 2>/dev/null || true
+    if grep -qE 'ResumedActivity.*com\.newstargames\.newstarsoccer.*MonkeyGame|mResumedActivity.*com\.newstargames\.newstarsoccer.*MonkeyGame|topResumedActivity=.*com\.newstargames\.newstarsoccer.*MonkeyGame' "$WORK/lifecycle-${tag}-recents-attempt-${recents_attempt}.txt"; then
+      echo "NSS foregrounded from verified Recents target on attempt $recents_attempt"
+      break
+    fi
+  done
+  sleep 1'''
 
 
 def harden_generated_script(text: str) -> str:
@@ -114,6 +161,13 @@ def harden_generated_script(text: str) -> str:
     if play_count == 1:
         text = text.replace(PLAY_EDGE_ANCHOR, PLAY_CENTER_REPLACEMENT, 1)
     return text
+
+
+def harden_fatal_check(text: str) -> str:
+    count = text.count(FATAL_ANCHOR)
+    if count != 1:
+        raise ValueError(f'expected one fatal_check anchor, found {count}')
+    return text.replace(FATAL_ANCHOR, FATAL_REPLACEMENT, 1)
 
 
 def inject_gl_resume_patch(text: str) -> str:
@@ -131,7 +185,9 @@ def inject_stress_roundtrips(text: str) -> str:
 
 
 def patch_script(text: str) -> str:
-    generated = harden_generated_script(v3_patch_script(text))
+    generated = v3_patch_script(text)
+    generated = harden_generated_script(generated)
+    generated = harden_fatal_check(generated)
     generated = inject_gl_resume_patch(generated)
     generated = inject_stress_roundtrips(generated)
     return generated
