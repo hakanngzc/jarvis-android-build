@@ -11,7 +11,6 @@ from pathlib import Path
 
 OLD='MonkeyGame'
 NEW='RebornGame'
-HELPER_ENTRY='classes4.dex'
 
 
 def rewrite_manifest_activity(data: bytes) -> tuple[bytes,int]:
@@ -32,16 +31,35 @@ def rewrite_manifest_activity(data: bytes) -> tuple[bytes,int]:
     return out,count
 
 
+def dex_index(name: str) -> int | None:
+    if name=='classes.dex':
+        return 1
+    m=re.fullmatch(r'classes([2-9][0-9]*)\.dex',name)
+    return int(m.group(1)) if m else None
+
+
+def next_helper_entry(names: list[str]) -> tuple[str,list[str]]:
+    existing=[]
+    indices=[]
+    for name in names:
+        idx=dex_index(name)
+        if idx is not None:
+            existing.append(name)
+            indices.append(idx)
+    existing.sort(key=lambda n: dex_index(n) or 0)
+    next_index=max(indices,default=1)+1
+    return f'classes{next_index}.dex',existing
+
+
 def patch_apk_bytes(apk_bytes: bytes, helper_dex: bytes) -> tuple[bytes,dict]:
     source_sha=hashlib.sha256(apk_bytes).hexdigest()
-    existing=[]
     manifest_count=0
     output=io.BytesIO()
     with zipfile.ZipFile(io.BytesIO(apk_bytes),'r') as zin:
         names=zin.namelist()
-        existing=sorted(n for n in names if re.fullmatch(r'classes\d*\.dex',Path(n).name))
-        if HELPER_ENTRY in names:
-            raise ValueError(f'{HELPER_ENTRY} already exists; refusing overwrite')
+        helper_entry,existing=next_helper_entry(names)
+        if helper_entry in names:
+            raise ValueError(f'{helper_entry} already exists; refusing overwrite')
         if 'AndroidManifest.xml' not in names:
             raise ValueError('AndroidManifest.xml missing')
         with zipfile.ZipFile(output,'w') as zout:
@@ -55,7 +73,7 @@ def patch_apk_bytes(apk_bytes: bytes, helper_dex: bytes) -> tuple[bytes,dict]:
                 zi.internal_attr=info.internal_attr; zi.external_attr=info.external_attr
                 zi.create_system=info.create_system; zi.flag_bits=info.flag_bits
                 zout.writestr(zi,data)
-            helper_info=zipfile.ZipInfo(HELPER_ENTRY)
+            helper_info=zipfile.ZipInfo(helper_entry)
             helper_info.compress_type=zipfile.ZIP_DEFLATED
             zout.writestr(helper_info,helper_dex)
     patched=output.getvalue()
@@ -63,7 +81,7 @@ def patch_apk_bytes(apk_bytes: bytes, helper_dex: bytes) -> tuple[bytes,dict]:
         'source_apk_sha256':source_sha,
         'output_apk_sha256':hashlib.sha256(patched).hexdigest(),
         'helper_dex_sha256':hashlib.sha256(helper_dex).hexdigest(),
-        'helper_dex_entry':HELPER_ENTRY,
+        'helper_dex_entry':helper_entry,
         'existing_dex_entries':existing,
         'manifest_replacements':manifest_count,
         'activity_from':'MonkeyGame',
@@ -85,6 +103,7 @@ def main() -> int:
     a.evidence.parent.mkdir(parents=True,exist_ok=True)
     a.evidence.write_text(json.dumps({'schema':1,'patch':evidence,'verdict':'LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH_APPLIED'},indent=2,sort_keys=True)+'\n',encoding='utf-8')
     print('STOCK_DEX_PAYLOADS_REWRITTEN=false')
+    print(f"ACTIVITY_SHIM_DEX_ENTRY={evidence['helper_dex_entry']}")
     print('ACTIVITY_SHIM=RebornGame')
     print('VERDICT=LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH_APPLIED')
     return 0
