@@ -25,6 +25,33 @@ SLOT_REPLACEMENT = '''shot saveslot
 read -r SLOT_X SLOT_Y < <(logical_xy 320 280)
 clear_log
 press_physical "$SLOT_X" "$SLOT_Y" 3'''
+POST_CREATE_ANCHOR = '''for _ in 1 2 3 4 5; do
+  press_message_accept 2
+  fatal_check
+  adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/save-progress.txt"; then break; fi
+done
+wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 35 gamemenu'''
+POST_CREATE_REPLACEMENT = '''for _ in 1 2 3 4 5; do
+  adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt"; then break; fi
+  press_message_accept 2
+  fatal_check
+done
+grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt" || { echo 'Initial Career did not reach save boundary'; exit 1; }
+start_menu
+read -r REOPEN_X REOPEN_Y < <(logical_xy 480 664)
+clear_log
+press_physical "$REOPEN_X" "$REOPEN_Y" 2
+wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 endurance-reload-saveslot
+read -r RELOAD_X RELOAD_Y < <(logical_xy 320 280)
+clear_log
+press_physical "$RELOAD_X" "$RELOAD_Y" 3
+if ! wait_log 'LoadCareer saveslot:[[:space:]]*0' 8 endurance-loadcareer-direct; then
+  press_message_accept 2
+  wait_log 'LoadCareer saveslot:[[:space:]]*0' 25 endurance-loadcareer-confirmed
+fi
+wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 40 endurance-reloaded-gamemenu'''
 
 TAIL = r'''# Progressive same-Career endurance loop.
 SEASON_COUNT="${LONG_CAREER_SEASONS:-8}"
@@ -91,7 +118,6 @@ for season in $(seq 1 "$SEASON_COUNT"); do
   dump_save "season-${season}-post"
   shot "season-${season}-post"
 
-  # Mandatory restart + stock LoadCareer after every season.
   open_saved_slot0 "season-${season}-reload"
   dump_save "season-${season}-reload"
   fatal_check
@@ -118,6 +144,7 @@ def transform(text: str) -> str:
     text = one_replace(text, SIGN_ANCHOR, SIGN_REPLACEMENT, 'sign_one')
     text = one_replace(text, CAREER_OPEN_ANCHOR, CAREER_OPEN_REPLACEMENT, 'Career SaveSlot open')
     text = one_replace(text, SLOT_ANCHOR, SLOT_REPLACEMENT, 'initial slot 0 target')
+    text = one_replace(text, POST_CREATE_ANCHOR, POST_CREATE_REPLACEMENT, 'post-create save reload')
     if text.count(TAIL_MARKER) != 1:
         raise ValueError(f'expected one tail marker, found {text.count(TAIL_MARKER)}')
     prefix = text.split(TAIL_MARKER, 1)[0]
