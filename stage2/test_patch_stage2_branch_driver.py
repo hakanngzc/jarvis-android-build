@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from patch_stage2_branch_driver import adapt_generated_script
+from patch_stage2_branch_driver import FATAL_ANCHOR, adapt_generated_script, harden_fatal_check
 
 FIXTURE = r'''python3 stage3/patch_stage3_knockout_apk.py "$MODE" "$WORK/base-career-probe.apk" "$WORK/base-knockout-probe.apk" \
   --evidence "$OUT/STAGE3_KNOCKOUT_APK_PATCH.json" | tee "$OUT/STAGE3_KNOCKOUT_APK_PATCH.txt"
@@ -51,6 +51,14 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('stage2-${SCENARIO}-${tag}-no-process.log', out)
         self.assertIn('stage2-${SCENARIO}-${tag}-activity.txt', out)
         self.assertGreaterEqual(out.count('--pid "$STAGE2_PID"'), 2)
+
+    def test_filters_only_appmeasurement_service_anr(self):
+        out = harden_fatal_check(FATAL_ANCHOR)
+        self.assertIn('AppMeasurementService', out)
+        self.assertIn('[ "$anr_count" -eq "$measurement_count" ]', out)
+        self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
+        self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', out)
+        self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
 
     def test_frida_runner_accepts_numeric_pid(self):
         src = Path('run_frida_script.py').read_text(encoding='utf-8')
