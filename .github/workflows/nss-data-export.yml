@@ -1,0 +1,61 @@
+name: NSS 4.31 Football Data Export
+on:
+  push:
+    branches: [nss-data-export-20261024]
+    paths:
+      - '.github/workflows/nss-data-export.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nss431/xapk" nss431-export
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/nss431/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/nss431/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/nss431/nss431.xapk" -d "$RUNNER_TEMP/nss431/xapk"
+          BASE="$RUNNER_TEMP/nss431/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+      - name: Export football data and DEX
+        run: |
+          set -euo pipefail
+          python3 - "$BASE" nss431-export <<'PY'
+          import hashlib,json,pathlib,sys,zipfile
+          apk=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2]); out.mkdir(parents=True,exist_ok=True)
+          manifest=[]
+          with zipfile.ZipFile(apk) as z:
+              names=z.namelist()
+              targets=[n for n in names if n.startswith('assets/monkey/MyData/')]
+              targets += [n for n in names if pathlib.PurePosixPath(n).name.startswith('classes') and n.endswith('.dex')]
+              seen=set()
+              for n in targets:
+                  if n in seen or n.endswith('/'): continue
+                  seen.add(n)
+                  data=z.read(n)
+                  dest=out/n
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  dest.write_bytes(data)
+                  manifest.append({'path':n,'size':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+          (out/'EXPORT_MANIFEST.json').write_text(json.dumps({'base_apk_sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),'members':manifest},indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          required=['Clubs.txt','Nations.txt','Competitions.txt']
+          v=[m['path'] for m in manifest if '/v2025/' in m['path']]
+          for r in required:
+              hits=[p for p in v if p.endswith('/'+r)]
+              if len(hits)!=1: raise SystemExit(f'{r}: {hits}')
+          print('exported',len(manifest),'files')
+          PY
+      - name: Upload export
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss431-football-data-and-dex
+          path: nss431-export/**
+          retention-days: 30
