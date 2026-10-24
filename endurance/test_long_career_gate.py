@@ -104,7 +104,7 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('dumpsys activity activities', out)
         self.assertIn('dumpsys window windows', out)
         self.assertIn('uiautomator dump /sdcard/endurance-entry.xml', out)
-        self.assertIn('season-${season}-leaguefixtures-attempt-${attempt}-ui.xml', out)
+        self.assertIn('${prefix}-ui.xml', out)
         capture_at = out.index('capture_season_entry_diagnostics "$season" "$attempt"')
         tap_at = out.index('press_play 3', capture_at)
         self.assertLess(capture_at, tap_at)
