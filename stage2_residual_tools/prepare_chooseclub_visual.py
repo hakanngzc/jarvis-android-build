@@ -7,7 +7,8 @@ from pathlib import Path
 
 
 HELPERS = r'''press_and_require_change(){
-  local tag="$1" x="$2" y="$3" before="$OUT/${tag}-before.png" after="$OUT/${tag}-after.png"
+  local tag="$1" x="$2" y="$3"
+  local before="$OUT/${tag}-before.png" after="$OUT/${tag}-after.png"
   shot "${tag}-before"
   press_logical "$x" "$y" 4
   shot "${tag}-after"
