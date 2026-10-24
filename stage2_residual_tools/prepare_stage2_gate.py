@@ -47,8 +47,6 @@ def prepare_text(text: str) -> str:
 }'''
     text = replace_exact(text, career_old, career_new, 'Pixel 4 Career target')
 
-    # Stage2 uses a 3s default and Stage4-natural a 2s default. Preserve the
-    # source delay while sharing the proven API29/Pixel4 physical target.
     play_pattern = r'''press_play\(\)\{ press_logical 553 829 "\$\{1:-(2|3)\}"; \}'''
     play_matches = list(re.finditer(play_pattern, text))
     if len(play_matches) != 1:
@@ -68,10 +66,6 @@ def prepare_text(text: str) -> str:
 }}'''
     text = re.sub(play_pattern, lambda _: play_new, text, count=1)
 
-    # GMS-free AOSP can ANR the embedded Google measurement service while the
-    # NSS activity itself remains responsive. Ignore only that exact service
-    # ANR. If any other package ANR is also present, the counts differ and the
-    # gate still fails. The ignored dump is preserved as explicit evidence.
     fatal_new = '''fatal_check(){
   adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
 
@@ -181,8 +175,6 @@ def prepare_text(text: str) -> str:
         'bounded Career and Slot0 input proof',
     )
 
-    # Stage2 needs the same TEST-ONLY first-run UI cleanup used by the proven
-    # Stage4 harness. Stage4-natural already has it, so never apply it twice.
     if 'patch_first_run_overlays.py' not in text:
         trial_line = '''PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/patch_trial_skip_for_persistence_test.py "$BASE" "$WORK/base-career-unsigned.apk" | tee "$OUT/trial-bootstrap-patch.txt"'''
         trial_with_overlay = trial_line + '''
@@ -190,17 +182,41 @@ python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk
 mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"'''
         text = replace_exact(text, trial_line, trial_with_overlay, 'proven first-run overlay bypass')
 
-    # A freshly-created stock Career can save successfully and then land on the
-    # news page rather than GameMenu. SAVE CAREER is the durable boundary; the
-    # later scenario runs still prove fresh-process LoadCareer -> GameMenu.
     fresh_gamemenu_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 50 fresh-gamemenu'''
     if fresh_gamemenu_wait in text:
-        fresh_post_save_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*webpagenews|SETTING ACTIVE:[[:space:]]*webpagenews|SetActive:[[:space:]]*webpagenews' 50 fresh-post-save
-fatal_check
-capture_log 'fresh Career durable save settled' '''
-        text = replace_exact(text, fresh_gamemenu_wait, fresh_post_save_wait, 'stock post-career landing screen')
+        settle = '''settle_bootstrap_to_gamemenu(){
+  local step state_line state
+  for step in $(seq 1 30); do
+    fatal_check || return 1
+    adb logcat -d -v brief > "$WORK/bootstrap-settle.txt" 2>/dev/null || true
+    state_line="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/bootstrap-settle.txt" | tail -1 || true)"
+    state="${state_line,,}"
+    case "$state" in
+      *gamemenu*) return 0 ;;
+      *webpage*|*startransition*|*message*)
+        clear_log
+        press_message_accept 2
+        ;;
+      *choosenation*|*chooseclub*)
+        clear_log
+        press_footer_ok 2
+        ;;
+      *)
+        clear_log
+        press_message_accept 2
+        ;;
+    esac
+    sleep 1
+  done
+  cp "$WORK/bootstrap-settle.txt" "$OUT/bootstrap-settle-timeout.txt" 2>/dev/null || true
+  echo 'Bootstrap did not settle to GameMenu'
+  return 1
+}
+settle_bootstrap_to_gamemenu
+wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 10 fresh-gamemenu
+capture_log 'fresh Career post-save -> GameMenu' '''
+        text = replace_exact(text, fresh_gamemenu_wait, settle, 'post-save bootstrap settlement')
 
-    # Only Stage2 residual scenarios contain this trigger shape.
     traversal_old = '''  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
   sleep 2'''
     if traversal_old in text:
