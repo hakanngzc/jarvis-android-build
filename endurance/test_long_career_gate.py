@@ -1,6 +1,13 @@
 import unittest
 
-from patch_long_career_driver import PATCH_ANCHOR, TAIL_MARKER, transform
+from patch_long_career_driver import (
+    PATCH_ANCHOR,
+    TAIL_MARKER,
+    SIGN_ANCHOR,
+    CAREER_OPEN_ANCHOR,
+    SLOT_ANCHOR,
+    transform,
+)
 from patch_long_career_season_probe import SEASON_DELTA, build_probe_units
 
 
@@ -23,12 +30,31 @@ class ProgressiveSeasonProbeTest(unittest.TestCase):
 
 class LongCareerDriverTransformTest(unittest.TestCase):
     def fixture(self):
-        return 'header\n' + PATCH_ANCHOR + '\npre-tail\n' + TAIL_MARKER + '\nold-stage3-tail\n'
+        return (
+            'header\n' +
+            PATCH_ANCHOR + '\n' +
+            'sign_one(){\n' + SIGN_ANCHOR + '\n}\n' +
+            CAREER_OPEN_ANCHOR + '\n' +
+            SLOT_ANCHOR + '\n' +
+            'pre-tail\n' + TAIL_MARKER + '\nold-stage3-tail\n'
+        )
 
     def test_replaces_match_patch_with_progressive_season_probe(self):
         out = transform(self.fixture())
         self.assertIn('patch_long_career_season_probe.py', out)
         self.assertNotIn('patch_stage3_knockout_apk.py', out)
+
+    def test_repairs_latent_sign_one_nounset_bug(self):
+        out = transform(self.fixture())
+        self.assertIn('local src="$1" dst="$2"\n  local aligned=', out)
+        self.assertNotIn(SIGN_ANCHOR, out)
+
+    def test_initial_navigation_uses_stable_logical_targets(self):
+        out = transform(self.fixture())
+        self.assertIn('logical_xy 480 664', out)
+        self.assertIn('logical_xy 320 280', out)
+        self.assertNotIn('press_physical 810 1450 2', out)
+        self.assertNotIn('find_slot0_target "$OUT/saveslot.png"', out)
 
     def test_requires_restart_reload_after_every_season(self):
         out = transform(self.fixture())
@@ -36,6 +62,7 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('open_saved_slot0 "season-${season}-reload"', out)
         self.assertIn('dump_save "season-${season}-reload"', out)
         self.assertIn('fatal_check', out)
+        self.assertIn('LoadCareer saveslot:', out)
 
     def test_default_is_eight_progressive_seasons(self):
         out = transform(self.fixture())
