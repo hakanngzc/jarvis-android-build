@@ -21,3 +21,10 @@ jobs:
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check pillow
           PYTHONPATH=stage6_public python3 -m unittest discover -s stage6_public -p 'test_*.py' -v
+          python3 -m py_compile \
+            stage6_public/append_logo_atlas.py \
+            stage6_public/patch_club_badge_override.py \
+            stage6_public/verify_rebuilt_badge_override.py \
+            stage6_public/production_logo_pipeline.py \
+            stage6_public/build_production_logo_apk.py
+          bash -n stage6_public/apply_club_badge_override_dex.sh
