@@ -46,7 +46,8 @@ jobs:
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.pre.sh"
             python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.visual.sh"
-            python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.visual.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
+            python3 stage2_residual_tools/prepare_stage2_gamemenu_stable.py "$RUNNER_TEMP/stage2-residual-gate.visual.sh" "$RUNNER_TEMP/stage2-residual-gate.stable.sh"
+            python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.stable.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
             bash -n "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
             bash "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
 
