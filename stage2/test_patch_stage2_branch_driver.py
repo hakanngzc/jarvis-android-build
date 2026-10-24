@@ -86,7 +86,8 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('if (!fired)', scenario)
         self.assertIn('executeScenario();', scenario)
         self.assertIn('thread_name:', scenario)
-        self.assertIn("Java.use('java.lang.Thread').currentThread().getName().toString()", scenario)
+        self.assertIn("const Thread = Java.use('java.lang.Thread');", scenario)
+        self.assertIn('Thread.currentThread().getName().toString()', scenario)
 
     def test_runtime_verifier_requires_gl_renderer_thread_evidence(self):
         verifier = Path('verify_stage2_branch_runtime.py').read_text(encoding='utf-8')
