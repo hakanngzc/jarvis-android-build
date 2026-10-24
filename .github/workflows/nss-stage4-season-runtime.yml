@@ -64,7 +64,7 @@ jobs:
 
       - name: Validate natural-season tooling
         run: |
-          python3 -m py_compile stage4_tools/verify_stage4_natural_season.py
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
           python3 -m unittest test_stage4_natural_policy.py -v
 
@@ -95,7 +95,9 @@ jobs:
           disable-animations: true
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            bash stage4_natural_season_gate.sh
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.sh"
+            bash -n "$RUNNER_TEMP/stage4-natural-gate.sh"
+            bash "$RUNNER_TEMP/stage4-natural-gate.sh"
 
       - name: Upload Stage4 natural-season evidence
         if: always()
