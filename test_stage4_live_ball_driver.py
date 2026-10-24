@@ -42,6 +42,24 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
             write_rgb_png(p, width, height, pixels)
             self.assertEqual((100, 154), detector.find_live_ball(p))
 
+    def test_detector_ignores_disconnected_green_pitch_distractors(self):
+        detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_components')
+        width, height = 360, 320
+        pixels = bytearray(width * height * 3)
+        for y in range(125, 185):
+            for x in range(50, 110):
+                if x < 62 or x >= 98 or y < 137 or y >= 173:
+                    i = (y * width + x) * 3
+                    pixels[i:i + 3] = bytes((0, 72, 0))
+        # A separate green pitch/goal line must not enlarge the marker bbox.
+        for x in range(300, 360):
+            i = (100 * width + x) * 3
+            pixels[i:i + 3] = bytes((0, 72, 0))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'frame-with-distractor.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertEqual((80, 154), detector.find_live_ball(p))
+
     def test_detector_rejects_frame_without_active_marker(self):
         detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_empty')
         width, height = 240, 320
