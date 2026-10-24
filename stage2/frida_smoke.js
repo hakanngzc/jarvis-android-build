@@ -14,9 +14,12 @@ Java.perform(function () {
       clubid: player.m_clubid.value,
       clubnationid: player.m_clubnationid.value,
       wage: player.m_wage.value,
+      goalbonus: player.m_goalbonus.value,
+      assistbonus: player.m_assistbonus.value,
       lastnegotiations: player.m_lastnegotiations.value,
       lasttransferdate: player.m_lasttransferdate.value,
-      retired: player.m_retired.value
+      retired: player.m_retired.value,
+      sdate: player.m_date.value.m_sdate.value
     });
   } catch (e) {
     send({type: 'stage2-smoke', ok: false, error: String(e), stack: e.stack || ''});
