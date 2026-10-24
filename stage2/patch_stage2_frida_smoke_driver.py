@@ -22,9 +22,11 @@ adb root >/dev/null 2>&1 || true
 adb wait-for-device
 adb push "$FRIDA_BIN" /data/local/tmp/frida-server >/dev/null
 adb shell chmod 755 /data/local/tmp/frida-server
-adb shell 'pkill -f /data/local/tmp/frida-server >/dev/null 2>&1 || true'
+adb shell 'pkill frida-server >/dev/null 2>&1 || true'
 adb shell 'nohup /data/local/tmp/frida-server >/data/local/tmp/frida-server.log 2>&1 &' >/dev/null 2>&1
 sleep 2
+adb shell 'pidof frida-server || true' > "$OUT/frida-server-pid.txt"
+test -s "$OUT/frida-server-pid.txt" || { adb shell cat /data/local/tmp/frida-server.log > "$OUT/frida-server-start-failed.log" 2>/dev/null || true; echo 'Frida server did not start'; return 1; }
 adb install-multiple -r "$SIGNED/base.apk" "$SIGNED/config.tr.apk" "$SIGNED/config.xxhdpi.apk" >/dev/null
 adb shell pm clear "$PKG" >/dev/null || true'''
 
