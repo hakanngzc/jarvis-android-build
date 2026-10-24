@@ -67,6 +67,18 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn("import Java from 'frida-java-bridge';", scenario)
         self.assertIn("import Java from 'frida-java-bridge';", smoke)
 
+    def test_contract_buttons_are_invoked_only_after_stock_screen_setup(self):
+        scenario = Path('stage2_branch_scenario.js').read_text(encoding='utf-8')
+        setup = 'Contract.m_SetUpScreen(offer, false);'
+        self.assertGreaterEqual(scenario.count(setup), 3)
+        self.assertLess(scenario.index(setup, scenario.index("SCENARIO === 'accept'")),
+                        scenario.index('Contract.m_ButtonAccept(false)', scenario.index("SCENARIO === 'accept'")))
+        reject_at = scenario.index("SCENARIO === 'reject'")
+        self.assertLess(scenario.index(setup, reject_at), scenario.index('Contract.m_ButtonReject()', reject_at))
+        transfer_at = scenario.index("SCENARIO === 'transfer'")
+        self.assertLess(scenario.index(setup, transfer_at),
+                        scenario.index('Contract.m_ButtonAccept(false)', transfer_at))
+
     def test_removes_old_stage3_tail_before_exit(self):
         out = adapt_generated_script(FIXTURE)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
