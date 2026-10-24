@@ -2,8 +2,10 @@ import unittest
 
 from patch_lifecycle_probe_v4 import (
     CENTER_ANCHOR,
+    FATAL_ANCHOR,
     GL_DRIVER_ANCHOR,
     CAREER_ROUNDTRIP_ANCHOR,
+    harden_fatal_check,
     harden_generated_script,
     inject_gl_resume_patch,
     inject_stress_roundtrips,
@@ -34,10 +36,36 @@ class LifecyclePatchV4Test(unittest.TestCase):
         self.assertIn('NSS task target not found unambiguously in Recents', out)
         self.assertIn('"${tag}_recents_target_found" FAIL', out)
 
+    def test_retries_verified_recents_target_at_most_three_times(self):
+        out = harden_generated_script(CENTER_ANCHOR)
+        self.assertIn('for recents_attempt in 1 2 3; do', out)
+        self.assertIn('input tap "$x" "$y"', out)
+        self.assertIn('lifecycle-${tag}-recents-attempt-${recents_attempt}.txt', out)
+        self.assertIn('NSS foregrounded from verified Recents target on attempt', out)
+        self.assertNotIn('while true', out)
+
     def test_moves_play_tap_from_edge_to_verified_button_center(self):
         out = harden_generated_script(CENTER_ANCHOR + '\n' + PLAY_EDGE_ANCHOR)
         self.assertIn('logical_xy 553 900', out)
         self.assertNotIn('logical_xy 553 829', out)
+
+    def test_measurement_service_anr_is_the_only_ignored_anr(self):
+        out = harden_fatal_check(FATAL_ANCHOR)
+        self.assertIn('AppMeasurementService', out)
+        self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
+        self.assertIn('[ "$anr_count" -eq "$measurement_count" ]', out)
+        self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', out)
+        self.assertIn('Process: com\\.newstargames\\.newstarsoccer, PID:', out)
+
+    def test_measurement_filter_still_fails_unknown_nss_anr(self):
+        out = harden_fatal_check(FATAL_ANCHOR)
+        self.assertIn('[ "$anr_count" -gt 0 ]', out)
+        self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
+        self.assertIn('return 1', out)
+
+    def test_fatal_filter_refuses_changed_source_shape(self):
+        with self.assertRaises(ValueError):
+            harden_fatal_check('fatal_check(){ echo changed; }')
 
     def test_injects_candidate_gl_resume_race_patch_after_startup_harness(self):
         out = inject_gl_resume_patch(GL_DRIVER_ANCHOR)
