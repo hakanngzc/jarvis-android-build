@@ -12,16 +12,17 @@ def main() -> None:
     ap.add_argument('--package', default='com.newstargames.newstarsoccer')
     ap.add_argument('--script', type=Path, required=True)
     ap.add_argument('--out', type=Path, required=True)
+    ap.add_argument('--event-type', default='stage2-smoke')
     ap.add_argument('--timeout', type=float, default=15.0)
     args = ap.parse_args()
 
-    result = {'ok': False, 'events': []}
+    result = {'ok': False, 'event_type': args.event_type, 'events': []}
     done = threading.Event()
 
     def on_message(message, data):
         result['events'].append(message)
         payload = message.get('payload') if message.get('type') == 'send' else None
-        if isinstance(payload, dict) and payload.get('type') == 'stage2-smoke':
+        if isinstance(payload, dict) and payload.get('type') == args.event_type:
             result.update(payload)
             done.set()
 
@@ -31,7 +32,7 @@ def main() -> None:
     script.on('message', on_message)
     script.load()
     if not done.wait(args.timeout):
-        result['error'] = 'timeout waiting for stage2-smoke message'
+        result['error'] = f'timeout waiting for {args.event_type} message'
     try:
         script.unload()
     except Exception:
