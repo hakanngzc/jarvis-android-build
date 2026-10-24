@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from patch_stage2_branch_driver import FATAL_ANCHOR, adapt_generated_script, harden_fatal_check
+from stage2_checkpoint import FIELD_INDEX
 
 FIXTURE = r'''python3 stage3/patch_stage3_knockout_apk.py "$MODE" "$WORK/base-career-probe.apk" "$WORK/base-knockout-probe.apk" \
   --evidence "$OUT/STAGE3_KNOCKOUT_APK_PATCH.json" | tee "$OUT/STAGE3_KNOCKOUT_APK_PATCH.txt"
@@ -59,6 +60,12 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
         self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', out)
         self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
+
+    def test_checkpoint_uses_artifact_verified_contract_and_retirement_indices(self):
+        self.assertEqual(FIELD_INDEX['lastnegotiations'], 581)
+        self.assertEqual(FIELD_INDEX['lasttransferdate'], 582)
+        self.assertEqual(FIELD_INDEX['assistbonus'], 898)
+        self.assertEqual(FIELD_INDEX['retired'], 910)
 
     def test_frida_runner_accepts_numeric_pid(self):
         src = Path('run_frida_script.py').read_text(encoding='utf-8')
