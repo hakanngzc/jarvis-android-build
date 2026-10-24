@@ -5,10 +5,13 @@ from patch_lifecycle_probe_v4 import (
     FATAL_ANCHOR,
     GL_DRIVER_ANCHOR,
     CAREER_ROUNDTRIP_ANCHOR,
+    RENDER_ROUNDTRIP_ANCHOR,
     harden_fatal_check,
     harden_generated_script,
-    inject_gl_context_survival_patch,
+    inject_preserve_egl_activity_patch,
+    inject_render_gate,
     inject_stress_roundtrips,
+    retarget_activity_launches,
 )
 
 
@@ -67,13 +70,30 @@ class LifecyclePatchV4Test(unittest.TestCase):
         with self.assertRaises(ValueError):
             harden_fatal_check('fatal_check(){ echo changed; }')
 
-    def test_injects_candidate_gl_context_survival_patch_after_startup_harness(self):
-        out = inject_gl_context_survival_patch(GL_DRIVER_ANCHOR)
-        self.assertIn('base-career-probe-pre-gl.apk', out)
-        self.assertIn('lifecycle/patch_gl_context_survival.py', out)
-        self.assertIn('LIFECYCLE_GL_CONTEXT_SURVIVAL_PATCH.json', out)
+    def test_injects_preserve_egl_activity_without_old_focus_patch(self):
+        out = inject_preserve_egl_activity_patch(GL_DRIVER_ANCHOR)
+        self.assertIn('java_stub/com/newstargames/newstarsoccer/MonkeyGame.java', out)
+        self.assertIn('java_shim/com/newstargames/newstarsoccer/RebornGame.java', out)
+        self.assertIn('patch_preserve_egl_activity.py', out)
+        self.assertIn('LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH.json', out)
+        self.assertIn('classes4.dex', out)
+        self.assertNotIn('patch_gl_context_survival.py', out)
         self.assertNotIn('patch_gl_resume_race.py', out)
-        self.assertNotIn('LIFECYCLE_GL_RESUME_PATCH.json', out)
+
+    def test_retargets_only_activity_component_and_foreground_match(self):
+        sample='adb shell am start -n "$PKG/.MonkeyGame"\nMonkeyGame.xml\nnewstarsoccer.*MonkeyGame'
+        out=retarget_activity_launches(sample)
+        self.assertIn('$PKG/.RebornGame', out)
+        self.assertIn('MonkeyGame.xml', out)
+        self.assertIn('newstarsoccer.*RebornGame', out)
+
+    def test_render_gate_rejects_black_resume_before_pid_success(self):
+        out=inject_render_gate('foreground_from_recents(){\n' + RENDER_ROUNDTRIP_ANCHOR)
+        self.assertIn('assert_game_rendered(){', out)
+        self.assertIn('nonblack_fraction', out)
+        self.assertIn('lifecycle-${tag}-render-visible', out)
+        self.assertIn('assert_game_rendered "$tag" || return 1', out)
+        self.assertLess(out.index('assert_game_rendered "$tag" || return 1'), out.index('after="$(pid_one)"'))
 
     def test_stresses_real_recents_roundtrip_five_times(self):
         out = inject_stress_roundtrips(CAREER_ROUNDTRIP_ANCHOR)
