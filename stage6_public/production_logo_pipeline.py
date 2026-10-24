@@ -125,7 +125,7 @@ def atlas_records_for_append(manifest,atlas_width=None,atlas_height=None,max_wid
             'name':row['symbol'],
             'original_width':cell,'original_height':cell,
             'trimmed_width':cell,'trimmed_height':cell,
-            'render_data':[0.0,1.0,u0,1.0,1.0,0.0,u1,0.0],
+            'render_data':[0.0,1.0,u0,v1,1.0,0.0,u1,v0],
         })
     return records
 
