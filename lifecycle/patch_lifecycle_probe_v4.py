@@ -46,23 +46,10 @@ PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 5
 
 GL_DRIVER_ANCHOR = 'python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe.apk"'
 GL_DRIVER_REPLACEMENT = r'''python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe-stock.apk"
-ANDROID_JAR="$(find "$ANDROID_HOME/platforms" -name android.jar -type f | sort -V | tail -1)"
-D8="$(find "$ANDROID_HOME/build-tools" -name d8 -type f | sort -V | tail -1)"
-[ -n "$ANDROID_JAR" ] && [ -n "$D8" ] || { echo 'Android compiler inputs missing'; exit 1; }
-STUB_CLASSES="$WORK/egl-stub-classes"
-SHIM_CLASSES="$WORK/egl-shim-classes"
-SHIM_DEX_DIR="$WORK/egl-shim-dex"
-mkdir -p "$STUB_CLASSES" "$SHIM_CLASSES" "$SHIM_DEX_DIR"
-javac -source 8 -target 8 -cp "$ANDROID_JAR" -d "$STUB_CLASSES" \
-  lifecycle/java_stub/com/newstargames/newstarsoccer/MonkeyGame.java
-javac -source 8 -target 8 -cp "$ANDROID_JAR:$STUB_CLASSES" -d "$SHIM_CLASSES" \
-  lifecycle/java_shim/com/newstargames/newstarsoccer/RebornGame.java
-"$D8" --lib "$ANDROID_JAR" --classpath "$STUB_CLASSES" --min-api 24 --output "$SHIM_DEX_DIR" \
-  "$SHIM_CLASSES/com/newstargames/newstarsoccer/RebornGame.class"
-python3 lifecycle/patch_preserve_egl_activity.py \
-  "$WORK/base-career-probe-stock.apk" "$SHIM_DEX_DIR/classes.dex" "$WORK/base-career-probe.apk" \
-  --evidence "$OUT/LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH.json" \
-  | tee "$OUT/LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH.txt"'''
+python3 lifecycle/patch_gl_resume_race.py \
+  "$WORK/base-career-probe-stock.apk" "$WORK/base-career-probe.apk" \
+  --evidence "$OUT/LIFECYCLE_GL_RESUME_PATCH.json" \
+  | tee "$OUT/LIFECYCLE_GL_RESUME_PATCH.txt"'''
 
 CAREER_ROUNDTRIP_ANCHOR = 'shot career-gamemenu\nlifecycle_background_roundtrip career'
 CAREER_ROUNDTRIP_REPLACEMENT = '''shot career-gamemenu
@@ -252,7 +239,7 @@ def harden_fatal_check(text: str) -> str:
     if count!=1:raise ValueError(f'expected one fatal_check anchor, found {count}')
     return text.replace(FATAL_ANCHOR,FATAL_REPLACEMENT,1)
 
-def inject_preserve_egl_activity_patch(text: str) -> str:
+def inject_gl_resume_order_patch(text: str) -> str:
     count=text.count(GL_DRIVER_ANCHOR)
     if count!=1:raise ValueError(f'expected one GL driver anchor, found {count}')
     return text.replace(GL_DRIVER_ANCHOR,GL_DRIVER_REPLACEMENT,1)
@@ -285,11 +272,10 @@ def patch_script(text: str) -> str:
     generated=v3_patch_script(text)
     generated=harden_generated_script(generated)
     generated=harden_fatal_check(generated)
-    generated=inject_preserve_egl_activity_patch(generated)
+    generated=inject_gl_resume_order_patch(generated)
     generated=inject_stress_roundtrips(generated)
     generated=harden_match_navigation(generated)
     generated=inject_render_gate(generated)
-    generated=retarget_activity_launches(generated)
     return generated
 
 def main() -> None:
