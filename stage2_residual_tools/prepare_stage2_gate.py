@@ -32,9 +32,6 @@ def prepare_text(text: str) -> str:
 }'''
     text = replace_exact(text, sign_old, sign_new, 'nounset-safe sign_one')
 
-    # Stage2 has a multi-line dump_save helper that needs nounset hardening.
-    # Stage4-natural intentionally uses a different one-line helper, so do not
-    # force a Stage2-specific source shape onto it.
     dump_old = '''dump_save(){
   local tag="$1" xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$REMOTE_PREF" > "$xml"
@@ -49,8 +46,6 @@ def prepare_text(text: str) -> str:
     if dump_old in text:
         text = replace_exact(text, dump_old, dump_new, 'nounset-safe dump_save')
 
-    # build_probe exists only in the Stage2 residual mutation gate. Stage4 has
-    # no probe APK builder because the season run must remain natural.
     build_old = '''build_probe(){
   local scenario="$1" dest="${2:-}" out="$WORK/base-$scenario-unsigned.apk"
   args=(stage2_residual_tools/patch_stage2_residual_probe.py "$WORK/base-career-unsigned.apk" "$out" --scenario "$scenario")'''
@@ -218,9 +213,6 @@ python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk
 mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"'''
         text = replace_exact(text, trial_line, trial_with_overlay, 'proven first-run overlay bypass')
 
-    # Fresh Career persistence is the authoritative bootstrap boundary. Do not
-    # make WebPageNews/StarTransition presentation a prerequisite. Prove the
-    # stock save, restart the process, then reconstruct the Career from disk.
     fresh_gamemenu_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 50 fresh-gamemenu'''
     if fresh_gamemenu_wait in text:
         durable_restart = '''adb logcat -d -v threadtime > "$WORK/bootstrap-save-proof.txt" 2>/dev/null || true
@@ -247,12 +239,48 @@ capture_log 'bootstrap-restart durable reload -> GameMenu' '''
     traversal_old = '''  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
   sleep 2'''
     if traversal_old in text:
-        traversal_new = '''  clear_log; press_play 4
+        traversal_new = '''  local gm_attempt gm_play_hit=0 gm_evidence
+  for gm_attempt in 1 2 3; do
+    clear_log
+    echo "GameMenu Play attempt $gm_attempt/3"
+    press_play 4
+    gm_evidence="$WORK/${scenario}-gamemenu-play-attempt-${gm_attempt}.txt"
+    adb logcat -d -v brief > "$gm_evidence" 2>/dev/null || true
+    if grep -q 'HitGadget: gamemenu.btn_Play' "$gm_evidence"; then
+      gm_play_hit=1
+      break
+    fi
+    fatal_check || return 1
+    echo "GameMenu Play attempt $gm_attempt did not register; retrying"
+  done
+  [ "$gm_play_hit" -eq 1 ] || {
+    echo 'GameMenu Play did not register after 3 controlled presses'
+    return 1
+  }
   wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 "$scenario-leaguefixtures"
   fatal_check; capture_log "$scenario GameMenu -> LeagueFixtures"
-  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
+
+  local lf_attempt lf_play_hit=0 lf_evidence
+  for lf_attempt in 1 2 3; do
+    clear_log
+    echo "LeagueFixtures Play attempt $lf_attempt/3"
+    press_play 4
+    lf_evidence="$WORK/${scenario}-leaguefixtures-play-attempt-${lf_attempt}.txt"
+    adb logcat -d -v brief > "$lf_evidence" 2>/dev/null || true
+    if grep -q 'HitGadget: leaguefixtures.btn_Play' "$lf_evidence"; then
+      lf_play_hit=1
+      break
+    fi
+    fatal_check || return 1
+    echo "LeagueFixtures Play attempt $lf_attempt did not register; retrying"
+  done
+  [ "$lf_play_hit" -eq 1 ] || {
+    echo 'LeagueFixtures Play did not register after 3 controlled presses'
+    return 1
+  }
+  fatal_check; capture_log "$scenario mutation trigger"
   sleep 2'''
-        text = replace_exact(text, traversal_old, traversal_new, 'LeagueFixtures traversal before PlayMatches trigger')
+        text = replace_exact(text, traversal_old, traversal_new, 'stock-hit-proven LeagueFixtures traversal before PlayMatches trigger')
 
     return text
 
