@@ -43,6 +43,24 @@ replacements = [
 }''',
         'Pixel 4 Play target',
     ),
+    (
+        '''PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/patch_trial_skip_for_persistence_test.py "$BASE" "$WORK/base-career-unsigned.apk" | tee "$OUT/trial-bootstrap-patch.txt"''',
+        '''PYTHONPATH="$PWD/stage3_tools" python3 stage3_tools/patch_trial_skip_for_persistence_test.py "$BASE" "$WORK/base-career-unsigned.apk" | tee "$OUT/trial-bootstrap-patch.txt"
+python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk" "$WORK/base-career-overlay-unsigned.apk" | tee "$OUT/first-run-overlay-patch.txt"
+mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"''',
+        'proven first-run overlay bypass',
+    ),
+    (
+        '''  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
+  sleep 2''',
+        '''  # Proven Stage4 traversal: GameMenu -> LeagueFixtures -> PlayMatches.
+  clear_log; press_play 4
+  wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 "$scenario-leaguefixtures"
+  fatal_check; capture_log "$scenario GameMenu -> LeagueFixtures"
+  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
+  sleep 2''',
+        'LeagueFixtures traversal before PlayMatches trigger',
+    ),
 ]
 
 for old, new, label in replacements:
@@ -52,4 +70,4 @@ for old, new, label in replacements:
     text = text.replace(old, new)
 
 dst.write_text(text, encoding='utf-8')
-print(f'Prepared nounset-safe, Pixel-4-targeted Stage2 gate: {dst}')
+print(f'Prepared Stage2 gate with proven Pixel 4 targets and Stage4 traversal: {dst}')
