@@ -99,9 +99,9 @@ jobs:
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
             python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.visual.sh"
-            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.sh"
-            bash -n "$RUNNER_TEMP/stage4-natural-gate.sh"
-            bash "$RUNNER_TEMP/stage4-natural-gate.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
+            bash -n "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
+            bash "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
 
       - name: Upload Stage4 natural-season evidence
         if: always()
