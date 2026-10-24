@@ -32,6 +32,28 @@ def prepare_text(text: str) -> str:
 }'''
     text = replace_exact(text, sign_old, sign_new, 'nounset-safe sign_one')
 
+    dump_old = '''dump_save(){
+  local tag="$1" xml="$OUT/${tag}-MonkeyGame.xml"
+  adb shell cat "$REMOTE_PREF" > "$xml"
+  grep -q 'monkeystate' "$xml"
+}'''
+    dump_new = '''dump_save(){
+  local tag="$1" xml
+  xml="$OUT/${tag}-MonkeyGame.xml"
+  adb shell cat "$REMOTE_PREF" > "$xml"
+  grep -q 'monkeystate' "$xml"
+}'''
+    text = replace_exact(text, dump_old, dump_new, 'nounset-safe dump_save')
+
+    build_old = '''build_probe(){
+  local scenario="$1" dest="${2:-}" out="$WORK/base-$scenario-unsigned.apk"
+  args=(stage2_residual_tools/patch_stage2_residual_probe.py "$WORK/base-career-unsigned.apk" "$out" --scenario "$scenario")'''
+    build_new = '''build_probe(){
+  local scenario="$1" dest="${2:-}" out
+  out="$WORK/base-$scenario-unsigned.apk"
+  args=(stage2_residual_tools/patch_stage2_residual_probe.py "$WORK/base-career-unsigned.apk" "$out" --scenario "$scenario")'''
+    text = replace_exact(text, build_old, build_new, 'nounset-safe build_probe')
+
     career_old = '''press_career(){ press_logical 471 541 "${1:-3}"; }'''
     career_new = '''press_career(){
   local size
