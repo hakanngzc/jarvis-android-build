@@ -62,9 +62,9 @@ jobs:
           patched=json.load(open(sys.argv[2], encoding='utf-8'))
           cls='Lcom/newstargames/newstarsoccer/AndroidGame;'
           expected={
-              'onRestart':'Landroid/app/Activity;->onRestart',
-              'onStart':'Landroid/app/Activity;->onStart',
-              'onStop':'Landroid/app/Activity;->onStop',
+              'onRestart':f'{cls}->onRestart',
+              'onStart':f'{cls}->onStart',
+              'onStop':f'{cls}->onStop',
           }
           sm=stock['classes'][cls]['methods']; pm=patched['classes'][cls]['methods']
           for name,target in expected.items():
