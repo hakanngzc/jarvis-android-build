@@ -97,6 +97,7 @@ jobs:
               preserves=[(i,m) for i,m in enumerate(d.methods) if m[1]=='setPreserveEGLContextOnPause']
               print('PRESERVE_METHOD_REFS',preserves)
           PY
+      # Fresh run records the exact current semantic/structural refinement counts.
       - name: Upload static evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
