@@ -3,7 +3,6 @@ No game code or season state is modified by this file.
 Retry after bounded stock post-save presentation settlement hardening.
 Retry after cross-gate preparer compatibility fix.
 Retry from durable fresh Career save -> process restart -> stock reload boundary.
-Retry with the proven Stage1 visual-change-paced ChooseClub progression.
-Retry after nounset-safe visual helper local-variable fix.
-Retry after open_slot0 tag/state scope was made nounset-safe.
-Exact Stage4 natural season runtime gate routing phrase applied.
+Retry with stock HitGadget-proven ChooseClub/ChooseNation setup progression.
+Retry after nounset-safe open_slot0 handling.
+Natural season runtime uses no season-boundary seed or NewSeason probe.
