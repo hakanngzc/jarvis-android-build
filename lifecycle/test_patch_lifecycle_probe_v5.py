@@ -14,6 +14,9 @@ class LifecyclePatchV5Test(unittest.TestCase):
     def test_replaces_failed_resume_order_candidate_with_activity_onstop_only(self):
         sample='before\n'+GL_DRIVER_REPLACEMENT+'\nafter\n'
         out=replace_resume_candidate(sample)
+        self.assertIn('dump_graphics_lifecycle_code.py',out)
+        self.assertIn('LIFECYCLE_GRAPHICS_CODE.json',out)
+        self.assertIn('LIFECYCLE_GRAPHICS_CODE.txt',out)
         self.assertIn('patch_activity_super_lifecycle.py',out)
         self.assertIn('LIFECYCLE_ACTIVITY_ONSTOP_PATCH.json',out)
         self.assertIn('base-career-probe-stock.apk',out)
@@ -23,6 +26,8 @@ class LifecyclePatchV5Test(unittest.TestCase):
         self.assertNotIn('patch_preserve_egl_activity.py',out)
 
     def test_candidate_is_exact_replacement_block(self):
+        self.assertIn('dump_graphics_lifecycle_code.py',ACTIVITY_ONSTOP_REPLACEMENT)
+        self.assertIn('LIFECYCLE_GRAPHICS_CODE.json',ACTIVITY_ONSTOP_REPLACEMENT)
         self.assertIn('patch_activity_super_lifecycle.py',ACTIVITY_ONSTOP_REPLACEMENT)
         self.assertIn('VERDICT',ACTIVITY_ONSTOP_REPLACEMENT)
 
