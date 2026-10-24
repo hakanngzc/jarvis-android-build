@@ -87,10 +87,17 @@ class LongCareerDriverTransformTest(unittest.TestCase):
     def test_requires_restart_reload_after_every_season(self):
         out = transform(self.fixture())
         self.assertIn('for season in $(seq 1 "$SEASON_COUNT")', out)
-        self.assertIn('open_saved_slot0 "season-${season}-reload"', out)
+        self.assertIn('restart_saved_career "season-${season}-reload"', out)
         self.assertIn('dump_save "season-${season}-reload"', out)
         self.assertIn('fatal_check', out)
-        self.assertIn('LoadCareer saveslot:', out)
+
+    def test_restart_reload_waits_for_stock_auto_loadcareer(self):
+        out = transform(self.fixture())
+        self.assertIn('restart_saved_career(){', out)
+        self.assertIn('adb shell am force-stop "$PKG"', out)
+        self.assertIn('adb shell am start -n "$PKG/.MonkeyGame"', out)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 \"$tag-loadcareer\"", out)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 \"$tag-gamemenu\"", out)
 
     def test_default_is_eight_progressive_seasons(self):
         out = transform(self.fixture())
