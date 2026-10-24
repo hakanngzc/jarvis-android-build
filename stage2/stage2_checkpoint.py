@@ -14,8 +14,12 @@ FIELD_INDEX = {
     'careerapps': 13,
     'goalbonus': 33,
     'wage': 34,
-    'lastnegotiations': 59,
-    'lasttransferdate': 60,
+    # Verified against real Stage2 runtime artifacts on NSS 4.31:
+    # accept mutates 581/582, assist bonus is 898, retirement flag is 910.
+    'lastnegotiations': 581,
+    'lasttransferdate': 582,
+    'assistbonus': 898,
+    'retired': 910,
 }
 
 
