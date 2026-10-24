@@ -10,6 +10,13 @@ find_slot0_target "$OUT/saveslot.png" "$WORK/slot0.txt"
 read -r SLOT_X SLOT_Y < "$WORK/slot0.txt"
 clear_log
 press_physical "$SLOT_X" "$SLOT_Y" 3'''
+POST_CREATE_ANCHOR = '''for _ in 1 2 3 4 5; do
+  press_message_accept 2
+  fatal_check
+  adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/save-progress.txt"; then break; fi
+done
+wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 35 gamemenu'''
 CAREER_ANCHOR = 'shot career-gamemenu\n\n# Drive normal stock UI to the next playable match.'
 MATCH_ANCHOR = 'press_play 2\nsleep 1\nshot "knockout-$MODE-t1"'
 
@@ -48,6 +55,41 @@ lifecycle_background_roundtrip(){
   shot "lifecycle-${tag}-resumed"
   lifecycle_record "${tag}_background_foreground_same_pid" PASS
 }
+wait_for_initial_career_save(){
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
+    if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt"; then
+      lifecycle_record initial_career_save PASS
+      return 0
+    fi
+    press_message_accept 2
+    fatal_check || return 1
+  done
+  adb logcat -d -v threadtime > "$OUT/initial-career-save-timeout.log" 2>/dev/null || true
+  echo 'Initial Career did not reach a stock save boundary'
+  return 1
+}
+reload_saved_career_after_setup(){
+  # First-run news/transition screens are irrelevant to lifecycle coverage and
+  # proved timing-sensitive. Cross a real persistence boundary instead: force
+  # stop after SAVE CAREER, reopen the same stock slot, and require LoadCareer.
+  start_menu
+  clear_log
+  press_physical 810 1450 2
+  wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 lifecycle-reload-saveslot
+  local sx sy
+  read -r sx sy < <(logical_xy 320 280)
+  clear_log
+  press_physical "$sx" "$sy" 3
+  if ! wait_log 'LoadCareer saveslot:[[:space:]]*0' 8 lifecycle-loadcareer-direct; then
+    # Some stock paths show one confirmation/message before loading.
+    press_message_accept 2
+    wait_log 'LoadCareer saveslot:[[:space:]]*0' 25 lifecycle-loadcareer-confirmed
+  fi
+  wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 40 lifecycle-reloaded-gamemenu
+  lifecycle_record career_reload_from_stock_save PASS
+}
 : > "$OUT/LIFECYCLE_RUNTIME_RESULT.txt"
 lifecycle_record api_level "${LIFECYCLE_API:-unknown}"
 
@@ -60,22 +102,15 @@ def one_replace(text, old, new, label):
     return text.replace(old, new, 1)
 
 def patch_script(text: str) -> str:
-    # The inherited Stage3 driver had a latent `set -u` bug: `$dst` was
-    # expanded inside the same `local` command that assigned it. Split the
-    # assignments so lifecycle failures cannot be polluted by signing noise.
     text = one_replace(text, SIGN_ANCHOR,
         '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"', 'sign_one')
     text = one_replace(text, HELPER_ANCHOR, HELPER, 'helper')
-    # Warm relaunch is a standalone assertion. Restart the stable stock menu
-    # afterward so any Activity focus/onNewIntent side effect cannot influence
-    # the Career navigation that follows.
     text = one_replace(text, MAIN_ANCHOR,
         'start_menu\nlifecycle_warm_relaunch mainmenu\nstart_menu\nadb shell wm size > "$OUT/wm-size.txt"', 'mainmenu')
-    # The old image-band heuristic selected the Tutorial footer on a fresh
-    # SaveSlot page. Slot 1 / New Career is stable in the game's 640x960 logical
-    # coordinate system, so use the existing logical->physical scaler instead.
     text = one_replace(text, SLOT_ANCHOR,
         'shot saveslot\nread -r SLOT_X SLOT_Y < <(logical_xy 320 280)\nclear_log\npress_physical "$SLOT_X" "$SLOT_Y" 3', 'slot1')
+    text = one_replace(text, POST_CREATE_ANCHOR,
+        'wait_for_initial_career_save\nreload_saved_career_after_setup', 'post-create reload')
     text = one_replace(text, CAREER_ANCHOR,
         'shot career-gamemenu\nlifecycle_background_roundtrip career\n\n# Drive normal stock UI to the next playable match.', 'career')
     text = one_replace(text, MATCH_ANCHOR,
