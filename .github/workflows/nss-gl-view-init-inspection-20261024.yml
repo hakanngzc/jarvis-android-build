@@ -1,0 +1,74 @@
+name: NSS GL View Init Inspection 20261024
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-gl-view-init-inspection-20261024.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Fetch verified stock NSS 4.31 and dump GL view constructors
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/nss-gl-view-init"; mkdir -p "$WORK/out"
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' \
+            -e 'https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31' \
+            'https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137' -o "$WORK/stock.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$WORK/stock.xapk" | sha256sum -c -
+          unzip -p "$WORK/stock.xapk" com.newstargames.newstarsoccer.apk > "$WORK/base.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$WORK/base.apk" | sha256sum -c -
+          python3 - "$WORK/base.apk" "$WORK/out/GL_VIEW_INIT.json" <<'PY'
+          import json,re,sys,tempfile,zipfile
+          from pathlib import Path
+          sys.path.insert(0,'.')
+          from tools.dex_inspect import Dex
+          apk=Path(sys.argv[1]); out=Path(sys.argv[2])
+          wanted={
+            'Lcom/newstargames/newstarsoccer/AndroidGame$GameView;': {'<init>'},
+            'Lcom/newstargames/newstarsoccer/BBAndroidGame$GameView;': {'<init>','init'},
+            'Lcom/newstargames/newstarsoccer/BBAndroidGame;': {'Run'},
+          }
+          result={'schema':1,'classes':{}}
+          with tempfile.TemporaryDirectory() as td:
+            td=Path(td); dexes=[]
+            with zipfile.ZipFile(apk) as z:
+              for name in sorted(n for n in z.namelist() if re.fullmatch(r'classes\d*\.dex',n)):
+                p=td/name; p.write_bytes(z.read(name)); dexes.append((name,Dex(p)))
+            for cls,names in wanted.items():
+              row={'methods':{}}; result['classes'][cls]=row
+              for dn,d in dexes:
+                methods=d.class_methods(cls)
+                if not methods: continue
+                row['dex']=dn
+                for kind,mid,m,acc,code in methods:
+                  if m[1] not in names: continue
+                  mr={'kind':kind,'method_index':mid,'access':acc,'code_off':code}
+                  if code:
+                    regs,ins,outs,tries,units,items=d.disasm(code)
+                    mr.update({'registers':regs,'ins':ins,'outs':outs,'tries':tries,'instruction_units':units,
+                      'instructions':[{'off':o,'op':op,'args':a,'raw':raw} for o,op,a,raw in items]})
+                  row['methods'][m[1]]=mr
+                break
+          out.write_text(json.dumps(result,indent=2),encoding='utf-8')
+          for cls,row in result['classes'].items():
+            print('\nCLASS',cls,'DEX',row.get('dex'))
+            for name,m in row['methods'].items():
+              print('METHOD',name,'regs',m.get('registers'),'ins',m.get('ins'),'units',m.get('instruction_units'))
+              for i in m.get('instructions',[]): print(f"  {i['off']:04x} {i['op']} {i['args']}")
+          PY
+      - name: Upload evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-gl-view-init-inspection-20261024
+          path: ${{ runner.temp }}/nss-gl-view-init/out/
+          retention-days: 30
