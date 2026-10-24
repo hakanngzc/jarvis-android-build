@@ -227,12 +227,24 @@ run_scenario(){
   extra=()
   if [ "$scenario" = transfer ]; then extra+=(--destination-club-id "$dest"); fi
   if [ "$scenario" = retire ]; then
-    # If runtime still allows the retired Career to be loaded, invoking the same
-    # authoritative stock button again must be a no-op because m_retired was
-    # restored nonzero. Otherwise SaveSlot screenshot + byte-identical raw state
-    # remains evidence for the stock retired-slot reload path.
+    # If runtime still allows the retired Career to be loaded, invoke the exact
+    # patched PlayMatches trigger again. GameMenu Play first opens LeagueFixtures;
+    # the second Play reaches the authoritative stock Retirement.m_ButtonPlay.
+    # Because m_retired was restored nonzero, the second writer execution must
+    # leave the durable Career checkpoint unchanged.
     if grep -q 'LoadCareer saveslot: 0' "$WORK/retire-restart-state.txt"; then
-      clear_log; press_play 3; fatal_check; dump_save retire-second-after-reload; checkpoint retire-second-after-reload
+      clear_log
+      press_play 3
+      wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 retire-second-leaguefixtures
+      fatal_check
+      capture_log 'retire second probe GameMenu -> LeagueFixtures'
+      clear_log
+      press_play 3
+      sleep 3
+      fatal_check
+      capture_log 'retire second stock retirement writer no-op'
+      dump_save retire-second-after-reload
+      checkpoint retire-second-after-reload
     else
       cp "$OUT/retire-post-restart.json" "$OUT/retire-second-after-reload.json"
     fi
