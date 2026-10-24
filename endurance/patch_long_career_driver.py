@@ -43,9 +43,18 @@ done
 grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt" || { echo 'Initial Career did not reach save boundary'; exit 1; }
 start_menu
 read -r REOPEN_X REOPEN_Y < <(logical_xy 480 624)
-clear_log
-press_physical "$REOPEN_X" "$REOPEN_Y" 2
-wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 endurance-reload-saveslot
+REOPENED=0
+for reopen_attempt in 1 2 3; do
+  clear_log
+  press_physical "$REOPEN_X" "$REOPEN_Y" 2
+  if wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 6 "endurance-reload-saveslot-attempt-${reopen_attempt}"; then
+    REOPENED=1
+    break
+  fi
+  shot "endurance-reload-saveslot-attempt-${reopen_attempt}-miss"
+  start_menu
+done
+[ "$REOPENED" -eq 1 ] || { echo 'Could not reopen SaveSlot after initial Career save'; exit 1; }
 read -r RELOAD_X RELOAD_Y < <(logical_xy 320 280)
 clear_log
 press_physical "$RELOAD_X" "$RELOAD_Y" 3
