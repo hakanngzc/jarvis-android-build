@@ -74,6 +74,13 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('NSS-owned ANR detected', text, 'all other package ANRs must still fail the runtime gate')
         self.assertIn('runtime-fatal-logcat.txt', text, 'real crash/ANR evidence must still be preserved')
 
+    def test_visual_helper_is_nounset_safe(self):
+        text = Path('stage2_residual_tools/prepare_chooseclub_visual.py').read_text(encoding='utf-8')
+        self.assertNotIn('local tag="$1" x="$2" y="$3" before=', text,
+                         'dependent before/after paths must not read tag in the same local command')
+        self.assertIn('local tag="$1" x="$2" y="$3"', text)
+        self.assertIn('local before="$OUT/${tag}-before.png" after="$OUT/${tag}-after.png"', text)
+
     def test_prepared_gates_use_durable_save_then_restart_not_news_settlement(self):
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
