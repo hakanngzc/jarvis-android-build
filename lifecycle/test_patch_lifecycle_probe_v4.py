@@ -3,6 +3,9 @@ import unittest
 from patch_lifecycle_probe_v4 import CENTER_ANCHOR, harden_generated_script
 
 
+PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
+
+
 class LifecyclePatchV4Test(unittest.TestCase):
     def test_uses_ui_hierarchy_instead_of_center_guess(self):
         out = harden_generated_script('before\n' + CENTER_ANCHOR + '\nafter\n')
@@ -23,6 +26,11 @@ class LifecyclePatchV4Test(unittest.TestCase):
         out = harden_generated_script(CENTER_ANCHOR)
         self.assertIn('NSS task target not found unambiguously in Recents', out)
         self.assertIn('"${tag}_recents_target_found" FAIL', out)
+
+    def test_moves_play_tap_from_edge_to_verified_button_center(self):
+        out = harden_generated_script(CENTER_ANCHOR + '\n' + PLAY_EDGE_ANCHOR)
+        self.assertIn('logical_xy 553 900', out)
+        self.assertNotIn('logical_xy 553 829', out)
 
     def test_refuses_changed_v3_shape(self):
         with self.assertRaises(ValueError):
