@@ -50,11 +50,11 @@ Java.perform(function () {
 
     if (SCENARIO === 'accept') {
       const offer = makeOffer(Offer, player.m_myclub.value);
-      Contract.m_offer.value = offer;
+      Contract.m_SetUpScreen(offer, false);
       branchReturn = Contract.m_ButtonAccept(false);
     } else if (SCENARIO === 'reject') {
       const offer = makeOffer(Offer, player.m_myclub.value);
-      Contract.m_offer.value = offer;
+      Contract.m_SetUpScreen(offer, false);
       branchReturn = Contract.m_ButtonReject();
     } else if (SCENARIO === 'transfer') {
       let target = null;
@@ -68,7 +68,7 @@ Java.perform(function () {
       if (target === null) throw new Error('could not find a different valid club within +256 IDs');
       targetClubId = target.m_id.value;
       const offer = makeOffer(Offer, target);
-      Contract.m_offer.value = offer;
+      Contract.m_SetUpScreen(offer, false);
       branchReturn = Contract.m_ButtonAccept(false);
     } else if (SCENARIO === 'retirement') {
       Retirement.m_SetUpScreen();
