@@ -13,13 +13,38 @@ HELPERS = r'''press_and_require_stock_hit(){
     clear_log
     shot "${tag}-attempt-${attempt}-before"
 
-    # Fresh Pixel4 Career setup may first show the stock Welcome/help message.
-    # Artifact evidence places its green checkmark around physical 620,1425;
-    # the normal ChooseClub/ChooseNation footer remains the logical fallback.
-    if [[ "$size" == *1080x2280* && "$attempt" -eq 1 ]]; then
-      echo "setup $tag attempt $attempt: Pixel4 welcome/help checkmark target 620,1425"
-      adb shell input touchscreen tap 620 1425 </dev/null || true
-      sleep 4
+    if [[ "$size" == *1080x2280* ]]; then
+      case "$tag" in
+        fresh-setup-ok-1)
+          # Artifact-proven first fresh-Career surface: Welcome/help message.
+          # Its green checkmark is centered around physical 620,1425.
+          case "$attempt" in
+            1)
+              echo "setup $tag attempt $attempt: Pixel4 welcome/help checkmark target 620,1425"
+              adb shell input touchscreen tap 620 1425 </dev/null || true
+              sleep 4
+              ;;
+            *) press_logical "$x" "$y" 4 ;;
+          esac
+          ;;
+        fresh-setup-ok-3)
+          # Artifact run122 shows the third setup surface is the player-profile
+          # screen, not another OK dialog. The white Next arrow center measures
+          # about 940,1830 on the 1080x2280 Pixel4 frame.
+          echo "setup $tag attempt $attempt: Pixel4 player-profile Next target 940,1830"
+          if [ "$attempt" = 1 ]; then
+            adb shell input touchscreen tap 940 1830 </dev/null || true
+          else
+            adb shell input touchscreen swipe 940 1830 940 1830 220 </dev/null || true
+          fi
+          sleep 4
+          ;;
+        *)
+          # ChooseClub and any later ordinary footer screen keep the stock
+          # logical footer target.
+          press_logical "$x" "$y" 4
+          ;;
+      esac
     else
       press_logical "$x" "$y" 4
     fi
@@ -31,6 +56,7 @@ HELPERS = r'''press_and_require_stock_hit(){
       capture_log "$tag stock setup input registered"
       return 0
     fi
+    cp "$evidence" "$OUT/${tag}-attempt-${attempt}.txt" 2>/dev/null || true
     fatal_check || return 1
     echo "setup control did not register for $tag attempt $attempt/3"
     sleep 2
@@ -41,10 +67,10 @@ HELPERS = r'''press_and_require_stock_hit(){
 '''
 
 # Both residual gates use this stock fresh-Career block. Replace only the blind
-# repeated footer presses; the actual ChooseClub/ChooseNation screens and their
-# stock m_ButtonOk methods remain untouched. Screen animations/tickers are not
-# accepted as input proof: each controlled press must produce a stock gadget hit
-# or the real ChooseNation transition.
+# repeated footer presses; the actual game screens and their stock handlers
+# remain untouched. Screen animations/tickers are not accepted as input proof:
+# each controlled press must produce a stock gadget hit or the real
+# ChooseNation transition.
 LOOP_RE = re.compile(
     r'''for _ in 1 2 3 4; do adb logcat -d -v brief > "\$WORK/setup\.txt" 2>/dev/null \|\| true; grep -qiE 'choosenation' "\$WORK/setup\.txt" && break; press_footer_ok 2; fatal_check; done\nwait_log 'Create Screen:\[\[:space:\]\]\*choosenation\|SETTING ACTIVE:\[\[:space:\]\]\*choosenation\|SetActive:\[\[:space:\]\]\*choosenation' 30 choosenation'''
 )
@@ -54,9 +80,9 @@ REPLACEMENT = r'''for n in 1 2 3 4 5 6; do
   if grep -qiE 'Create Screen:[[:space:]]*choosenation|SETTING ACTIVE:[[:space:]]*choosenation|SetActive:[[:space:]]*choosenation' "$WORK/setup.txt"; then
     break
   fi
-  # Fresh ChooseClub can present a help message and player-profile/default-name
-  # steps before nationality. Require the stock button/event evidence rather
-  # than interpreting ticker animation as screen progress.
+  # Fresh Career setup includes distinct stock surfaces before nationality.
+  # Use step-specific Pixel4 targets only where artifact evidence identifies
+  # those surfaces, and keep stock event/transition proof as the success gate.
   press_and_require_stock_hit "fresh-setup-ok-$n" 536 880
  done
 wait_log 'Create Screen:[[:space:]]*choosenation|SETTING ACTIVE:[[:space:]]*choosenation|SetActive:[[:space:]]*choosenation' 30 choosenation'''
