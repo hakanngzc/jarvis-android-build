@@ -135,6 +135,25 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('[ "$stable" -ge 2 ]', out)
         self.assertIn('settle_loaded_gamemenu "$tag"', out)
 
+    def test_measurement_service_anr_is_the_only_ignored_anr(self):
+        out = transform(self.fixture())
+        self.assertIn('local anr_count measurement_count', out)
+        self.assertIn("anr_count=\"$(grep -cE 'ANR in com\\.newstargames\\.newstarsoccer'", out)
+        self.assertIn('Reason: executing service com\\.newstargames\\.newstarsoccer/com\\.google\\.android\\.gms\\.measurement\\.AppMeasurementService', out)
+        self.assertIn('[ "$anr_count" -eq "$measurement_count" ]', out)
+        self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
+        self.assertIn("grep -qE 'Process: com\\.newstargames\\.newstarsoccer, PID:|FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer'", out)
+        self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
+
+    def test_final_flow_gate_uses_same_narrow_measurement_rule(self):
+        out = transform(self.fixture())
+        self.assertIn('flow_fatal_check(){', out)
+        self.assertIn('flow_anr_count', out)
+        self.assertIn('flow_measurement_count', out)
+        self.assertIn('[ "$flow_anr_count" -eq "$flow_measurement_count" ]', out)
+        self.assertIn('flow_fatal_check', out)
+        self.assertNotIn("! grep -qiE 'ANR in com\\.newstargames\\.newstarsoccer|Process: com\\.newstargames\\.newstarsoccer, PID:|FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer' \"$FLOW\"", out)
+
     def test_default_is_eight_progressive_seasons(self):
         out = transform(self.fixture())
         self.assertIn('SEASON_COUNT="${LONG_CAREER_SEASONS:-8}"', out)
