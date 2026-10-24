@@ -38,6 +38,18 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('LoadCareer saveslot: 0', text)
         self.assertIn('STAGE2_RESIDUAL_RUNTIME_PASS', text)
 
+    def test_gate_preparer_hardens_real_pixel4_bootstrap(self):
+        p = Path('stage2_residual_tools/prepare_stage2_gate.py')
+        self.assertTrue(p.exists(), 'runtime gate preparer must exist')
+        text = p.read_text(encoding='utf-8')
+        self.assertIn("(2|3)", text, 'Play helper must support both Stage2 and Stage4 delay variants')
+        self.assertIn('render-probe.png', text, 'MainMenu log alone is not enough; require rendered frame readiness')
+        self.assertIn('HitGadget: saveslot.btn_Slot0', text, 'Slot0 input must be proven by stock gadget evidence')
+        self.assertIn('Career press attempt', text, 'Career input must use bounded controlled retries')
+        self.assertIn('patch_first_run_overlays.py', text, 'Stage2 bootstrap must remove only first-run overlays before UI input')
+        self.assertIn('tap 795 1399', text, 'use the proven API29 Pixel4 Career target')
+        self.assertIn('tap 935 1850', text, 'use the proven API29 Pixel4 Play target')
+
 
 if __name__ == '__main__':
     unittest.main()
