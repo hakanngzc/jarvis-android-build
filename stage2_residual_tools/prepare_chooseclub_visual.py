@@ -16,15 +16,18 @@ HELPERS = r'''press_and_require_stock_hit(){
     if [[ "$size" == *1080x2280* ]]; then
       case "$tag" in
         fresh-setup-ok-1)
-          # Artifact-proven first fresh-Career surface: Welcome/help message.
-          # Its green checkmark is centered around physical 620,1425.
+          # Artifact run132 proves the 1080x2280 Welcome/help green button spans
+          # about x=560..1050, y=1714..1978; use its measured center.
           case "$attempt" in
             1)
-              echo "setup $tag attempt $attempt: Pixel4 welcome/help checkmark target 620,1425"
-              adb shell input touchscreen tap 620 1425 </dev/null || true
+              echo "setup $tag attempt $attempt: Pixel4 welcome/help checkmark target 805,1845"
+              adb shell input touchscreen tap 805 1845 </dev/null || true
               sleep 4
               ;;
-            *) press_logical "$x" "$y" 4 ;;
+            *)
+              adb shell input touchscreen swipe 805 1845 805 1845 220 </dev/null || true
+              sleep 4
+              ;;
           esac
           ;;
         fresh-setup-ok-3)
