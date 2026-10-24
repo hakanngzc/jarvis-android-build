@@ -43,7 +43,9 @@ jobs:
           disable-animations: true
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            bash stage2_residual_gate.sh
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.sh"
+            bash -n "$RUNNER_TEMP/stage2-residual-gate.sh"
+            bash "$RUNNER_TEMP/stage2-residual-gate.sh"
 
       - name: Upload Stage2 residual evidence
         if: always()
