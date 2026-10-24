@@ -1,0 +1,2 @@
+NSS 4.31 Stage4 natural full-season / long-Career runtime closure trigger.
+No game code or season state is modified by this file.
