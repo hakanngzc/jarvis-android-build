@@ -5,6 +5,10 @@ from pathlib import Path
 from patch_lifecycle_probe_v4 import GL_DRIVER_REPLACEMENT, patch_script as v4_patch_script
 
 ACTIVITY_ONSTOP_REPLACEMENT = r'''python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe-stock.apk"
+python3 lifecycle/dump_graphics_lifecycle_code.py \
+  "$WORK/base-career-probe-stock.apk" \
+  --out "$OUT/LIFECYCLE_GRAPHICS_CODE.json" \
+  | tee "$OUT/LIFECYCLE_GRAPHICS_CODE.txt"
 python3 lifecycle/patch_activity_super_lifecycle.py \
   "$WORK/base-career-probe-stock.apk" "$WORK/base-career-probe.apk" \
   --evidence "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.json" \
