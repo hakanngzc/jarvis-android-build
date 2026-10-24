@@ -22,16 +22,20 @@ SCENARIO="${STAGE2_SCENARIO:?STAGE2_SCENARIO is required}"
 case "$SCENARIO" in accept|reject|transfer|retirement) ;; *) echo "bad Stage2 scenario: $SCENARIO"; exit 2;; esac
 
 dismiss_measurement_anr_modal(){
-  local attempt xml target x y
+  local attempt xml target live x y anr_count measurement_count
   xml="$OUT/stage2-${SCENARIO}-measurement-anr-ui.xml"
   target="$WORK/stage2-${SCENARIO}-measurement-anr-wait-target.txt"
+  live="$OUT/stage2-${SCENARIO}-measurement-anr-live.log"
   for attempt in $(seq 1 90); do
-    if [ -s "$OUT/runtime-ignored-appmeasurement-anr.txt" ] && \
-       grep -q 'Reason: executing service com.newstargames.newstarsoccer/com.google.android.gms.measurement.AppMeasurementService' "$OUT/runtime-ignored-appmeasurement-anr.txt"; then
-      adb shell uiautomator dump /sdcard/stage2-anr.xml >/dev/null 2>&1 || true
-      adb shell cat /sdcard/stage2-anr.xml > "$xml" 2>/dev/null || true
-      if grep -q 'text="Wait"' "$xml" && grep -qiE 'NSS[^<]*(isn.t|is not)[^<]*responding|NSS[^<]*responding' "$xml"; then
-        python3 - "$xml" "$target" <<'PY'
+    adb logcat -d -v threadtime > "$live" 2>/dev/null || true
+    if ! grep -qE 'Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$live"; then
+      anr_count="$(grep -cE 'ANR in com\.newstargames\.newstarsoccer' "$live" || true)"
+      measurement_count="$(grep -cE 'Reason: executing service com\.newstargames\.newstarsoccer/com\.google\.android\.gms\.measurement\.AppMeasurementService' "$live" || true)"
+      if [ "$anr_count" -gt 0 ] && [ "$anr_count" -eq "$measurement_count" ]; then
+        adb shell uiautomator dump /sdcard/stage2-anr.xml >/dev/null 2>&1 || true
+        adb shell cat /sdcard/stage2-anr.xml > "$xml" 2>/dev/null || true
+        if grep -q 'text="Wait"' "$xml" && grep -qiE 'NSS[^<]*(isn.t|is not)[^<]*responding|NSS[^<]*responding' "$xml"; then
+          python3 - "$xml" "$target" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 from pathlib import Path
 src,dst=sys.argv[1:]
@@ -51,11 +55,12 @@ for node in root.iter('node'):
         raise SystemExit(0)
 raise SystemExit(1)
 PY
-        if [ -s "$target" ]; then
-          read -r x y < "$target"
-          adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
-          printf 'measurement_anr_wait_dismissed=PASS\n' | tee "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt"
-          return 0
+          if [ -s "$target" ]; then
+            read -r x y < "$target"
+            adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
+            printf 'measurement_anr_wait_dismissed=PASS\n' | tee "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt"
+            return 0
+          fi
         fi
       fi
     fi
@@ -103,10 +108,11 @@ dump_stage2_save post
 shot "stage2-${SCENARIO}-post"
 
 # Mandatory process restart and stock LoadCareer. AOSP API29 can surface a
-# system ANR modal for the absent Google measurement service. Only after the
-# hardened fatal_check has classified that exact ANR as measurement-only do we
-# allow a bounded UI watcher to press Wait; unknown ANRs and crashes still fail.
-rm -f "$OUT/runtime-ignored-appmeasurement-anr.txt" "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt"
+# system ANR modal for the absent Google measurement service. The bounded
+# watcher independently classifies live logcat with the same exact
+# measurement-only rule before it may press Wait. Unknown ANRs and crashes are
+# never acted on and remain fail-closed in the normal runtime gate.
+rm -f "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt" "$OUT/stage2-${SCENARIO}-measurement-anr-live.log"
 dismiss_measurement_anr_modal &
 STAGE2_ANR_WATCHER_PID=$!
 if ! reload_saved_career_after_setup; then
