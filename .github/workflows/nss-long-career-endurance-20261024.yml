@@ -1,0 +1,56 @@
+name: NSS Long Career Endurance 20261024
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-long-career-endurance-20261024.yml'
+      - 'endurance/**'
+
+permissions:
+  contents: read
+
+jobs:
+  endurance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned probe dependency
+        run: python -m pip install --disable-pip-version-check pillow==12.0.0
+      - name: Validate long Career transforms
+        working-directory: endurance
+        run: python3 -m unittest test_long_career_gate.py -v
+      - name: Derive long Career driver
+        run: |
+          python3 endurance/patch_long_career_driver.py \
+            nss_stage3_knockout_runtime.sh endurance/run_long_career.sh
+          bash -n endurance/run_long_career.sh
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run eight-season Career endurance on API 29
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: LONG_CAREER_SEASONS=8 bash endurance/run_long_career.sh extra-time
+      - name: Upload endurance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-long-career-api29-20261024
+          path: ${{ runner.temp }}/nss-stage3-knockout-extra-time/out/
+          retention-days: 30
