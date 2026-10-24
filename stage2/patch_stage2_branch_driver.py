@@ -21,6 +21,49 @@ TRUNCATE_REPLACEMENT = r'''shot career-gamemenu
 SCENARIO="${STAGE2_SCENARIO:?STAGE2_SCENARIO is required}"
 case "$SCENARIO" in accept|reject|transfer|retirement) ;; *) echo "bad Stage2 scenario: $SCENARIO"; exit 2;; esac
 
+dismiss_measurement_anr_modal(){
+  local attempt xml target x y
+  xml="$OUT/stage2-${SCENARIO}-measurement-anr-ui.xml"
+  target="$WORK/stage2-${SCENARIO}-measurement-anr-wait-target.txt"
+  for attempt in $(seq 1 90); do
+    if [ -s "$OUT/runtime-ignored-appmeasurement-anr.txt" ] && \
+       grep -q 'Reason: executing service com.newstargames.newstarsoccer/com.google.android.gms.measurement.AppMeasurementService' "$OUT/runtime-ignored-appmeasurement-anr.txt"; then
+      adb shell uiautomator dump /sdcard/stage2-anr.xml >/dev/null 2>&1 || true
+      adb shell cat /sdcard/stage2-anr.xml > "$xml" 2>/dev/null || true
+      if grep -q 'text="Wait"' "$xml" && grep -qiE 'NSS[^<]*(isn.t|is not)[^<]*responding|NSS[^<]*responding' "$xml"; then
+        python3 - "$xml" "$target" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+from pathlib import Path
+src,dst=sys.argv[1:]
+try:
+    root=ET.parse(src).getroot()
+except Exception:
+    raise SystemExit(1)
+for node in root.iter('node'):
+    if node.attrib.get('text') != 'Wait':
+        continue
+    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2>x1 and y2>y1:
+        Path(dst).write_text(f'{(x1+x2)//2} {(y1+y2)//2}\n',encoding='utf-8')
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+        if [ -s "$target" ]; then
+          read -r x y < "$target"
+          adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
+          printf 'measurement_anr_wait_dismissed=PASS\n' | tee "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt"
+          return 0
+        fi
+      fi
+    fi
+    sleep 1
+  done
+  return 0
+}
+
 dump_stage2_save(){
   local tag="$1"
   local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
@@ -59,8 +102,21 @@ fatal_check
 dump_stage2_save post
 shot "stage2-${SCENARIO}-post"
 
-# Mandatory process restart and stock LoadCareer.
-reload_saved_career_after_setup
+# Mandatory process restart and stock LoadCareer. AOSP API29 can surface a
+# system ANR modal for the absent Google measurement service. Only after the
+# hardened fatal_check has classified that exact ANR as measurement-only do we
+# allow a bounded UI watcher to press Wait; unknown ANRs and crashes still fail.
+rm -f "$OUT/runtime-ignored-appmeasurement-anr.txt" "$OUT/stage2-${SCENARIO}-measurement-anr-recovery.txt"
+dismiss_measurement_anr_modal &
+STAGE2_ANR_WATCHER_PID=$!
+if ! reload_saved_career_after_setup; then
+  kill "$STAGE2_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+  wait "$STAGE2_ANR_WATCHER_PID" 2>/dev/null || true
+  exit 1
+fi
+kill "$STAGE2_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+wait "$STAGE2_ANR_WATCHER_PID" 2>/dev/null || true
+
 dump_stage2_save reload
 require_stage2_pid reload
 python3 stage2/run_frida_script.py \
