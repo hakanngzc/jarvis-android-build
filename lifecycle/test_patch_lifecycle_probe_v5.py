@@ -11,16 +11,19 @@ from patch_lifecycle_probe_v5 import (
 
 
 class LifecyclePatchV5Test(unittest.TestCase):
-    def test_replaces_failed_resume_order_candidate_with_activity_onstop_only(self):
+    def test_replaces_failed_resume_order_candidate_with_activity_super_fix(self):
         sample='before\n'+GL_DRIVER_REPLACEMENT+'\nafter\n'
         out=replace_resume_candidate(sample)
         self.assertIn('dump_graphics_lifecycle_code.py',out)
         self.assertIn('LIFECYCLE_GRAPHICS_CODE.json',out)
         self.assertIn('LIFECYCLE_GRAPHICS_CODE.txt',out)
         self.assertIn('patch_activity_super_lifecycle.py',out)
-        self.assertIn('LIFECYCLE_ACTIVITY_ONSTOP_PATCH.json',out)
+        self.assertIn('LIFECYCLE_ACTIVITY_SUPER_PATCH.json',out)
+        self.assertIn('LIFECYCLE_ACTIVITY_SUPER_PATCH.txt',out)
+        self.assertIn('LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED',out)
         self.assertIn('base-career-probe-stock.apk',out)
         self.assertIn('base-career-probe.apk',out)
+        self.assertNotIn('LIFECYCLE_ACTIVITY_ONSTOP_PATCH',out)
         self.assertNotIn('patch_gl_resume_race.py',out)
         self.assertNotIn('patch_gl_context_survival.py',out)
         self.assertNotIn('patch_preserve_egl_activity.py',out)
@@ -29,7 +32,7 @@ class LifecyclePatchV5Test(unittest.TestCase):
         self.assertIn('dump_graphics_lifecycle_code.py',ACTIVITY_ONSTOP_REPLACEMENT)
         self.assertIn('LIFECYCLE_GRAPHICS_CODE.json',ACTIVITY_ONSTOP_REPLACEMENT)
         self.assertIn('patch_activity_super_lifecycle.py',ACTIVITY_ONSTOP_REPLACEMENT)
-        self.assertIn('VERDICT',ACTIVITY_ONSTOP_REPLACEMENT)
+        self.assertIn('LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED',ACTIVITY_ONSTOP_REPLACEMENT)
 
     def test_refuses_changed_v4_candidate_shape(self):
         with self.assertRaises(ValueError):
