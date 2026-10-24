@@ -6,10 +6,13 @@ from tools.dex_inspect import Dex
 
 APP='Lcom/newstargames/newstarsoccer/'
 CLASSES={
-  APP+'gxtkGraphics;': {'BackFaceCulling','BeginRender','EndRender','Cls','SetScissor','SetMatrix','SetColor','SetAlpha','SetBlend'},
-  APP+'BBAndroidGame;': {'onPause','onResume','onDrawFrame','onSurfaceCreated','onSurfaceChanged','SuspendGame','ResumeGame','StartGame','UpdateGame','RenderGame'},
-  APP+'BBGame;': {'SuspendGame','ResumeGame','RenderGame','UpdateGame'},
-  APP+'MonkeyGame;': {'onPause','onResume','onCreate'},
+  APP+'gxtkGraphics;': {'BackFaceCulling','BeginRender','EndRender','DiscardGraphics','Reset','Flush','ForceFlush'},
+  APP+'BBAndroidGame;': {'onDrawFrame','onSurfaceCreated','onSurfaceChanged','SuspendGame','ResumeGame','Run','DiscardGraphics'},
+  APP+'BBAndroidGame$GameView;': {'onPause','onResume','surfaceCreated','surfaceDestroyed','surfaceChanged'},
+  APP+'AndroidGame;': {'onCreate','onPause','onResume','onStart','onStop','onRestart','onWindowFocusChanged'},
+  APP+'AndroidGame$GameView;': {'onPause','onResume','surfaceCreated','surfaceDestroyed','surfaceChanged'},
+  APP+'BBGame;': {'SuspendGame','ResumeGame','RenderGame','UpdateGame','DiscardGraphics'},
+  APP+'MonkeyGame;': {'onPause','onResume','onCreate','onStop','onStart','onRestart'},
 }
 
 def dump(apk: Path):
