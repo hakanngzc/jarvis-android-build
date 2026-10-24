@@ -1,4 +1,4 @@
-name: NSS Stage4 Season Runtime
+name: NSS Residual Runtime Closure
 
 on:
   workflow_dispatch:
@@ -9,14 +9,45 @@ permissions:
   contents: read
 
 jobs:
-  residual-static:
+  stage2-residual-runtime:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Compile residual tooling
-        run: python3 -m py_compile stage2_residual_tools/*.py stage4_tools/verify_stage4_natural_season.py
-      - name: Check shell syntax
-        run: bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
-      - name: Run residual tests
-        run: python3 -m unittest test_stage2_residual_contract.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
+
+      - name: Validate residual tooling
+        run: |
+          python3 -m py_compile stage2_residual_tools/*.py stage4_tools/verify_stage4_natural_season.py
+          bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
+          python3 -m unittest test_stage2_residual_contract.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and verify contract transfer retirement persistence
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            bash stage2_residual_gate.sh
+
+      - name: Upload Stage2 residual evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage2-residual-runtime-evidence
+          path: ${{ runner.temp }}/stage2-residual/
+          retention-days: 7
