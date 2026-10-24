@@ -37,9 +37,10 @@ class LifecyclePatchV3Test(unittest.TestCase):
         self.assertIn('"${tag}_recents_foreground" FAIL', out)
         self.assertIn('"${tag}_recents_foreground" PASS', out)
 
-    def test_career_entry_uses_scaled_logical_target_and_retries(self):
+    def test_career_entry_uses_scaled_verified_button_center_and_retries(self):
         out = harden_generated_script(FIXTURE)
-        self.assertIn('logical_xy 480 664', out)
+        self.assertIn('logical_xy 480 624', out)
+        self.assertNotIn('logical_xy 480 664', out)
         self.assertIn('for attempt in 1 2 3', out)
         self.assertIn('open_saveslot_from_mainmenu saveslot', out)
         self.assertIn('open_saveslot_from_mainmenu lifecycle-reload-saveslot', out)
