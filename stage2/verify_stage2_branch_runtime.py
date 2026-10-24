@@ -46,6 +46,7 @@ def main() -> None:
         checks.append((bool(ok), label))
 
     ck(args.scenario == scenario.get('scenario'), 'scenario identity')
+    ck(scenario.get('thread_name', '').startswith('GLThread'), 'scenario executed on GL renderer thread')
     ck(before['clubid'] == baseline['clubid'], 'runtime baseline club matches save')
     ck(before['wage'] == baseline['wage'], 'runtime baseline wage matches save')
     ck(before['goalbonus'] == baseline['goalbonus'], 'runtime baseline goal bonus matches save')
