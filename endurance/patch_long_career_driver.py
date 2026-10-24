@@ -92,6 +92,16 @@ capture_flow(){
   } >> "$FLOW"
 }
 
+settle_loaded_gamemenu(){
+  local tag="$1" probe="$WORK/${tag}-settle.txt"
+  sleep 2
+  adb logcat -d -v threadtime > "$probe" 2>/dev/null || true
+  if grep -qE 'SETTING ACTIVE:[[:space:]]*startransition|SetActive:[[:space:]]*startransition' "$probe"; then
+    wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 30 "$tag-post-star-gamemenu"
+  fi
+  sleep 1
+}
+
 restart_saved_career(){
   local tag="$1"
   adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
@@ -99,6 +109,7 @@ restart_saved_career(){
   adb shell am start -n "$PKG/.MonkeyGame" >/dev/null 2>&1 || true
   wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 "$tag-loadcareer"
   wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 "$tag-gamemenu"
+  settle_loaded_gamemenu "$tag"
   fatal_check
 }
 
