@@ -1,3 +1,4 @@
+# Residual runtime closure: Stage4 natural rerun after shared-preparer source-shape fix.
 name: NSS Residual Runtime Closure
 
 on:
