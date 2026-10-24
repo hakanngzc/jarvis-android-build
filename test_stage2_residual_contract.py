@@ -32,7 +32,9 @@ class Stage2ResidualContractTests(unittest.TestCase):
         text = p.read_text(encoding='utf-8')
         for scenario in ('accept', 'reject', 'transfer', 'retire'):
             self.assertIn(f'run_scenario {scenario}', text)
-            self.assertIn(f'{scenario}-post-restart', text)
+        self.assertIn('start_game "$scenario-restart"', text)
+        self.assertIn('dump_save "$scenario-post-restart"', text)
+        self.assertIn('--restart "$OUT/$scenario-post-restart.json"', text)
         self.assertIn('LoadCareer saveslot: 0', text)
         self.assertIn('STAGE2_RESIDUAL_RUNTIME_PASS', text)
 
