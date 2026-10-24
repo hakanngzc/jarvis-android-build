@@ -11,6 +11,19 @@ python3 lifecycle/patch_activity_super_lifecycle.py \
   | tee "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.txt"
 grep -q 'VERDICT=LIFECYCLE_ACTIVITY_ONSTOP_PATCH_APPLIED' "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.txt"'''
 
+CHOOSECLUB_WAIT_ANCHOR = "wait_log 'Create Screen:[[:space:]]*chooseclub|Create Screen:chooseclub' 25 chooseclub"
+
+CHOOSECLUB_DIAGNOSTIC_REPLACEMENT = r'''if ! wait_log 'Create Screen:[[:space:]]*chooseclub|Create Screen:chooseclub' 25 chooseclub; then
+  shot lifecycle-chooseclub-timeout
+  adb shell dumpsys activity activities > "$OUT/lifecycle-chooseclub-timeout-activity.txt" 2>/dev/null || true
+  adb shell dumpsys window windows > "$OUT/lifecycle-chooseclub-timeout-window.txt" 2>/dev/null || true
+  adb shell uiautomator dump /sdcard/lifecycle-chooseclub-timeout.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/lifecycle-chooseclub-timeout.xml "$OUT/lifecycle-chooseclub-timeout-ui.xml" >/dev/null 2>&1 || true
+  adb logcat -d -v threadtime > "$OUT/lifecycle-chooseclub-timeout.log" 2>/dev/null || true
+  echo 'chooseclub timeout diagnostics captured'
+  exit 204
+fi'''
+
 
 def replace_resume_candidate(text: str) -> str:
     count = text.count(GL_DRIVER_REPLACEMENT)
@@ -19,9 +32,17 @@ def replace_resume_candidate(text: str) -> str:
     return text.replace(GL_DRIVER_REPLACEMENT, ACTIVITY_ONSTOP_REPLACEMENT, 1)
 
 
+def inject_chooseclub_timeout_diagnostics(text: str) -> str:
+    count = text.count(CHOOSECLUB_WAIT_ANCHOR)
+    if count != 1:
+        raise ValueError(f'expected one chooseclub wait anchor, found {count}')
+    return text.replace(CHOOSECLUB_WAIT_ANCHOR, CHOOSECLUB_DIAGNOSTIC_REPLACEMENT, 1)
+
+
 def patch_script(text: str) -> str:
     generated = v4_patch_script(text)
-    return replace_resume_candidate(generated)
+    generated = replace_resume_candidate(generated)
+    return inject_chooseclub_timeout_diagnostics(generated)
 
 
 def main() -> None:
