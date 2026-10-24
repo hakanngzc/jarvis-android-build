@@ -5,11 +5,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from find_live_ball import load_rgb_png
+from find_live_ball import decode_png_rgb
 
 
 def find_kick_ball(path: Path):
-    w, h, pixels = load_rgb_png(path)
+    w, h, channels, rows = decode_png_rgb(path)
     # NSS live chances render the player-controlled ball as a very large,
     # high-contrast white/black sphere in the lower-middle pitch. Search a
     # central/lower field region for the densest neutral-bright square instead
@@ -25,9 +25,13 @@ def find_kick_ball(path: Path):
         return None
 
     bright = bytearray(w * h)
-    for i, (r, g, b) in enumerate(pixels):
-        if r > 170 and g > 170 and b > 170 and max(r, g, b) - min(r, g, b) < 85:
-            bright[i] = 1
+    for y, row in enumerate(rows):
+        base = y * w
+        for x in range(w):
+            i = x * channels
+            r, g, b = row[i], row[i + 1], row[i + 2]
+            if r > 170 and g > 170 and b > 170 and max(r, g, b) - min(r, g, b) < 85:
+                bright[base + x] = 1
 
     # Row-prefix sums keep the scan cheap in the emulator runtime and avoid
     # adding Pillow/numpy to the evidence harness.
