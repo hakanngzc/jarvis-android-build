@@ -40,6 +40,16 @@ def digest(v):
     return hashlib.sha256(v.encode()).hexdigest()
 
 
+def player_record_without_date_digest(tokens):
+    # Retirement.m_ButtonPlay deliberately decrements m_sdate before QuickSave.
+    # Keep a second durable-record fingerprint with token 0 normalized so a
+    # retirement runtime proof can demonstrate state changed beyond the date
+    # adjustment without guessing an unverified m_retired CSV index.
+    normalized = list(tokens)
+    normalized[FIELD_INDEX['sdate']] = '<SDATE>'
+    return digest(','.join(normalized))
+
+
 def extract_checkpoint(state, slot):
     records = strip_tweaks_prefix(state).split(';')
     base = slot * 5
@@ -52,6 +62,7 @@ def extract_checkpoint(state, slot):
         value = tokens[index]
         out[name] = value if name in STRING_FIELDS else int(value)
     out['playerrecordsha256'] = digest(player)
+    out['playerrecordnodatesha256'] = player_record_without_date_digest(tokens)
     out['clubrecordsha256'] = digest(records[base + 2])
     out['competitionrecordsha256'] = digest(records[base + 3])
     out['additionalclubrecordsha256'] = digest(records[base + 4])
