@@ -48,8 +48,7 @@ jobs:
             python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.start.sh"
             python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.start.sh" "$RUNNER_TEMP/stage2-residual-gate.visual.sh"
             python3 stage2_residual_tools/prepare_stage2_gamemenu_stable.py "$RUNNER_TEMP/stage2-residual-gate.visual.sh" "$RUNNER_TEMP/stage2-residual-gate.stable.sh"
-            python3 stage2_residual_tools/prepare_stage2_navigation.py "$RUNNER_TEMP/stage2-residual-gate.stable.sh" "$RUNNER_TEMP/stage2-residual-gate.navigation.sh"
-            python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.navigation.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
+            python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.stable.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
             bash -n "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
             bash "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
 
