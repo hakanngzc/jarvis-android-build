@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
-OLD = '''      clear_log
-      press_play 3
-      wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 retire-second-leaguefixtures
-      fatal_check
-      capture_log 'retire second probe GameMenu -> LeagueFixtures'
-      clear_log
-      press_play 3
-      sleep 3
-      fatal_check
-      capture_log 'retire second stock retirement writer no-op' '''.rstrip()
+# Match only the one retirement-after-reload traversal. Keep this deliberately
+# narrow: both semantic markers must exist in order and exactly one block must
+# match. Whitespace/comments around the stock Play calls may evolve without
+# silently disabling the runtime proof.
+BLOCK_RE = re.compile(
+    r'''(?ms)^      clear_log\s*\n'''
+    r'''      press_play 3\s*\n'''
+    r'''      wait_log 'Create Screen:\[\[:space:\]\]\*leaguefixtures\|SETTING ACTIVE:\[\[:space:\]\]\*leaguefixtures\|SetActive:\[\[:space:\]\]\*leaguefixtures' 30 retire-second-leaguefixtures\s*\n'''
+    r'''      fatal_check\s*\n'''
+    r'''      capture_log 'retire second probe GameMenu -> LeagueFixtures'\s*\n'''
+    r'''      clear_log\s*\n'''
+    r'''      press_play 3\s*\n'''
+    r'''      sleep 3\s*\n'''
+    r'''      fatal_check\s*\n'''
+    r'''      capture_log 'retire second stock retirement writer no-op'[ \t]*'''
+)
 
 NEW = '''      local second_gm_attempt second_gm_hit=0 second_gm_evidence
       for second_gm_attempt in 1 2 3; do
@@ -61,10 +68,10 @@ NEW = '''      local second_gm_attempt second_gm_hit=0 second_gm_evidence
 
 
 def harden(text: str) -> str:
-    count = text.count(OLD)
-    if count != 1:
-        raise SystemExit(f'expected one retirement reload Play block, found {count}')
-    return text.replace(OLD, NEW, 1)
+    matches = list(BLOCK_RE.finditer(text))
+    if len(matches) != 1:
+        raise SystemExit(f'expected one retirement reload Play block, found {len(matches)}')
+    return BLOCK_RE.sub(lambda _m: NEW, text, count=1)
 
 
 def main() -> None:
