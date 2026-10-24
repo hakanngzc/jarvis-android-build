@@ -147,6 +147,19 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn("grep -qE 'Process: com\\.newstargames\\.newstarsoccer, PID:|FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer'", out)
         self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
 
+    def test_restart_recovery_presses_wait_only_for_measurement_anr_modal(self):
+        out = transform(self.fixture())
+        self.assertIn('dismiss_measurement_anr_modal(){', out)
+        self.assertIn('for attempt in $(seq 1 90)', out)
+        self.assertIn("grep -q 'text=\"Wait\"'", out)
+        self.assertIn("NSS[^<]*(isn.t|is not)[^<]*responding|NSS[^<]*responding", out)
+        self.assertIn("node.attrib.get('text') != 'Wait'", out)
+        self.assertIn('measurement_anr_wait_dismissed=PASS', out)
+        self.assertIn('dismiss_measurement_anr_modal "$tag" &', out)
+        self.assertIn('ENDURANCE_ANR_WATCHER_PID=$!', out)
+        self.assertIn('kill "$ENDURANCE_ANR_WATCHER_PID"', out)
+        self.assertNotIn('Close app', out)
+
     def test_final_flow_gate_uses_same_narrow_measurement_rule(self):
         out = transform(self.fixture())
         self.assertIn('flow_fatal_check(){', out)
