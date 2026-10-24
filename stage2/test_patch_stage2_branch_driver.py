@@ -88,6 +88,11 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('thread_name:', scenario)
         self.assertIn("Java.use('java.lang.Thread').currentThread().getName().toString()", scenario)
 
+    def test_runtime_verifier_requires_gl_renderer_thread_evidence(self):
+        verifier = Path('verify_stage2_branch_runtime.py').read_text(encoding='utf-8')
+        self.assertIn("scenario.get('thread_name', '').startswith('GLThread')", verifier)
+        self.assertIn('scenario executed on GL renderer thread', verifier)
+
     def test_removes_old_stage3_tail_before_exit(self):
         out = adapt_generated_script(FIXTURE)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
