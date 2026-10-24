@@ -51,11 +51,29 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
             write_rgb_png(p, width, height, pixels)
             self.assertIsNone(detector.find_live_ball(p))
 
+    def test_kick_ball_detector_finds_large_neutral_ball(self):
+        detector = load_module('stage4_tools/find_kick_ball.py', 'find_kick_ball')
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+        for y in range(300, 460):
+            for x in range(100, 260):
+                i = (y * width + x) * 3
+                pixels[i:i + 3] = bytes((238, 238, 238))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'kick.png'
+            write_rgb_png(p, width, height, pixels)
+            result = detector.find_kick_ball(p)
+            self.assertIsNotNone(result)
+            x, y = result
+            self.assertLessEqual(abs(x - 180), 45)
+            self.assertLessEqual(abs(y - 380), 45)
+
     def test_live_input_hardener_replaces_blind_swipes_with_rendered_ball_swipe(self):
         hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = hardener.harden(source)
         self.assertIn('stage4_tools/find_live_ball.py', prepared)
+        self.assertIn('stage4_tools/find_kick_ball.py', prepared)
         self.assertIn('input touchscreen swipe "$x" "$y"', prepared)
         self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
         self.assertNotIn('swipe_logical 320 700 320 250 420', prepared)
@@ -73,6 +91,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertLess(text.index(prematch), text.index(live))
         self.assertIn('stage4-natural-gate.live.sh', text)
         self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
+        self.assertIn('stage4_tools/find_kick_ball.py', text)
 
 
 if __name__ == '__main__':
