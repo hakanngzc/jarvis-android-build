@@ -21,7 +21,7 @@ jobs:
         run: |
           python3 -m py_compile stage2_residual_tools/*.py stage4_tools/*.py
           bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
-          python3 -m unittest test_stage2_residual_contract.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
+          python3 -m unittest test_stage2_residual_contract.py test_stage2_retire_second_policy.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
 
       - name: Enable KVM access
         run: |
@@ -45,9 +45,10 @@ jobs:
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.pre.sh"
-            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.sh"
-            bash -n "$RUNNER_TEMP/stage2-residual-gate.sh"
-            bash "$RUNNER_TEMP/stage2-residual-gate.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.visual.sh"
+            python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.visual.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
+            bash -n "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
+            bash "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
 
       - name: Upload Stage2 residual evidence
         if: always()
