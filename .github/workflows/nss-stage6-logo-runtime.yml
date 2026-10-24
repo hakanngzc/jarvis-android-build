@@ -8,6 +8,9 @@ on:
       - 'stage6_public/inspect_key_tail.py'
       - 'stage6_public/build_runtime_fixture.py'
       - 'stage6_public/runtime_logo_gate.sh'
+      - 'stage6_public/runtime_logo_gate_v2.sh'
+      - 'stage6_public/verify_logo_render.py'
+      - 'stage6_public/test_verify_logo_render.py'
       - 'stage6_public/patch_club_badge_override.py'
       - 'stage6_public/apply_club_badge_override_dex.sh'
       - '.github/workflows/nss-stage6-logo-runtime.yml'
@@ -30,14 +33,17 @@ jobs:
             stage6_public/test_discover_badge_atlas.py \
             stage6_public/test_append_logo_atlas.py \
             stage6_public/test_runtime_fixture_builder.py \
-            stage6_public/test_patch_club_badge_override.py -v
+            stage6_public/test_patch_club_badge_override.py \
+            stage6_public/test_verify_logo_render.py -v
           python3 -m py_compile \
             stage6_public/inspect_key_tail.py \
             stage6_public/append_logo_atlas.py \
             stage6_public/build_runtime_fixture.py \
-            stage6_public/patch_club_badge_override.py
+            stage6_public/patch_club_badge_override.py \
+            stage6_public/verify_logo_render.py
           bash -n stage6_public/apply_club_badge_override_dex.sh
           bash -n stage6_public/runtime_logo_gate.sh
+          bash -n stage6_public/runtime_logo_gate_v2.sh
       - name: Download exact publisher-stock NSS 4.31
         run: |
           set -euo pipefail
