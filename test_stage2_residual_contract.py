@@ -109,6 +109,8 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('local tag="$1" x="$2" y="$3"', text)
         self.assertIn('HitGadget: (message|chooseclub)\\.btn_Ok', text)
         self.assertIn('setup control did not register', text)
+        self.assertIn('tap 620 1425', text,
+                      'Pixel4 welcome/help checkmark must use the artifact-proven physical target before footer fallback')
         self.assertNotIn('cmp -s "$before" "$after"', text,
                          'ticker/animation pixel changes are not proof that the setup control registered')
 
