@@ -19,4 +19,5 @@ jobs:
       - name: Run Stage6 unit contracts
         run: |
           set -euo pipefail
+          python3 -m pip install --disable-pip-version-check pillow
           PYTHONPATH=stage6_public python3 -m unittest discover -s stage6_public -p 'test_*.py' -v
