@@ -8,6 +8,7 @@ from patch_long_career_driver import (
     SLOT_ANCHOR,
     POST_CREATE_ANCHOR,
     PLAY_EDGE_ANCHOR,
+    FATAL_ANCHOR,
     transform,
 )
 from patch_long_career_season_probe import SEASON_DELTA, build_probe_units
@@ -37,6 +38,7 @@ class LongCareerDriverTransformTest(unittest.TestCase):
             PATCH_ANCHOR + '\n' +
             PLAY_EDGE_ANCHOR + '\n' +
             'sign_one(){\n' + SIGN_ANCHOR + '\n}\n' +
+            FATAL_ANCHOR + '\n' +
             CAREER_OPEN_ANCHOR + '\n' +
             SLOT_ANCHOR + '\n' +
             POST_CREATE_ANCHOR + '\n' +
