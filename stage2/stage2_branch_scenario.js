@@ -1,5 +1,7 @@
 'use strict';
 
+import Java from 'frida-java-bridge';
+
 const SCENARIO = '__SCENARIO__';
 const SENTINEL_WAGE = 4321;
 const SENTINEL_GOAL = 321;
