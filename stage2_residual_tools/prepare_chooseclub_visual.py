@@ -7,11 +7,23 @@ from pathlib import Path
 
 
 HELPERS = r'''press_and_require_stock_hit(){
-  local tag="$1" x="$2" y="$3" attempt evidence
+  local tag="$1" x="$2" y="$3" attempt evidence size
+  size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
   for attempt in 1 2 3; do
     clear_log
     shot "${tag}-attempt-${attempt}-before"
-    press_logical "$x" "$y" 4
+
+    # Fresh Pixel4 Career setup may first show the stock Welcome/help message.
+    # Artifact evidence places its green checkmark around physical 620,1425;
+    # the normal ChooseClub/ChooseNation footer remains the logical fallback.
+    if [[ "$size" == *1080x2280* && "$attempt" -eq 1 ]]; then
+      echo "setup $tag attempt $attempt: Pixel4 welcome/help checkmark target 620,1425"
+      adb shell input touchscreen tap 620 1425 </dev/null || true
+      sleep 4
+    else
+      press_logical "$x" "$y" 4
+    fi
+
     shot "${tag}-attempt-${attempt}-after"
     evidence="$WORK/${tag}-attempt-${attempt}.txt"
     adb logcat -d -v brief > "$evidence" 2>/dev/null || true
@@ -54,7 +66,6 @@ def harden_chooseclub(text: str) -> str:
     if 'press_and_require_stock_hit(){' not in text:
         anchor = 'shot(){ adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
         if anchor not in text:
-            # The Stage4 source uses the same helper without stderr redirection.
             anchor = 'shot(){ adb exec-out screencap -p > "$OUT/$1.png" || true; }\n'
         if anchor not in text:
             raise SystemExit('shot helper anchor not found for stock-hit ChooseClub hardening')
