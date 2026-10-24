@@ -53,8 +53,8 @@ PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 5
 
 GL_DRIVER_ANCHOR = 'python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe.apk"'
 GL_DRIVER_REPLACEMENT = '''python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe-pre-gl.apk"
-python3 lifecycle/patch_gl_resume_race.py "$WORK/base-career-probe-pre-gl.apk" "$WORK/base-career-probe.apk" \\
-  --evidence "$OUT/LIFECYCLE_GL_RESUME_PATCH.json" | tee "$OUT/LIFECYCLE_GL_RESUME_PATCH.txt"'''
+python3 lifecycle/patch_gl_context_survival.py "$WORK/base-career-probe-pre-gl.apk" "$WORK/base-career-probe.apk" \\
+  --evidence "$OUT/LIFECYCLE_GL_CONTEXT_SURVIVAL_PATCH.json" | tee "$OUT/LIFECYCLE_GL_CONTEXT_SURVIVAL_PATCH.txt"'''
 
 CAREER_ROUNDTRIP_ANCHOR = 'shot career-gamemenu\nlifecycle_background_roundtrip career'
 CAREER_ROUNDTRIP_REPLACEMENT = '''shot career-gamemenu
@@ -170,7 +170,7 @@ def harden_fatal_check(text: str) -> str:
     return text.replace(FATAL_ANCHOR, FATAL_REPLACEMENT, 1)
 
 
-def inject_gl_resume_patch(text: str) -> str:
+def inject_gl_context_survival_patch(text: str) -> str:
     count = text.count(GL_DRIVER_ANCHOR)
     if count != 1:
         raise ValueError(f'expected one GL driver anchor, found {count}')
@@ -188,7 +188,7 @@ def patch_script(text: str) -> str:
     generated = v3_patch_script(text)
     generated = harden_generated_script(generated)
     generated = harden_fatal_check(generated)
-    generated = inject_gl_resume_patch(generated)
+    generated = inject_gl_context_survival_patch(generated)
     generated = inject_stress_roundtrips(generated)
     return generated
 
