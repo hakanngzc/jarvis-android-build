@@ -2,8 +2,14 @@
 import sys
 from pathlib import Path
 
+SIGN_ANCHOR = '  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"'
 HELPER_ANCHOR = 'clear_log(){ adb logcat -c >/dev/null 2>&1 || true; }\n\nstart_menu(){'
 MAIN_ANCHOR = 'start_menu\nadb shell wm size > "$OUT/wm-size.txt"'
+SLOT_ANCHOR = '''shot saveslot
+find_slot0_target "$OUT/saveslot.png" "$WORK/slot0.txt"
+read -r SLOT_X SLOT_Y < "$WORK/slot0.txt"
+clear_log
+press_physical "$SLOT_X" "$SLOT_Y" 3'''
 CAREER_ANCHOR = 'shot career-gamemenu\n\n# Drive normal stock UI to the next playable match.'
 MATCH_ANCHOR = 'press_play 2\nsleep 1\nshot "knockout-$MODE-t1"'
 
@@ -54,9 +60,22 @@ def one_replace(text, old, new, label):
     return text.replace(old, new, 1)
 
 def patch_script(text: str) -> str:
+    # The inherited Stage3 driver had a latent `set -u` bug: `$dst` was
+    # expanded inside the same `local` command that assigned it. Split the
+    # assignments so lifecycle failures cannot be polluted by signing noise.
+    text = one_replace(text, SIGN_ANCHOR,
+        '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"', 'sign_one')
     text = one_replace(text, HELPER_ANCHOR, HELPER, 'helper')
+    # Warm relaunch is a standalone assertion. Restart the stable stock menu
+    # afterward so any Activity focus/onNewIntent side effect cannot influence
+    # the Career navigation that follows.
     text = one_replace(text, MAIN_ANCHOR,
-        'start_menu\nlifecycle_warm_relaunch mainmenu\nadb shell wm size > "$OUT/wm-size.txt"', 'mainmenu')
+        'start_menu\nlifecycle_warm_relaunch mainmenu\nstart_menu\nadb shell wm size > "$OUT/wm-size.txt"', 'mainmenu')
+    # The old image-band heuristic selected the Tutorial footer on a fresh
+    # SaveSlot page. Slot 1 / New Career is stable in the game's 640x960 logical
+    # coordinate system, so use the existing logical->physical scaler instead.
+    text = one_replace(text, SLOT_ANCHOR,
+        'shot saveslot\nread -r SLOT_X SLOT_Y < <(logical_xy 320 280)\nclear_log\npress_physical "$SLOT_X" "$SLOT_Y" 3', 'slot1')
     text = one_replace(text, CAREER_ANCHOR,
         'shot career-gamemenu\nlifecycle_background_roundtrip career\n\n# Drive normal stock UI to the next playable match.', 'career')
     text = one_replace(text, MATCH_ANCHOR,
