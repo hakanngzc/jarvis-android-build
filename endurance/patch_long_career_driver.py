@@ -92,14 +92,37 @@ capture_flow(){
   } >> "$FLOW"
 }
 
+last_active_screen(){
+  local line
+  adb logcat -d -v brief > "$WORK/endurance-last-active.txt" 2>/dev/null || true
+  line="$(grep -Ei 'SETTING ACTIVE:|SetActive:' "$WORK/endurance-last-active.txt" | tail -1 || true)"
+  case "${line,,}" in
+    *startransition*) echo startransition ;;
+    *gamemenu*) echo gamemenu ;;
+    *) echo other ;;
+  esac
+}
+
 settle_loaded_gamemenu(){
-  local tag="$1" probe="$WORK/${tag}-settle.txt"
-  sleep 2
-  adb logcat -d -v threadtime > "$probe" 2>/dev/null || true
-  if grep -qE 'SETTING ACTIVE:[[:space:]]*startransition|SetActive:[[:space:]]*startransition' "$probe"; then
-    wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 30 "$tag-post-star-gamemenu"
-  fi
-  sleep 1
+  local tag="$1" i screen
+  local stable=0
+  for i in $(seq 1 30); do
+    fatal_check || return 1
+    screen="$(last_active_screen)"
+    if [ "$screen" = gamemenu ]; then
+      stable=$((stable+1))
+    else
+      stable=0
+    fi
+    if [ "$stable" -ge 2 ]; then
+      echo "Stable GameMenu after load ($tag)"
+      return 0
+    fi
+    sleep 2
+  done
+  adb logcat -d -v threadtime > "$OUT/${tag}-unstable-gamemenu.log" 2>/dev/null || true
+  echo "GameMenu did not stabilize after load ($tag)"
+  return 1
 }
 
 restart_saved_career(){
