@@ -67,6 +67,13 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertEqual(FIELD_INDEX['assistbonus'], 898)
         self.assertEqual(FIELD_INDEX['retired'], 910)
 
+    def test_inherited_career_navigation_uses_verified_button_center_and_bounded_retry(self):
+        lifecycle = Path('../lifecycle/patch_lifecycle_probe_v3.py').read_text(encoding='utf-8')
+        self.assertIn('logical_xy 480 624', lifecycle)
+        self.assertNotIn('logical_xy 480 664', lifecycle)
+        self.assertIn('for attempt in 1 2 3; do', lifecycle)
+        self.assertIn('open_saveslot_from_mainmenu lifecycle-reload-saveslot', lifecycle)
+
     def test_frida_runner_accepts_numeric_pid(self):
         src = Path('run_frida_script.py').read_text(encoding='utf-8')
         self.assertIn("ap.add_argument('--pid', type=int)", src)
