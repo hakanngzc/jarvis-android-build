@@ -10,6 +10,7 @@ import frida
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--package', default='com.newstargames.newstarsoccer')
+    ap.add_argument('--pid', type=int)
     ap.add_argument('--script', type=Path, required=True)
     ap.add_argument('--out', type=Path, required=True)
     ap.add_argument('--event-type', default='stage2-smoke')
@@ -19,6 +20,11 @@ def main() -> None:
     result = {'ok': False, 'event_type': args.event_type, 'events': []}
     done = threading.Event()
 
+    def write_result() -> None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(result, indent=2, sort_keys=True), encoding='utf-8')
+        print(json.dumps(result, sort_keys=True))
+
     def on_message(message, data):
         result['events'].append(message)
         payload = message.get('payload') if message.get('type') == 'send' else None
@@ -27,7 +33,15 @@ def main() -> None:
             done.set()
 
     device = frida.get_usb_device(timeout=10)
-    session = device.attach(args.package)
+    target = args.pid if args.pid else args.package
+    result['attach_target'] = target
+    try:
+        session = device.attach(args.pid if args.pid else args.package)
+    except frida.ProcessNotFoundError as exc:
+        result['error'] = f'process not found during Frida attach: {exc}'
+        write_result()
+        raise SystemExit(1)
+
     script = session.create_script(args.script.read_text(encoding='utf-8'))
     script.on('message', on_message)
     script.load()
@@ -42,9 +56,7 @@ def main() -> None:
     except Exception:
         pass
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2, sort_keys=True), encoding='utf-8')
-    print(json.dumps(result, sort_keys=True))
+    write_result()
     if not result.get('ok'):
         raise SystemExit(1)
 
