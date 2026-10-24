@@ -160,12 +160,20 @@ def prepare_text(text: str) -> str:
     )
 
     slot_new = '''open_slot0(){
-  local tag="$1" attempt reached=0
+  local tag attempt reached slot_attempt slot_hit
+  tag="${1-}"
+  [ -n "$tag" ] || {
+    echo 'open_slot0 requires a tag'
+    return 2
+  }
+  reached=0
+  slot_hit=0
+
   for attempt in 1 2 3; do
     clear_log
     echo "Career press attempt $attempt/3"
     press_career 2
-    if wait_log 'Create Screen:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot' 6 "$tag-saveslot-attempt-$attempt"; then
+    if wait_log 'Create Screen:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot' 6 "${tag}-saveslot-attempt-${attempt}"; then
       reached=1
       break
     fi
@@ -176,16 +184,15 @@ def prepare_text(text: str) -> str:
     echo 'SaveSlot not reached after 3 controlled Career presses'
     return 1
   }
-  shot "$tag-saveslot"
+  shot "${tag}-saveslot"
   capture_log "$tag saveslot"
 
-  local slot_attempt slot_hit=0
   for slot_attempt in 1 2 3; do
     clear_log
     echo "Slot0 press attempt $slot_attempt/3"
     press_slot0 3
-    adb logcat -d -v brief > "$WORK/$tag-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
-    if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/$tag-slot0-attempt-$slot_attempt.txt"; then
+    adb logcat -d -v brief > "$WORK/${tag}-slot0-attempt-${slot_attempt}.txt" 2>/dev/null || true
+    if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/${tag}-slot0-attempt-${slot_attempt}.txt"; then
       slot_hit=1
       break
     fi
