@@ -1,14 +1,22 @@
 import unittest
 from patch_lifecycle_probe import patch_script
 
-FIXTURE = '''#!/usr/bin/env bash
-sign_one(){
+POST_CREATE = '''for _ in 1 2 3 4 5; do
+  press_message_accept 2
+  fatal_check
+  adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/save-progress.txt"; then break; fi
+done
+wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 35 gamemenu'''
+
+FIXTURE = f'''#!/usr/bin/env bash
+sign_one(){{
   local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"
   echo "$src $dst $aligned"
-}
-clear_log(){ adb logcat -c >/dev/null 2>&1 || true; }
+}}
+clear_log(){{ adb logcat -c >/dev/null 2>&1 || true; }}
 
-start_menu(){ echo menu; }
+start_menu(){{ echo menu; }}
 
 # Fresh disposable Career.
 start_menu
@@ -18,6 +26,7 @@ find_slot0_target "$OUT/saveslot.png" "$WORK/slot0.txt"
 read -r SLOT_X SLOT_Y < "$WORK/slot0.txt"
 clear_log
 press_physical "$SLOT_X" "$SLOT_Y" 3
+{POST_CREATE}
 shot career-gamemenu
 
 # Drive normal stock UI to the next playable match.
@@ -48,6 +57,13 @@ class LifecyclePatchTest(unittest.TestCase):
         out = patch_script(FIXTURE)
         self.assertIn('local src="$1" dst="$2"\n  local aligned=', out)
         self.assertNotIn('local src="$1" dst="$2" aligned=', out)
+
+    def test_reloads_saved_career_instead_of_blind_onboarding_taps(self):
+        out = patch_script(FIXTURE)
+        self.assertIn('wait_for_initial_career_save', out)
+        self.assertIn('reload_saved_career_after_setup', out)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0'", out)
+        self.assertNotIn('for _ in 1 2 3 4 5; do\n  press_message_accept 2', out)
 
     def test_refuses_changed_source_anchors(self):
         with self.assertRaises(ValueError):
