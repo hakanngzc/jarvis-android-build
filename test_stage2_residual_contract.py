@@ -17,7 +17,11 @@ def load_module(path_str: str, name: str):
 def prepare_gate(path: Path) -> str:
     preparer = load_module('stage2_residual_tools/prepare_stage2_gate.py', 'prepare_stage2_gate')
     visual = load_module('stage2_residual_tools/prepare_chooseclub_visual.py', 'prepare_chooseclub_visual')
-    return visual.harden_chooseclub(preparer.prepare_text(path.read_text(encoding='utf-8')))
+    prepared = visual.harden_chooseclub(preparer.prepare_text(path.read_text(encoding='utf-8')))
+    if path.name == 'stage2_residual_gate.sh':
+        stable = load_module('stage2_residual_tools/prepare_stage2_gamemenu_stable.py', 'prepare_stage2_gamemenu_stable')
+        prepared = stable.harden(prepared)
+    return prepared
 
 
 class Stage2ResidualContractTests(unittest.TestCase):
