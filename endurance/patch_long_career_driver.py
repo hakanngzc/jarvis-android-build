@@ -58,12 +58,27 @@ SEASON_COUNT="${LONG_CAREER_SEASONS:-8}"
 FLOW="$OUT/LONG_CAREER_FLOW.log"
 : > "$FLOW"
 
+prepare_save_access(){
+  adb root > "$OUT/endurance-adb-root.txt" 2>&1 || true
+  adb wait-for-device
+  adb shell id > "$OUT/endurance-adb-id.txt" 2>&1 || true
+  grep -q 'uid=0(root)' "$OUT/endurance-adb-id.txt" || {
+    echo 'Endurance save capture requires root adbd on this emulator'
+    return 1
+  }
+}
+
 dump_save(){
   local tag="$1"
   local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
   local xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$remote" > "$xml" 2>/dev/null || true
-  grep -q 'monkeystate' "$xml" || { echo "Could not read $remote for $tag"; return 1; }
+  grep -q 'monkeystate' "$xml" || {
+    adb shell ls -la "/data/data/$PKG/shared_prefs" > "$OUT/${tag}-shared-prefs-ls.txt" 2>&1 || true
+    adb shell pidof "$PKG" > "$OUT/${tag}-pid.txt" 2>/dev/null || true
+    echo "Could not read $remote for $tag"
+    return 1
+  }
 }
 
 capture_flow(){
@@ -95,6 +110,7 @@ open_saved_slot0(){
 }
 
 # Baseline is the durable fresh Career created above.
+prepare_save_access
 dump_save season-0-baseline
 fatal_check
 
