@@ -7,12 +7,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'stage3_tools'))
 from dex_inspect import Dex
 
 TARGETS = {
+    'Lcom/newstargames/newstarsoccer/bb_GSPlayerUtility;': ('g_GSPlayerPlayMatches',),
     'Lcom/newstargames/newstarsoccer/c_TScreen_Contract;': ('m_ButtonAccept','m_ButtonReject','m_SetUpScreen'),
-    'Lcom/newstargames/newstarsoccer/c_TContractOffer;': ('p_SignContract','m_','p_'),
-    'Lcom/newstargames/newstarsoccer/c_TScreen_DesiredTransfer;': ('m_','p_'),
-    'Lcom/newstargames/newstarsoccer/c_TScreen_Retirement;': ('m_ButtonPlay','m_SetUpScreen','m_'),
+    'Lcom/newstargames/newstarsoccer/c_TContractOffer;': ('p_SignContract','m_GetOffer','m_GetProspectiveClubs','m_TContractOffer_new'),
+    'Lcom/newstargames/newstarsoccer/c_TScreen_DesiredTransfer;': ('m_ButtonOk','m_SetUpScreen','m_UpdateInfo'),
+    'Lcom/newstargames/newstarsoccer/c_TScreen_Retirement;': ('m_ButtonPlay','m_SetUpScreen'),
+    'Lcom/newstargames/newstarsoccer/c_TClub;': ('m_SelectById','m_Select','m_Get'),
     'Lcom/newstargames/newstarsoccer/c_TPlayer;': ('p_Retire','p_QuickSave','p_SaveCareer','p_PlayToDate'),
-    'Lcom/newstargames/newstarsoccer/bb_;': ('g_player',''),
+    'Lcom/newstargames/newstarsoccer/c_TScreen_SaveSlot;': ('m_retired',''),
+    'Lcom/newstargames/newstarsoccer/bb_;': (),
 }
 
 def proto(d: Dex, mid: int):
