@@ -70,9 +70,10 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('logical_xy 553 900', out)
         self.assertNotIn('logical_xy 553 829', out)
 
-    def test_initial_navigation_uses_stable_logical_targets(self):
+    def test_initial_navigation_uses_verified_mainmenu_center(self):
         out = transform(self.fixture())
-        self.assertIn('logical_xy 480 664', out)
+        self.assertIn('logical_xy 480 624', out)
+        self.assertNotIn('logical_xy 480 664', out)
         self.assertIn('logical_xy 320 280', out)
         self.assertNotIn('press_physical 810 1450 2', out)
         self.assertNotIn('find_slot0_target "$OUT/saveslot.png"', out)
@@ -83,6 +84,15 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('LoadCareer saveslot:', out)
         self.assertIn('endurance-reloaded-gamemenu', out)
         self.assertNotIn(POST_CREATE_ANCHOR, out)
+
+    def test_season_entry_retries_only_until_leaguefixtures_is_verified(self):
+        out = transform(self.fixture())
+        self.assertIn('enter_leaguefixtures(){', out)
+        self.assertIn('for attempt in 1 2 3', out)
+        self.assertIn('press_play 3', out)
+        self.assertIn('season-${season}-leaguefixtures-attempt-${attempt}', out)
+        self.assertIn('enter_leaguefixtures "$season"', out)
+        self.assertNotIn('press_play 3\n  wait_log \'Create Screen:[[:space:]]*leaguefixtures', out)
 
     def test_requires_restart_reload_after_every_season(self):
         out = transform(self.fixture())
