@@ -13,6 +13,17 @@ CENTER_ANCHOR = r'''  size="$(adb shell wm size 2>/dev/null | tr -d '\r' | grep 
 PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
 PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 553 900); press_physical "$x" "$y" "${1:-2}"; }'
 
+GL_DRIVER_ANCHOR = 'python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe.apk"'
+GL_DRIVER_REPLACEMENT = '''python3 tools/patch_trial_skip_for_persistence_test.py "$WORK/base-cloud-probe.apk" "$WORK/base-career-probe-pre-gl.apk"
+python3 lifecycle/patch_gl_resume_race.py "$WORK/base-career-probe-pre-gl.apk" "$WORK/base-career-probe.apk" \\
+  --evidence "$OUT/LIFECYCLE_GL_RESUME_PATCH.json" | tee "$OUT/LIFECYCLE_GL_RESUME_PATCH.txt"'''
+
+CAREER_ROUNDTRIP_ANCHOR = 'shot career-gamemenu\nlifecycle_background_roundtrip career'
+CAREER_ROUNDTRIP_REPLACEMENT = '''shot career-gamemenu
+for lifecycle_cycle in 1 2 3 4 5; do
+  lifecycle_background_roundtrip "career-${lifecycle_cycle}"
+done'''
+
 HIERARCHY_REPLACEMENT = r'''  adb shell uiautomator dump /sdcard/nss-recents.xml >/dev/null 2>&1 || true
   adb shell cat /sdcard/nss-recents.xml > "$OUT/lifecycle-${tag}-recents-ui.xml" 2>/dev/null || true
   python3 - "$OUT/lifecycle-${tag}-recents-ui.xml" "$WORK/lifecycle-${tag}-recents-target.txt" <<'PY'
@@ -105,8 +116,25 @@ def harden_generated_script(text: str) -> str:
     return text
 
 
+def inject_gl_resume_patch(text: str) -> str:
+    count = text.count(GL_DRIVER_ANCHOR)
+    if count != 1:
+        raise ValueError(f'expected one GL driver anchor, found {count}')
+    return text.replace(GL_DRIVER_ANCHOR, GL_DRIVER_REPLACEMENT, 1)
+
+
+def inject_stress_roundtrips(text: str) -> str:
+    count = text.count(CAREER_ROUNDTRIP_ANCHOR)
+    if count != 1:
+        raise ValueError(f'expected one Career roundtrip anchor, found {count}')
+    return text.replace(CAREER_ROUNDTRIP_ANCHOR, CAREER_ROUNDTRIP_REPLACEMENT, 1)
+
+
 def patch_script(text: str) -> str:
-    return harden_generated_script(v3_patch_script(text))
+    generated = harden_generated_script(v3_patch_script(text))
+    generated = inject_gl_resume_patch(generated)
+    generated = inject_stress_roundtrips(generated)
+    return generated
 
 
 def main() -> None:
