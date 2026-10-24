@@ -34,6 +34,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       # Re-run the current bounded season-entry gate, not the obsolete single-tap driver.
+      # Fresh-run marker: 20261024-v2 (previous runner was assigned but never started steps).
       - name: Run eight-season Career endurance on API 29
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
