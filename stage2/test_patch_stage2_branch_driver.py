@@ -61,14 +61,21 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', out)
         self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
 
-    def test_measurement_only_anr_modal_recovery_uses_wait_and_never_close_app(self):
+    def test_measurement_only_anr_modal_recovery_classifies_live_log_and_uses_wait(self):
         out = adapt_generated_script(FIXTURE)
-        self.assertIn('dismiss_measurement_anr_modal', out)
-        self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
-        self.assertIn('text="Wait"', out)
-        self.assertIn('measurement_anr_wait_dismissed', out)
-        self.assertNotIn('text="Close app"', out)
-        self.assertNotIn('anr_show_background', out)
+        helper = out.split('dismiss_measurement_anr_modal(){', 1)[1].split('dump_stage2_save(){', 1)[0]
+        self.assertIn('stage2-${SCENARIO}-measurement-anr-live.log', helper)
+        self.assertIn('ANR in com\\.newstargames\\.newstarsoccer', helper)
+        self.assertIn('AppMeasurementService', helper)
+        self.assertIn('[ "$anr_count" -gt 0 ]', helper)
+        self.assertIn('[ "$anr_count" -eq "$measurement_count" ]', helper)
+        self.assertIn('Process: com\\.newstargames\\.newstarsoccer, PID:', helper)
+        self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', helper)
+        self.assertIn('text="Wait"', helper)
+        self.assertIn('measurement_anr_wait_dismissed', helper)
+        self.assertNotIn('runtime-ignored-appmeasurement-anr.txt', helper)
+        self.assertNotIn('text="Close app"', helper)
+        self.assertNotIn('anr_show_background', helper)
 
     def test_checkpoint_uses_artifact_verified_contract_and_retirement_indices(self):
         self.assertEqual(FIELD_INDEX['lastnegotiations'], 581)
