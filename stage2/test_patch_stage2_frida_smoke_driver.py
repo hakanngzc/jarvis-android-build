@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from patch_stage2_frida_smoke_driver import adapt_generated_script
 
@@ -31,6 +32,14 @@ class Stage2FridaSmokeTransformTest(unittest.TestCase):
         self.assertIn('stage2/run_frida_script.py', out)
         self.assertIn('VERDICT=STAGE2_FRIDA_SMOKE_PASS', out)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
+
+    def test_smoke_agent_uses_compiled_frida17_java_bridge(self):
+        agent = Path('frida_smoke.js').read_text(encoding='utf-8')
+        runner = Path('run_frida_script.py').read_text(encoding='utf-8')
+        self.assertIn("import Java from 'frida-java-bridge';", agent)
+        self.assertIn('frida.Compiler()', runner)
+        self.assertIn('compiler.build(', runner)
+        self.assertIn('session.create_script(bundle)', runner)
 
     def test_refuses_changed_install_shape(self):
         with self.assertRaises(ValueError):
