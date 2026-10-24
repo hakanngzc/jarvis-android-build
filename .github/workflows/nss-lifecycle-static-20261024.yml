@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/nss-lifecycle-static-20261024.yml'
       - 'lifecycle/dump_graphics_lifecycle_code.py'
+      - 'lifecycle/patch_activity_super_lifecycle.py'
 
 permissions:
   contents: read
@@ -41,6 +42,40 @@ jobs:
             | tee "$WORK/out/LIFECYCLE_GRAPHICS_CODE.txt"
           test -s "$WORK/out/LIFECYCLE_GRAPHICS_CODE.json"
           test -s "$WORK/out/LIFECYCLE_GRAPHICS_CODE.txt"
+      - name: Apply and verify Activity lifecycle super patch
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/nss-lifecycle-static"
+          python3 lifecycle/patch_activity_super_lifecycle.py \
+            "$WORK/xapk/com.newstargames.newstarsoccer.apk" \
+            "$WORK/patched.apk" \
+            --evidence "$WORK/out/LIFECYCLE_ACTIVITY_SUPER_PATCH.json" \
+            | tee "$WORK/out/LIFECYCLE_ACTIVITY_SUPER_PATCH.txt"
+          grep -q 'VERDICT=LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED' "$WORK/out/LIFECYCLE_ACTIVITY_SUPER_PATCH.txt"
+          python3 lifecycle/dump_graphics_lifecycle_code.py \
+            "$WORK/patched.apk" \
+            --out "$WORK/out/LIFECYCLE_GRAPHICS_PATCHED_CODE.json" \
+            > "$WORK/out/LIFECYCLE_GRAPHICS_PATCHED_CODE.txt"
+          python3 - "$WORK/out/LIFECYCLE_GRAPHICS_CODE.json" "$WORK/out/LIFECYCLE_GRAPHICS_PATCHED_CODE.json" <<'PY'
+          import json, sys
+          stock=json.load(open(sys.argv[1], encoding='utf-8'))
+          patched=json.load(open(sys.argv[2], encoding='utf-8'))
+          cls='Lcom/newstargames/newstarsoccer/AndroidGame;'
+          expected={
+              'onRestart':'Landroid/app/Activity;->onRestart',
+              'onStart':'Landroid/app/Activity;->onStart',
+              'onStop':'Landroid/app/Activity;->onStop',
+          }
+          sm=stock['classes'][cls]['methods']; pm=patched['classes'][cls]['methods']
+          for name,target in expected.items():
+              s=sm[name]['instructions']; p=pm[name]['instructions']
+              assert s[0]['op']=='invoke-super' and 'Activity;->onResume' in s[0]['args'], (name,s[0])
+              assert p[0]['op']=='invoke-super' and target in p[0]['args'], (name,p[0])
+              assert s[1:]==p[1:], f'{name} changed beyond first invoke-super'
+          for name in ('onPause','onResume','onWindowFocusChanged'):
+              assert sm[name]['instructions']==pm[name]['instructions'], f'{name} unexpectedly changed'
+          print('VERDICT=LIFECYCLE_ACTIVITY_SUPER_STATIC_PASS')
+          PY
       - name: Upload lifecycle static evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
