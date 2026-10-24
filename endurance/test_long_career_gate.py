@@ -56,6 +56,13 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('local tag="$1"\n  local remote=', out)
         self.assertNotIn('local tag="$1" remote=', out)
 
+    def test_save_capture_prepares_root_access_before_baseline(self):
+        out = transform(self.fixture())
+        self.assertIn('prepare_save_access(){', out)
+        self.assertIn('adb root > "$OUT/endurance-adb-root.txt"', out)
+        self.assertIn('adb wait-for-device', out)
+        self.assertLess(out.index('prepare_save_access\n'), out.index('dump_save season-0-baseline'))
+
     def test_initial_navigation_uses_stable_logical_targets(self):
         out = transform(self.fixture())
         self.assertIn('logical_xy 480 664', out)
