@@ -59,7 +59,9 @@ FLOW="$OUT/LONG_CAREER_FLOW.log"
 : > "$FLOW"
 
 dump_save(){
-  local tag="$1" remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml" xml="$OUT/${tag}-MonkeyGame.xml"
+  local tag="$1"
+  local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+  local xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$remote" > "$xml" 2>/dev/null || true
   grep -q 'monkeystate' "$xml" || { echo "Could not read $remote for $tag"; return 1; }
 }
