@@ -1,5 +1,15 @@
+import importlib.util
 import unittest
 from pathlib import Path
+
+
+def load_preparer():
+    path = Path('stage2_residual_tools/prepare_stage2_gate.py')
+    spec = importlib.util.spec_from_file_location('prepare_stage2_gate', path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class Stage2ResidualContractTests(unittest.TestCase):
@@ -66,6 +76,17 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('startransition', text, 'star transition must be recognized during bootstrap settlement')
         self.assertIn('press_message_accept 2', text, 'known post-save webpage/message screens use the proven accept control')
         self.assertIn('Bootstrap did not settle to GameMenu', text, 'bootstrap settlement must remain bounded and fail closed')
+
+    def test_gate_preparer_accepts_both_residual_gate_sources(self):
+        preparer = load_preparer()
+        for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
+            with self.subTest(gate=gate):
+                source = Path(gate).read_text(encoding='utf-8')
+                prepared = preparer.prepare_text(source)
+                self.assertIn('render-probe.png', prepared)
+                self.assertIn('tap 795 1399', prepared)
+                self.assertIn('tap 935 1850', prepared)
+                self.assertIn('settle_bootstrap_to_gamemenu', prepared)
 
 
 if __name__ == '__main__':
