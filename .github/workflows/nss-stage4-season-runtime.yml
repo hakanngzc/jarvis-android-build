@@ -1,4 +1,4 @@
-# Residual runtime closure: Stage4 natural rerun after durable fresh-Career restart boundary.
+# Residual runtime closure: shared durable-save bootstrap plus proven visual ChooseClub pacing.
 name: NSS Residual Runtime Closure
 
 on:
@@ -44,7 +44,8 @@ jobs:
           disable-animations: true
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.sh"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.pre.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.sh"
             bash -n "$RUNNER_TEMP/stage2-residual-gate.sh"
             bash "$RUNNER_TEMP/stage2-residual-gate.sh"
 
@@ -65,9 +66,9 @@ jobs:
 
       - name: Validate natural-season tooling
         run: |
-          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage4_tools/verify_stage4_natural_season.py
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage2_residual_contract.py -v
 
       - name: Enable KVM access
         run: |
@@ -96,7 +97,8 @@ jobs:
           disable-animations: true
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.sh"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.sh"
             bash -n "$RUNNER_TEMP/stage4-natural-gate.sh"
             bash "$RUNNER_TEMP/stage4-natural-gate.sh"
 
