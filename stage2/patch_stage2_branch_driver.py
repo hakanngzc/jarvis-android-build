@@ -28,11 +28,27 @@ dump_stage2_save(){
   grep -q 'monkeystate' "$xml" || { echo "Could not read $remote for $tag"; return 1; }
 }
 
+require_stage2_pid(){
+  local tag="$1"
+  STAGE2_PID="$(pid_one)"
+  adb shell dumpsys activity activities > "$OUT/stage2-${SCENARIO}-${tag}-activity.txt" 2>/dev/null || true
+  if [ -z "$STAGE2_PID" ]; then
+    adb logcat -d -v threadtime > "$OUT/stage2-${SCENARIO}-${tag}-no-process.log" 2>/dev/null || true
+    adb shell ps -A > "$OUT/stage2-${SCENARIO}-${tag}-ps.txt" 2>/dev/null || true
+    echo "NSS process missing before Stage2 Frida attach ($SCENARIO/$tag)"
+    return 1
+  fi
+  printf '%s\n' "$STAGE2_PID" > "$OUT/stage2-${SCENARIO}-${tag}-pid.txt"
+  echo "stage2_${SCENARIO}_${tag}_pid=$STAGE2_PID"
+}
+
 dump_stage2_save baseline
 sed "s/__SCENARIO__/${SCENARIO}/g" stage2/stage2_branch_scenario.js > "$WORK/stage2-${SCENARIO}.js"
 clear_log
+require_stage2_pid scenario
 python3 stage2/run_frida_script.py \
   --package "$PKG" \
+  --pid "$STAGE2_PID" \
   --script "$WORK/stage2-${SCENARIO}.js" \
   --event-type stage2-scenario \
   --timeout 30 \
@@ -45,8 +61,10 @@ shot "stage2-${SCENARIO}-post"
 # Mandatory process restart and stock LoadCareer.
 reload_saved_career_after_setup
 dump_stage2_save reload
+require_stage2_pid reload
 python3 stage2/run_frida_script.py \
   --package "$PKG" \
+  --pid "$STAGE2_PID" \
   --script stage2/frida_smoke.js \
   --event-type stage2-smoke \
   --timeout 20 \
