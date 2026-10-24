@@ -24,6 +24,45 @@ def choose_candidate(counts):
     if topc>=3 and topc>second:return topn,'medium'
     return 'ambiguous','none'
 
+def trace_owner_candidate(start, reverse, labels, catch, max_depth=4):
+    """Trace exact incoming-reference ownership through catch-all classes.
+
+    This is intentionally separate from semantic duty inference.  We emit an
+    owner candidate only when every anchored upstream caller reached within the
+    bounded reverse-reference walk belongs to the same known subsystem.
+    Cycles are visited once and mixed subsystem evidence remains ambiguous.
+    """
+    seen={start}; frontier=[start]; anchors=collections.Counter(); min_depth={}
+    for depth in range(1,max_depth+1):
+        nxt=[]
+        for current in frontier:
+            for owner in sorted(reverse.get(current,set())):
+                label=labels.get(owner,'external')
+                if owner in catch or label=='game_domain_other':
+                    if owner not in seen:
+                        seen.add(owner); nxt.append(owner)
+                    continue
+                if label=='external':
+                    continue
+                anchors[label]+=1
+                min_depth[label]=min(min_depth.get(label,depth),depth)
+        frontier=nxt
+        if not frontier:
+            break
+    ordered=dict(sorted(anchors.items()))
+    if not anchors:
+        return {'candidate':'ambiguous','confidence':'none','min_depth':None,'anchor_counts':ordered}
+    if len(anchors)!=1:
+        return {'candidate':'ambiguous','confidence':'mixed','min_depth':min(min_depth.values()),'anchor_counts':ordered}
+    candidate=next(iter(anchors))
+    depth=min_depth[candidate]
+    return {
+        'candidate':candidate,
+        'confidence':'direct_unique' if depth==1 else 'transitive_unique',
+        'min_depth':depth,
+        'anchor_counts':ordered,
+    }
+
 def class_refs(d,row):
     refs=set(); method_targets=set(); field_targets=set()
     if row['super']: refs.add(row['super'])
@@ -79,6 +118,7 @@ def analyze(base_apk):
             outgoing_counts=collections.Counter(labels[x] for x in outrefs if labels.get(x)!='game_domain_other')
             combined=incoming_counts+outgoing_counts
             candidate,confidence=choose_candidate(dict(combined))
+            owner_trace=trace_owner_candidate(c,reverse,labels,catch,max_depth=4)
             details.append({
               'class':simple(c),'descriptor':c,'dex':r['dex'],'super':r['super'],
               'structural_role':structural_role(simple(c)),
@@ -93,13 +133,32 @@ def analyze(base_apk):
               'outgoing_anchor_counts':dict(sorted(outgoing_counts.items())),
               'combined_anchor_counts':dict(sorted(combined.items())),
               'semantic_candidate':candidate,'semantic_confidence':confidence,
+              'owner_candidate':owner_trace['candidate'],
+              'owner_confidence':owner_trace['confidence'],
+              'owner_min_depth':owner_trace['min_depth'],
+              'owner_anchor_counts':owner_trace['anchor_counts'],
               'method_target_count':len(method_targets[c]),'field_target_count':len(field_targets[c]),
             })
-        sem=collections.Counter(x['semantic_candidate'] for x in details); conf=collections.Counter(x['semantic_confidence'] for x in details); roles=collections.Counter(x['structural_role'] for x in details)
-        return {'schema':1,'classes_mapped':len(details),'component_count':len(component_sizes),'component_sizes':dict(sorted(component_sizes.items())),'semantic_candidates':dict(sorted(sem.items())),'confidence_counts':dict(sorted(conf.items())),'structural_roles':dict(sorted(roles.items())),'classes':details}
+        sem=collections.Counter(x['semantic_candidate'] for x in details)
+        conf=collections.Counter(x['semantic_confidence'] for x in details)
+        owner=collections.Counter(x['owner_candidate'] for x in details)
+        owner_conf=collections.Counter(x['owner_confidence'] for x in details)
+        roles=collections.Counter(x['structural_role'] for x in details)
+        return {
+          'schema':2,
+          'classes_mapped':len(details),
+          'component_count':len(component_sizes),
+          'component_sizes':dict(sorted(component_sizes.items())),
+          'semantic_candidates':dict(sorted(sem.items())),
+          'confidence_counts':dict(sorted(conf.items())),
+          'owner_candidates':dict(sorted(owner.items())),
+          'owner_confidence_counts':dict(sorted(owner_conf.items())),
+          'structural_roles':dict(sorted(roles.items())),
+          'classes':details,
+        }
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('base_apk',type=Path); ap.add_argument('--out',required=True,type=Path); a=ap.parse_args()
     d=analyze(a.base_apk); a.out.parent.mkdir(parents=True,exist_ok=True); a.out.write_text(json.dumps(d,indent=2),encoding='utf-8')
-    print(json.dumps({k:d[k] for k in ('classes_mapped','component_count','semantic_candidates','confidence_counts','structural_roles')},indent=2))
+    print(json.dumps({k:d[k] for k in ('classes_mapped','component_count','semantic_candidates','confidence_counts','owner_candidates','owner_confidence_counts','structural_roles')},indent=2))
 if __name__=='__main__': main()
