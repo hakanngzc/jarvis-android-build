@@ -99,11 +99,15 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 \"$tag-loadcareer\"", out)
         self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 \"$tag-gamemenu\"", out)
 
-    def test_restart_reload_waits_through_optional_startransition(self):
+    def test_restart_reload_requires_stable_last_active_gamemenu(self):
         out = transform(self.fixture())
-        self.assertIn('settle_loaded_gamemenu(){', out)
-        self.assertIn("grep -qE 'SETTING ACTIVE:[[:space:]]*startransition|SetActive:[[:space:]]*startransition'", out)
-        self.assertIn('"$tag-post-star-gamemenu"', out)
+        self.assertIn('last_active_screen(){', out)
+        self.assertIn("grep -Ei 'SETTING ACTIVE:|SetActive:'", out)
+        self.assertIn('tail -1', out)
+        self.assertIn('local stable=0', out)
+        self.assertIn('if [ "$screen" = gamemenu ]', out)
+        self.assertIn('stable=$((stable+1))', out)
+        self.assertIn('[ "$stable" -ge 2 ]', out)
         self.assertIn('settle_loaded_gamemenu "$tag"', out)
 
     def test_default_is_eight_progressive_seasons(self):
