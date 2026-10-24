@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import tempfile
 import threading
 from pathlib import Path
 
@@ -32,6 +33,42 @@ def main() -> None:
             result.update(payload)
             done.set()
 
+    project_root = Path(__file__).resolve().parents[1]
+    stage2_dir = Path(__file__).resolve().parent
+    diagnostics = []
+    result['compiler_diagnostics'] = diagnostics
+
+    def on_diagnostics(diag):
+        diagnostics.append(str(diag))
+
+    source = args.script.read_text(encoding='utf-8')
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            encoding='utf-8',
+            suffix='.js',
+            prefix='.stage2-frida-agent-',
+            dir=stage2_dir,
+            delete=False,
+        ) as temp:
+            temp.write(source)
+            temp_path = Path(temp.name)
+
+        compiler = frida.Compiler()
+        compiler.on('diagnostics', on_diagnostics)
+        entrypoint = temp_path.relative_to(project_root).as_posix()
+        bundle = compiler.build(entrypoint, project_root=str(project_root))
+        result['agent_compiled'] = True
+    except Exception as exc:
+        result['agent_compiled'] = False
+        result['error'] = f'Frida agent compilation failed: {exc}'
+        write_result()
+        raise SystemExit(1)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
     device = frida.get_usb_device(timeout=10)
     target = args.pid if args.pid else args.package
     result['attach_target'] = target
@@ -42,7 +79,7 @@ def main() -> None:
         write_result()
         raise SystemExit(1)
 
-    script = session.create_script(args.script.read_text(encoding='utf-8'))
+    script = session.create_script(bundle)
     script.on('message', on_message)
     script.load()
     if not done.wait(args.timeout):
