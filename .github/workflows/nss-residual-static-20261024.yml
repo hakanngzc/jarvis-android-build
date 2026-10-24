@@ -1,0 +1,65 @@
+name: NSS Residual Static Reconciliation 20261024
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-residual-static-20261024.yml'
+      - 'residual_static/**'
+
+permissions:
+  contents: read
+
+jobs:
+  residual-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Unit regressions
+        working-directory: residual_static
+        run: python3 -m unittest test_nss_residual_static_analysis.py -v
+      - name: Download and verify public stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nss-residual-static/out"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          XAPK="$RUNNER_TEMP/nss-residual-static/stock.xapk"
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$XAPK"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$XAPK" | sha256sum -c -
+          unzip -p "$XAPK" com.newstargames.newstarsoccer.apk > "$RUNNER_TEMP/nss-residual-static/base.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$RUNNER_TEMP/nss-residual-static/base.apk" | sha256sum -c -
+      - name: Reconcile screen surfaces and catchall ownership
+        run: |
+          set -euo pipefail
+          python3 residual_static/nss_residual_static_analysis.py \
+            --xapk "$RUNNER_TEMP/nss-residual-static/stock.xapk" \
+            --out "$RUNNER_TEMP/nss-residual-static/out/NSS431_RESIDUAL_STATIC_ANALYSIS.json" \
+            | tee "$RUNNER_TEMP/nss-residual-static/out/summary.txt"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'nss-residual-static/out/NSS431_RESIDUAL_STATIC_ANALYSIS.json'
+          d=json.loads(p.read_text())
+          c=d['class_counts']; s=d['screen_reconciliation']; r=d['catchall_relationship_summary']
+          assert c['app_classes']==2747,c
+          assert c['canonical_screen_surfaces']==92,c
+          assert c['non_screen_classes']==2655,c
+          assert c['game_domain_other']==934,c
+          assert s['legacy_count']==87,s
+          assert s['canonical_count']==92,s
+          assert len(s['canonical_only'])==5,s
+          assert not s['legacy_only'],s
+          assert r['classes_mapped']==934,r
+          print('VERDICT=NSS_RESIDUAL_STATIC_RECONCILIATION_PASS')
+          PY
+      - name: Upload static evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-residual-static-20261024
+          path: ${{ runner.temp }}/nss-residual-static/out/
+          retention-days: 2
