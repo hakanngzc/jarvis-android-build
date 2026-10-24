@@ -13,7 +13,7 @@ OLD = '''      clear_log
       press_play 3
       sleep 3
       fatal_check
-      capture_log 'retire second stock retirement writer no-op' '''
+      capture_log 'retire second stock retirement writer no-op' '''.rstrip()
 
 NEW = '''      local second_gm_attempt second_gm_hit=0 second_gm_evidence
       for second_gm_attempt in 1 2 3; do
@@ -57,7 +57,7 @@ NEW = '''      local second_gm_attempt second_gm_hit=0 second_gm_evidence
       }
       sleep 3
       fatal_check
-      capture_log 'retire second stock retirement writer no-op' '''
+      capture_log 'retire second stock retirement writer no-op' '''.rstrip()
 
 
 def harden(text: str) -> str:
