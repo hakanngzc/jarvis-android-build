@@ -1,5 +1,6 @@
 package com.newstargames.newstarsoccer;
 
+import android.content.SharedPreferences;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.view.View;
@@ -8,12 +9,22 @@ import android.view.ViewGroup;
 /**
  * Minimal lifecycle compatibility shim for NSS 4.31.
  *
- * The stock MonkeyGame/AndroidGame lifecycle remains authoritative.  This
+ * The stock MonkeyGame/AndroidGame lifecycle remains authoritative. This
  * subclass only enables Android's EGL-context preservation flag on the
- * existing GLSurfaceView before the stock focus-loss/focus-gain callbacks
- * invoke GLSurfaceView.onPause()/onResume().
+ * existing GLSurfaceView before stock focus-loss/focus-gain callbacks invoke
+ * GLSurfaceView.onPause()/onResume().
+ *
+ * NSS persists through Activity.getPreferences(0), whose default namespace is
+ * derived from the Activity class name. Because this shim changes the launcher
+ * Activity name, explicitly retain the stock MonkeyGame preference namespace
+ * so existing careers continue to use MonkeyGame.xml.
  */
 public final class RebornGame extends MonkeyGame {
+    @Override
+    public SharedPreferences getPreferences(int mode) {
+        return getSharedPreferences("MonkeyGame", mode);
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
