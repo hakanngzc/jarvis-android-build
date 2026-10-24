@@ -61,9 +61,13 @@ def _validated_manifest(manifest, base_dir=None, require_assets=False):
             if require_assets and not resolved.is_file():
                 raise ValueError(f'missing logo asset: {asset}')
             entry['_asset_path']=str(resolved)
+        elif row.get('_asset_path'):
+            resolved=Path(row['_asset_path']).resolve()
+            if require_assets and not resolved.is_file():
+                raise ValueError(f'missing logo asset: {asset}')
+            entry['_asset_path']=str(resolved)
         normalized.append(entry)
 
-    # Deterministic selector/atlas order is style first, then club ID.
     normalized.sort(key=lambda r:(r['style'],r['club_id'],r['symbol']))
     return {'version':1,'cell_size':cell_size,'clubs':normalized}
 
@@ -121,14 +125,13 @@ def atlas_records_for_append(manifest,atlas_width=None,atlas_height=None,max_wid
             'name':row['symbol'],
             'original_width':cell,'original_height':cell,
             'trimmed_width':cell,'trimmed_height':cell,
-            # Same normal-image render-data convention verified by Stage6 proof.
             'render_data':[0.0,1.0,u0,1.0,1.0,0.0,u1,0.0],
         })
     return records
 
 
 def pack_logo_atlas(manifest,out_path,max_width=2048):
-    checked=_validated_manifest(manifest,require_assets=False)
+    checked=_validated_manifest(manifest,require_assets=True)
     missing=[row['asset'] for row in checked['clubs'] if not row.get('_asset_path')]
     if missing:
         raise ValueError('pack_logo_atlas requires a manifest loaded with load_manifest')
@@ -136,7 +139,8 @@ def pack_logo_atlas(manifest,out_path,max_width=2048):
     layout=compute_atlas_layout(checked,max_width=max_width); cell=layout['cell_size']
     atlas=Image.new('RGBA',(layout['width'],layout['height']),(0,0,0,0))
     for index,row in enumerate(checked['clubs']):
-        src=Image.open(row['_asset_path']).convert('RGBA')
+        with Image.open(row['_asset_path']) as raw:
+            src=raw.convert('RGBA')
         src.thumbnail((cell,cell),Image.Resampling.LANCZOS)
         x=(index%layout['columns'])*cell+(cell-src.width)//2
         y=(index//layout['columns'])*cell+(cell-src.height)//2
@@ -157,8 +161,6 @@ def _supplemental_block(style_name,args,modifier,indent,manifest):
     by_style={row['style']:row['symbol'] for row in checked['clubs']}
     max_style=max(by_style)
     lines=[indent+'Rect:(0,0,0,0)',indent+f'    Selector(MatchColours,{style_name})',indent+'{']
-    # Preserve index alignment: styles 0..15 remain owned by stock selector,
-    # so this sibling selector contributes blanks for them.
     lines.extend(indent+'    Rect:(0,0,0,0)' for _ in range(16))
     for style in range(16,max_style+1):
         symbol=by_style.get(style)
