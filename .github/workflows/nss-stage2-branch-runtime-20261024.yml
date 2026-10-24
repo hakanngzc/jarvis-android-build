@@ -7,6 +7,8 @@ on:
       - nss-residual-static-20261024
     paths:
       - '.github/workflows/nss-stage2-branch-runtime-20261024.yml'
+      - 'stage2/**'
+      - 'lifecycle/**'
 
 permissions:
   contents: read
