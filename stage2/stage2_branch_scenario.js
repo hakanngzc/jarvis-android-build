@@ -4,6 +4,7 @@ const SCENARIO = '__SCENARIO__';
 const SENTINEL_WAGE = 4321;
 const SENTINEL_GOAL = 321;
 const SENTINEL_ASSIST = 123;
+const SENTINEL_RETIRED = 777777;
 
 Java.perform(function () {
   function readState(player) {
@@ -69,6 +70,8 @@ Java.perform(function () {
       branchReturn = Contract.m_ButtonAccept(false);
     } else if (SCENARIO === 'retirement') {
       Retirement.m_SetUpScreen();
+      const score = Retirement.m_score.value;
+      score[0] = SENTINEL_RETIRED;
       branchReturn = Retirement.m_ButtonPlay();
     } else {
       throw new Error('unknown Stage2 scenario: ' + SCENARIO);
@@ -83,7 +86,12 @@ Java.perform(function () {
       after: after,
       target_clubid: targetClubId,
       branch_return: branchReturn,
-      sentinels: {wage: SENTINEL_WAGE, goalbonus: SENTINEL_GOAL, assistbonus: SENTINEL_ASSIST}
+      sentinels: {
+        wage: SENTINEL_WAGE,
+        goalbonus: SENTINEL_GOAL,
+        assistbonus: SENTINEL_ASSIST,
+        retired: SENTINEL_RETIRED
+      }
     });
   } catch (e) {
     send({type: 'stage2-scenario', ok: false, scenario: SCENARIO, error: String(e), stack: e.stack || ''});
