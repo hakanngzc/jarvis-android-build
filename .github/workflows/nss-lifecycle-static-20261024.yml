@@ -1,0 +1,50 @@
+name: NSS Lifecycle Static 20261024
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-lifecycle-static-20261024.yml'
+      - 'lifecycle/dump_graphics_lifecycle_code.py'
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download and hash-gate stock NSS 4.31
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/nss-lifecycle-static"
+          mkdir -p "$WORK/xapk" "$WORK/out"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          EXPECTED_XAPK='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          EXPECTED_BASE='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$WORK/stock.xapk"
+          echo "$EXPECTED_XAPK  $WORK/stock.xapk" | sha256sum -c -
+          unzip -q "$WORK/stock.xapk" -d "$WORK/xapk"
+          echo "$EXPECTED_BASE  $WORK/xapk/com.newstargames.newstarsoccer.apk" | sha256sum -c -
+      - name: Dump stock graphics lifecycle bytecode
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/nss-lifecycle-static"
+          python3 lifecycle/dump_graphics_lifecycle_code.py \
+            "$WORK/xapk/com.newstargames.newstarsoccer.apk" \
+            --out "$WORK/out/LIFECYCLE_GRAPHICS_CODE.json" \
+            | tee "$WORK/out/LIFECYCLE_GRAPHICS_CODE.txt"
+          test -s "$WORK/out/LIFECYCLE_GRAPHICS_CODE.json"
+          test -s "$WORK/out/LIFECYCLE_GRAPHICS_CODE.txt"
+      - name: Upload lifecycle static evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-lifecycle-static-20261024
+          path: ${{ runner.temp }}/nss-lifecycle-static/out/
+          retention-days: 30
