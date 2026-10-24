@@ -53,13 +53,16 @@ jobs:
               if len(hits)!=1: raise SystemExit(f'{r}: {hits}')
           print('exported',len(manifest),'files')
           PY
-      - name: Download Reep football identity reference
+      - name: Download identity references
         run: |
           set -euo pipefail
-          mkdir -p nss431-export/reference/reep
+          mkdir -p nss431-export/reference/reep nss431-export/reference/openfootball
           curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/teams.csv -o nss431-export/reference/reep/teams.csv
           curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/names.csv -o nss431-export/reference/reep/names.csv
           curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/competitions.csv -o nss431-export/reference/reep/competitions.csv
+          git clone --depth 1 https://github.com/openfootball/clubs.git "$RUNNER_TEMP/openfootball-clubs"
+          (cd "$RUNNER_TEMP/openfootball-clubs" && git rev-parse HEAD) > nss431-export/reference/openfootball/COMMIT.txt
+          cp -R "$RUNNER_TEMP/openfootball-clubs"/0-world "$RUNNER_TEMP/openfootball-clubs"/africa "$RUNNER_TEMP/openfootball-clubs"/asia "$RUNNER_TEMP/openfootball-clubs"/caribbean "$RUNNER_TEMP/openfootball-clubs"/central-america "$RUNNER_TEMP/openfootball-clubs"/europe "$RUNNER_TEMP/openfootball-clubs"/middle-east "$RUNNER_TEMP/openfootball-clubs"/north-america "$RUNNER_TEMP/openfootball-clubs"/pacific "$RUNNER_TEMP/openfootball-clubs"/south-america nss431-export/reference/openfootball/
           python3 - <<'PY'
           import csv,json,pathlib
           out=pathlib.Path('nss431-export/reference/reep')
