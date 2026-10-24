@@ -79,6 +79,15 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertLess(scenario.index(setup, transfer_at),
                         scenario.index('Contract.m_ButtonAccept(false)', transfer_at))
 
+    def test_branch_action_is_dispatched_once_from_gl_renderer_thread(self):
+        scenario = Path('stage2_branch_scenario.js').read_text(encoding='utf-8')
+        self.assertIn("Java.use('com.newstargames.newstarsoccer.BBAndroidGame')", scenario)
+        self.assertIn("onDrawFrame.overload('javax.microedition.khronos.opengles.GL10')", scenario)
+        self.assertIn('if (!fired)', scenario)
+        self.assertIn('executeScenario();', scenario)
+        self.assertIn('thread_name:', scenario)
+        self.assertIn("Java.use('java.lang.Thread').currentThread().getName().toString()", scenario)
+
     def test_removes_old_stage3_tail_before_exit(self):
         out = adapt_generated_script(FIXTURE)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
