@@ -32,6 +32,9 @@ def prepare_text(text: str) -> str:
 }'''
     text = replace_exact(text, sign_old, sign_new, 'nounset-safe sign_one')
 
+    # Stage2 has a multi-line dump_save helper that needs nounset hardening.
+    # Stage4-natural intentionally uses a different one-line helper, so do not
+    # force a Stage2-specific source shape onto it.
     dump_old = '''dump_save(){
   local tag="$1" xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$REMOTE_PREF" > "$xml"
@@ -43,8 +46,11 @@ def prepare_text(text: str) -> str:
   adb shell cat "$REMOTE_PREF" > "$xml"
   grep -q 'monkeystate' "$xml"
 }'''
-    text = replace_exact(text, dump_old, dump_new, 'nounset-safe dump_save')
+    if dump_old in text:
+        text = replace_exact(text, dump_old, dump_new, 'nounset-safe dump_save')
 
+    # build_probe exists only in the Stage2 residual mutation gate. Stage4 has
+    # no probe APK builder because the season run must remain natural.
     build_old = '''build_probe(){
   local scenario="$1" dest="${2:-}" out="$WORK/base-$scenario-unsigned.apk"
   args=(stage2_residual_tools/patch_stage2_residual_probe.py "$WORK/base-career-unsigned.apk" "$out" --scenario "$scenario")'''
@@ -52,7 +58,8 @@ def prepare_text(text: str) -> str:
   local scenario="$1" dest="${2:-}" out
   out="$WORK/base-$scenario-unsigned.apk"
   args=(stage2_residual_tools/patch_stage2_residual_probe.py "$WORK/base-career-unsigned.apk" "$out" --scenario "$scenario")'''
-    text = replace_exact(text, build_old, build_new, 'nounset-safe build_probe')
+    if build_old in text:
+        text = replace_exact(text, build_old, build_new, 'nounset-safe build_probe')
 
     career_old = '''press_career(){ press_logical 471 541 "${1:-3}"; }'''
     career_new = '''press_career(){
