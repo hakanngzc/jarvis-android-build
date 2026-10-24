@@ -61,7 +61,41 @@ jobs:
           o=json.loads((root/'NSS431_CATCHALL_OWNER_REFINEMENT.json').read_text())
           assert o['classes_mapped']==934,o
           assert all('incoming_owners' in x and 'declared_methods' in x and 'declared_fields' in x for x in o['classes'])
+          assert all('owner_candidate' in x and 'owner_anchor_counts' in x for x in o['classes'])
           print('VERDICT=NSS_RESIDUAL_STATIC_RECONCILIATION_PASS')
+          PY
+      - name: Inspect stock GameView GL lifecycle references
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nss-residual-static/dex"
+          unzip -q "$RUNNER_TEMP/nss-residual-static/base.apk" 'classes*.dex' -d "$RUNNER_TEMP/nss-residual-static/dex"
+          python3 - <<'PY' | tee "$RUNNER_TEMP/nss-residual-static/out/GAMEVIEW_GL_LIFECYCLE_INSPECTION.txt"
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'tools')
+          from dex_inspect import Dex
+          root=Path(__import__('os').environ['RUNNER_TEMP'])/'nss-residual-static/dex'
+          target='Lcom/newstargames/newstarsoccer/AndroidGame$GameView;'
+          for dex_path in sorted(root.glob('classes*.dex')):
+              d=Dex(dex_path)
+              methods=d.class_methods(target)
+              if not methods:
+                  continue
+              print('DEX',dex_path.name)
+              print('GAMEVIEW_METHODS')
+              for kind,mid,m,access,code in methods:
+                  print(kind,mid,m,'access',hex(access),'code',hex(code))
+                  if code:
+                      regs,ins,outs,tries,sz,items=d.disasm(code)
+                      print(' regs/ins/outs/tries/units',regs,ins,outs,tries,sz)
+                      for off,name,args,raw in items:
+                          print(f'  {off:05x}: {raw:<28} {name:<25} {args}')
+              print('GLSURFACEVIEW_METHOD_REFS')
+              for i,(owner,name,proto) in enumerate(d.methods):
+                  if owner=='Landroid/opengl/GLSurfaceView;':
+                      print(i,owner,name,proto)
+              preserves=[(i,m) for i,m in enumerate(d.methods) if m[1]=='setPreserveEGLContextOnPause']
+              print('PRESERVE_METHOD_REFS',preserves)
           PY
       - name: Upload static evidence
         if: always()
