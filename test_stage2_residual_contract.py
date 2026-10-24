@@ -3,13 +3,19 @@ import unittest
 from pathlib import Path
 
 
-def load_preparer():
-    path = Path('stage2_residual_tools/prepare_stage2_gate.py')
-    spec = importlib.util.spec_from_file_location('prepare_stage2_gate', path)
+def load_module(path_str: str, name: str):
+    path = Path(path_str)
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def prepare_gate(path: Path) -> str:
+    preparer = load_module('stage2_residual_tools/prepare_stage2_gate.py', 'prepare_stage2_gate')
+    visual = load_module('stage2_residual_tools/prepare_chooseclub_visual.py', 'prepare_chooseclub_visual')
+    return visual.harden_chooseclub(preparer.prepare_text(path.read_text(encoding='utf-8')))
 
 
 class Stage2ResidualContractTests(unittest.TestCase):
@@ -69,32 +75,27 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('runtime-fatal-logcat.txt', text, 'real crash/ANR evidence must still be preserved')
 
     def test_prepared_gates_use_durable_save_then_restart_not_news_settlement(self):
-        preparer = load_preparer()
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
-                source = Path(gate).read_text(encoding='utf-8')
-                prepared = preparer.prepare_text(source)
+                prepared = prepare_gate(Path(gate))
                 self.assertIn('Fresh Career save evidence missing', prepared)
                 self.assertIn('bootstrap-restart', prepared)
                 self.assertIn('SAVE CAREER', prepared)
                 self.assertNotIn('settle_bootstrap_to_gamemenu', prepared)
 
     def test_prepared_gates_use_proven_visual_chooseclub_progression(self):
-        preparer = load_preparer()
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
-                prepared = preparer.prepare_text(Path(gate).read_text(encoding='utf-8'))
+                prepared = prepare_gate(Path(gate))
                 self.assertIn('press_and_require_change', prepared)
                 self.assertIn('fresh-setup-ok-$n', prepared)
                 self.assertIn('ChooseClub visual step did not change', prepared)
                 self.assertIn('Create Screen:[[:space:]]*choosenation', prepared)
 
     def test_gate_preparer_accepts_both_residual_gate_sources(self):
-        preparer = load_preparer()
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
-                source = Path(gate).read_text(encoding='utf-8')
-                prepared = preparer.prepare_text(source)
+                prepared = prepare_gate(Path(gate))
                 self.assertIn('render-probe.png', prepared)
                 self.assertIn('tap 795 1399', prepared)
                 self.assertIn('tap 935 1850', prepared)
