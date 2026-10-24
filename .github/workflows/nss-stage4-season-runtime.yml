@@ -21,7 +21,7 @@ jobs:
         run: |
           python3 -m py_compile stage2_residual_tools/*.py stage4_tools/*.py
           bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
-          python3 -m unittest test_stage2_residual_contract.py test_stage2_retire_second_policy.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
+          python3 -m unittest test_stage2_residual_contract.py test_stage2_retire_second_policy.py test_chooseclub_step_targets.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
 
       - name: Enable KVM access
         run: |
@@ -70,7 +70,7 @@ jobs:
         run: |
           python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_prematch.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py test_stage2_residual_contract.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage2_residual_contract.py test_chooseclub_step_targets.py -v
 
       - name: Enable KVM access
         run: |
