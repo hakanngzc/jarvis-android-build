@@ -43,13 +43,21 @@ class PreserveEglActivityPatchTest(unittest.TestCase):
         self.assertEqual(evidence['existing_dex_entries'],['classes.dex','classes3.dex'])
         self.assertEqual(evidence['manifest_replacements'],1)
 
-    def test_refuses_existing_classes4_to_avoid_overwrite(self):
+    def test_existing_classes4_is_preserved_and_helper_uses_next_dex_slot(self):
         src=io.BytesIO()
         with zipfile.ZipFile(src,'w') as z:
             z.writestr('AndroidManifest.xml',b'.MonkeyGame')
-            z.writestr('classes4.dex',b'existing')
-        with self.assertRaises(ValueError):
-            patch_apk_bytes(src.getvalue(),b'helper')
+            z.writestr('classes.dex',b'dex-one')
+            z.writestr('classes2.dex',b'dex-two')
+            z.writestr('classes3.dex',b'dex-three')
+            z.writestr('classes4.dex',b'dex-four')
+        out,evidence=patch_apk_bytes(src.getvalue(),b'helper')
+        with zipfile.ZipFile(io.BytesIO(out)) as z:
+            self.assertEqual(z.read('classes4.dex'),b'dex-four')
+            self.assertEqual(z.read('classes5.dex'),b'helper')
+        self.assertEqual(evidence['helper_dex_entry'],'classes5.dex')
+        self.assertEqual(evidence['existing_dex_entries'],['classes.dex','classes2.dex','classes3.dex','classes4.dex'])
+        self.assertFalse(evidence['existing_dex_payloads_rewritten'])
 
     def test_activity_shim_preserves_stock_monkeygame_preferences_namespace(self):
         src=Path('java_shim/com/newstargames/newstarsoccer/RebornGame.java').read_text(encoding='utf-8')
