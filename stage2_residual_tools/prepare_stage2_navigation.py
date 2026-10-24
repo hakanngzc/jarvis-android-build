@@ -49,23 +49,7 @@ def prepare_text(text: str) -> str:
     count = text.count(primary_old)
     if count != 1:
         raise SystemExit(f'expected one primary LeagueFixtures traversal, found {count}')
-    text = text.replace(primary_old, primary_new, 1)
-
-    retire_old = '''      clear_log
-      press_play 3
-      wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 retire-second-leaguefixtures
-      fatal_check
-      capture_log 'retire second probe GameMenu -> LeagueFixtures'
-      clear_log
-      press_play 3'''
-    retire_new = '''      enter_leaguefixtures_proven 'retire-second'
-      clear_log
-      press_play 3'''
-    count = text.count(retire_old)
-    if count != 1:
-        raise SystemExit(f'expected one retirement second LeagueFixtures traversal, found {count}')
-    text = text.replace(retire_old, retire_new, 1)
-    return text
+    return text.replace(primary_old, primary_new, 1)
 
 
 def main() -> None:
@@ -73,7 +57,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage2_navigation.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(prepare_text(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied bounded stock-hit-proven LeagueFixtures navigation: {dst}')
+    print(f'Applied bounded stock-hit-proven primary LeagueFixtures navigation: {dst}')
 
 
 if __name__ == '__main__':
