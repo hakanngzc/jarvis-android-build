@@ -10,6 +10,9 @@ CENTER_ANCHOR = r'''  size="$(adb shell wm size 2>/dev/null | tr -d '\r' | grep 
   adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
   sleep 4'''
 
+PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
+PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 553 900); press_physical "$x" "$y" "${1:-2}"; }'
+
 HIERARCHY_REPLACEMENT = r'''  adb shell uiautomator dump /sdcard/nss-recents.xml >/dev/null 2>&1 || true
   adb shell cat /sdcard/nss-recents.xml > "$OUT/lifecycle-${tag}-recents-ui.xml" 2>/dev/null || true
   python3 - "$OUT/lifecycle-${tag}-recents-ui.xml" "$WORK/lifecycle-${tag}-recents-target.txt" <<'PY'
@@ -93,7 +96,13 @@ def harden_generated_script(text: str) -> str:
     count = text.count(CENTER_ANCHOR)
     if count != 1:
         raise ValueError(f'expected one Recents center-tap anchor, found {count}')
-    return text.replace(CENTER_ANCHOR, HIERARCHY_REPLACEMENT, 1)
+    text = text.replace(CENTER_ANCHOR, HIERARCHY_REPLACEMENT, 1)
+    play_count = text.count(PLAY_EDGE_ANCHOR)
+    if play_count > 1:
+        raise ValueError(f'expected at most one play-button edge anchor, found {play_count}')
+    if play_count == 1:
+        text = text.replace(PLAY_EDGE_ANCHOR, PLAY_CENTER_REPLACEMENT, 1)
+    return text
 
 
 def patch_script(text: str) -> str:
