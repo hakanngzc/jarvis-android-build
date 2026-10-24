@@ -61,6 +61,15 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn('FATAL EXCEPTION.*com\\.newstargames\\.newstarsoccer', out)
         self.assertIn("echo 'NSS-owned crash/ANR detected'", out)
 
+    def test_measurement_only_anr_modal_recovery_uses_wait_and_never_close_app(self):
+        out = adapt_generated_script(FIXTURE)
+        self.assertIn('dismiss_measurement_anr_modal', out)
+        self.assertIn('runtime-ignored-appmeasurement-anr.txt', out)
+        self.assertIn('text="Wait"', out)
+        self.assertIn('measurement_anr_wait_dismissed', out)
+        self.assertNotIn('text="Close app"', out)
+        self.assertNotIn('anr_show_background', out)
+
     def test_checkpoint_uses_artifact_verified_contract_and_retirement_indices(self):
         self.assertEqual(FIELD_INDEX['lastnegotiations'], 581)
         self.assertEqual(FIELD_INDEX['lasttransferdate'], 582)
