@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import argparse, hashlib, json, re, tempfile, zipfile
+import argparse, hashlib, json, re, sys, tempfile, zipfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from residual_static.nss_residual_static_analysis import Dex
 
 APP='Lcom/newstargames/newstarsoccer/'
