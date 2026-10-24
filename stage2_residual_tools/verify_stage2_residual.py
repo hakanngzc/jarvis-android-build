@@ -20,8 +20,8 @@ def same_after_restart(post, restart):
 def has_retired_restart_mainmenu_proof(text):
     if not text:
         return False
-    created = re.search(r'Create Screen:[[:space:]]*mainmenu', text, re.I) is not None
-    active = re.search(r'(?:SETTING ACTIVE:|SetActive:)[[:space:]]*mainmenu', text, re.I) is not None
+    created = re.search(r'Create Screen:\s*mainmenu', text, re.I) is not None
+    active = re.search(r'(?:SETTING ACTIVE:|SetActive:)\s*mainmenu', text, re.I) is not None
     return created and active
 
 
