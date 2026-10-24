@@ -76,7 +76,8 @@ class LifecyclePatchV4Test(unittest.TestCase):
         self.assertIn('java_shim/com/newstargames/newstarsoccer/RebornGame.java', out)
         self.assertIn('patch_preserve_egl_activity.py', out)
         self.assertIn('LIFECYCLE_PRESERVE_EGL_ACTIVITY_PATCH.json', out)
-        self.assertIn('classes4.dex', out)
+        self.assertIn('"$SHIM_DEX_DIR/classes.dex"', out)
+        self.assertIn('"$WORK/base-career-probe.apk"', out)
         self.assertNotIn('patch_gl_context_survival.py', out)
         self.assertNotIn('patch_gl_resume_race.py', out)
 
@@ -91,7 +92,7 @@ class LifecyclePatchV4Test(unittest.TestCase):
         out=inject_render_gate('foreground_from_recents(){\n' + RENDER_ROUNDTRIP_ANCHOR)
         self.assertIn('assert_game_rendered(){', out)
         self.assertIn('nonblack_fraction', out)
-        self.assertIn('lifecycle-${tag}-render-visible', out)
+        self.assertIn('${tag}_render_visible', out)
         self.assertIn('assert_game_rendered "$tag" || return 1', out)
         self.assertLess(out.index('assert_game_rendered "$tag" || return 1'), out.index('after="$(pid_one)"'))
 
