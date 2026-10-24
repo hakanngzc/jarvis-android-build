@@ -11,9 +11,9 @@ python3 lifecycle/dump_graphics_lifecycle_code.py \
   | tee "$OUT/LIFECYCLE_GRAPHICS_CODE.txt"
 python3 lifecycle/patch_activity_super_lifecycle.py \
   "$WORK/base-career-probe-stock.apk" "$WORK/base-career-probe.apk" \
-  --evidence "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.json" \
-  | tee "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.txt"
-grep -q 'VERDICT=LIFECYCLE_ACTIVITY_ONSTOP_PATCH_APPLIED' "$OUT/LIFECYCLE_ACTIVITY_ONSTOP_PATCH.txt"'''
+  --evidence "$OUT/LIFECYCLE_ACTIVITY_SUPER_PATCH.json" \
+  | tee "$OUT/LIFECYCLE_ACTIVITY_SUPER_PATCH.txt"
+grep -q 'VERDICT=LIFECYCLE_ACTIVITY_SUPER_PATCH_APPLIED' "$OUT/LIFECYCLE_ACTIVITY_SUPER_PATCH.txt"'''
 
 CHOOSECLUB_WAIT_ANCHOR = "wait_log 'Create Screen:[[:space:]]*chooseclub|Create Screen:chooseclub' 25 chooseclub"
 
