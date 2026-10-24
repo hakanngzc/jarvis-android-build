@@ -9,6 +9,8 @@ PATCH_REPLACEMENT = '''python3 endurance/patch_long_career_season_probe.py "$WOR
 TAIL_MARKER = '# Drive normal stock UI to the next playable match.'
 SIGN_ANCHOR = '  local src="$1" dst="$2" aligned="$WORK/aligned-$(basename "$dst")"'
 SIGN_REPLACEMENT = '  local src="$1" dst="$2"\n  local aligned="$WORK/aligned-$(basename "$dst")"'
+PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
+PLAY_CENTER_REPLACEMENT = 'press_play(){ local x y; read -r x y < <(logical_xy 553 900); press_physical "$x" "$y" "${1:-2}"; }'
 CAREER_OPEN_ANCHOR = '''clear_log
 press_physical 810 1450 2
 wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 saveslot'''
@@ -159,6 +161,7 @@ def one_replace(text: str, old: str, new: str, label: str) -> str:
 
 def transform(text: str) -> str:
     text = one_replace(text, PATCH_ANCHOR, PATCH_REPLACEMENT, 'Stage3 patch')
+    text = one_replace(text, PLAY_EDGE_ANCHOR, PLAY_CENTER_REPLACEMENT, 'Play hitbox')
     text = one_replace(text, SIGN_ANCHOR, SIGN_REPLACEMENT, 'sign_one')
     text = one_replace(text, CAREER_OPEN_ANCHOR, CAREER_OPEN_REPLACEMENT, 'Career SaveSlot open')
     text = one_replace(text, SLOT_ANCHOR, SLOT_REPLACEMENT, 'initial slot 0 target')
