@@ -11,10 +11,14 @@ CLASSES={
   APP+'c_TScreen_Retirement;': ['m_SetUpScreen','m_ButtonPlay'],
   APP+'c_TPlayer;': ['p_Retire','p_QuickSave'],
   APP+'c_TScreen_Message;': ['m_DoCallFunction'],
+  APP+'AndroidGame;': None,
+  APP+'AndroidGame$GameView;': None,
+  APP+'BBAndroidGame;': None,
+  APP+'BBGame;': None,
 }
 
 def dump(apk: Path):
-    result={'schema':1,'classes':{}}
+    result={'schema':2,'classes':{}}
     with tempfile.TemporaryDirectory(prefix='nss-stage2-dump-') as td:
         td=Path(td)
         dexes=[]
@@ -33,7 +37,7 @@ def dump(apk: Path):
             row={'dex':dn,'declared_fields':[{'name':n,'type':t} for c,n,t in d.fields if c==desc],'methods':{}}
             for kind,mid,m,acc,code in methods:
                 name=m[1]
-                if name not in wanted: continue
+                if wanted is not None and name not in wanted: continue
                 mr={'kind':kind,'method_index':mid,'access':acc,'code_off':code}
                 if code:
                     regs,ins,outs,tries,units,items=d.disasm(code)
@@ -49,7 +53,10 @@ def main():
     for cls,row in data['classes'].items():
         print('\nCLASS',cls,'DEX',row.get('dex'))
         print('FIELDS',[(x['name'],x['type']) for x in row.get('declared_fields',[])])
+        print('METHOD_NAMES',list(row.get('methods',{})))
         for name,m in row.get('methods',{}).items():
+            if not re.search(r'draw|render|update|run|game|frame|resume|pause|motion|touch', name, re.I):
+                continue
             print('METHOD',name,'regs',m.get('registers'),'ins',m.get('ins'),'units',m.get('instruction_units'))
             for i in m.get('instructions',[]):
                 if i['op'].startswith(('invoke','iget','iput','sget','sput','new-instance','const-string')):
