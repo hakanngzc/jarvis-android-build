@@ -35,8 +35,17 @@ lifecycle_background_roundtrip career
 
 # Drive normal stock UI to the next playable match.'''
 TRUNCATE_REPLACEMENT = r'''shot career-gamemenu
+STAGE2_SMOKE_PID="$(pid_one)"
+if ! test -n "$STAGE2_SMOKE_PID"; then
+  adb logcat -d -v threadtime > "$OUT/stage2-smoke-no-process.log" 2>/dev/null || true
+  adb shell ps -A > "$OUT/stage2-smoke-no-process-ps.txt" 2>/dev/null || true
+  echo 'NSS process missing before Stage2 Frida smoke attach'
+  exit 1
+fi
+printf '%s\n' "$STAGE2_SMOKE_PID" > "$OUT/stage2-smoke-pid.txt"
 python3 stage2/run_frida_script.py \
   --package "$PKG" \
+  --pid "$STAGE2_SMOKE_PID" \
   --script stage2/frida_smoke.js \
   --out "$OUT/STAGE2_FRIDA_SMOKE.json"
 fatal_check
