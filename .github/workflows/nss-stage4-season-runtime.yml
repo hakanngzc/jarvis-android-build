@@ -21,7 +21,7 @@ jobs:
         run: |
           python3 -m py_compile stage2_residual_tools/*.py stage4_tools/*.py
           bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
-          python3 -m unittest test_stage2_residual_contract.py test_stage2_retire_second_policy.py test_chooseclub_step_targets.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
+          python3 -m unittest test_stage2_residual_contract.py test_stage2_retire_second_policy.py test_chooseclub_step_targets.py test_runtime_start_retry.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
 
       - name: Enable KVM access
         run: |
@@ -45,7 +45,8 @@ jobs:
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage2_residual_gate.sh "$RUNNER_TEMP/stage2-residual-gate.pre.sh"
-            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.visual.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage2-residual-gate.pre.sh" "$RUNNER_TEMP/stage2-residual-gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage2-residual-gate.start.sh" "$RUNNER_TEMP/stage2-residual-gate.visual.sh"
             python3 stage2_residual_tools/prepare_stage2_gamemenu_stable.py "$RUNNER_TEMP/stage2-residual-gate.visual.sh" "$RUNNER_TEMP/stage2-residual-gate.stable.sh"
             python3 stage2_residual_tools/prepare_stage2_retire_second.py "$RUNNER_TEMP/stage2-residual-gate.stable.sh" "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
             bash -n "$RUNNER_TEMP/stage2-residual-gate.retire.sh"
@@ -68,9 +69,9 @@ jobs:
 
       - name: Validate natural-season tooling
         run: |
-          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_prematch.py stage4_tools/verify_stage4_natural_season.py
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_prematch.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py test_stage2_residual_contract.py test_chooseclub_step_targets.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
 
       - name: Enable KVM access
         run: |
@@ -100,7 +101,8 @@ jobs:
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
-            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.visual.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.start.sh" "$RUNNER_TEMP/stage4-natural-gate.visual.sh"
             python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
             bash -n "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
             bash "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
