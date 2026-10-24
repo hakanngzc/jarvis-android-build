@@ -6,6 +6,7 @@ from patch_long_career_driver import (
     SIGN_ANCHOR,
     CAREER_OPEN_ANCHOR,
     SLOT_ANCHOR,
+    POST_CREATE_ANCHOR,
     transform,
 )
 from patch_long_career_season_probe import SEASON_DELTA, build_probe_units
@@ -36,6 +37,7 @@ class LongCareerDriverTransformTest(unittest.TestCase):
             'sign_one(){\n' + SIGN_ANCHOR + '\n}\n' +
             CAREER_OPEN_ANCHOR + '\n' +
             SLOT_ANCHOR + '\n' +
+            POST_CREATE_ANCHOR + '\n' +
             'pre-tail\n' + TAIL_MARKER + '\nold-stage3-tail\n'
         )
 
@@ -55,6 +57,13 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('logical_xy 320 280', out)
         self.assertNotIn('press_physical 810 1450 2', out)
         self.assertNotIn('find_slot0_target "$OUT/saveslot.png"', out)
+
+    def test_crosses_real_save_boundary_before_endurance_loop(self):
+        out = transform(self.fixture())
+        self.assertIn('Initial Career did not reach save boundary', out)
+        self.assertIn('LoadCareer saveslot:', out)
+        self.assertIn('endurance-reloaded-gamemenu', out)
+        self.assertNotIn(POST_CREATE_ANCHOR, out)
 
     def test_requires_restart_reload_after_every_season(self):
         out = transform(self.fixture())
