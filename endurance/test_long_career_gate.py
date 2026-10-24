@@ -51,6 +51,11 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('local src="$1" dst="$2"\n  local aligned=', out)
         self.assertNotIn(SIGN_ANCHOR, out)
 
+    def test_dump_save_initializes_tag_before_using_it_under_nounset(self):
+        out = transform(self.fixture())
+        self.assertIn('local tag="$1"\n  local remote=', out)
+        self.assertNotIn('local tag="$1" remote=', out)
+
     def test_initial_navigation_uses_stable_logical_targets(self):
         out = transform(self.fixture())
         self.assertIn('logical_xy 480 664', out)
