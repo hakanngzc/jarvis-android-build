@@ -15,7 +15,7 @@ CAREER_OPEN_ANCHOR = '''clear_log
 press_physical 810 1450 2
 wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 saveslot'''
 CAREER_OPEN_REPLACEMENT = '''clear_log
-read -r CAREER_X CAREER_Y < <(logical_xy 480 664)
+read -r CAREER_X CAREER_Y < <(logical_xy 480 624)
 press_physical "$CAREER_X" "$CAREER_Y" 2
 wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 saveslot'''
 SLOT_ANCHOR = '''shot saveslot
@@ -42,7 +42,7 @@ POST_CREATE_REPLACEMENT = '''for _ in 1 2 3 4 5; do
 done
 grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt" || { echo 'Initial Career did not reach save boundary'; exit 1; }
 start_menu
-read -r REOPEN_X REOPEN_Y < <(logical_xy 480 664)
+read -r REOPEN_X REOPEN_Y < <(logical_xy 480 624)
 clear_log
 press_physical "$REOPEN_X" "$REOPEN_Y" 2
 wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 25 endurance-reload-saveslot
@@ -136,6 +136,23 @@ restart_saved_career(){
   fatal_check
 }
 
+enter_leaguefixtures(){
+  local season="$1" attempt
+  for attempt in 1 2 3; do
+    clear_log
+    press_play 3
+    if wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 10 "season-${season}-leaguefixtures-attempt-${attempt}"; then
+      echo "Season $season entered LeagueFixtures on attempt $attempt"
+      return 0
+    fi
+    shot "season-${season}-leaguefixtures-attempt-${attempt}-miss"
+    fatal_check || return 1
+  done
+  adb logcat -d -v threadtime > "$OUT/season-${season}-leaguefixtures-failed.log" 2>/dev/null || true
+  echo "Season $season could not enter LeagueFixtures after bounded retries"
+  return 1
+}
+
 # Baseline is the durable fresh Career created above.
 prepare_save_access
 dump_save season-0-baseline
@@ -144,9 +161,7 @@ fatal_check
 for season in $(seq 1 "$SEASON_COUNT"); do
   echo "===== LONG CAREER SEASON $season/$SEASON_COUNT =====" | tee -a "$FLOW"
 
-  clear_log
-  press_play 3
-  wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 "season-${season}-leaguefixtures"
+  enter_leaguefixtures "$season"
   fatal_check
 
   clear_log
