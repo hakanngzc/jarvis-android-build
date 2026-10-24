@@ -25,6 +25,7 @@ replacements = [
   fi
   if grep -qi 'ANR in com.newstargames.newstarsoccer' "$WORK/live-logcat.txt"; then
     if grep -qi 'Reason: executing service com.newstargames.newstarsoccer/com.google.android.gms.measurement.AppMeasurementService' "$WORK/live-logcat.txt"; then
+      cp "$WORK/live-logcat.txt" "$OUT/ignored-gms-measurement-anr.txt" || true
       printf '%s\\n' 'Ignored CI-only AppMeasurementService ANR (no GmsCore)' >> "$FLOW"
     else
       cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
