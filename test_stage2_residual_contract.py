@@ -144,11 +144,15 @@ class Stage2ResidualContractTests(unittest.TestCase):
                 self.assertIn('Create Screen:[[:space:]]*choosenation', prepared)
                 self.assertNotIn('cmp -s "$before" "$after"', prepared)
 
-    def test_prepared_stage2_traversal_requires_stock_gamemenu_play_hit(self):
+    def test_prepared_stage2_traversal_waits_for_stable_gamemenu_then_requires_stock_play_hit(self):
         prepared = prepare_gate(Path('stage2_residual_gate.sh'))
+        self.assertIn('GameMenu stable poll $gm_settle_i/12', prepared)
+        self.assertIn('gm_stable_count', prepared)
+        self.assertIn('GameMenu did not become stably active before Play', prepared)
         self.assertIn('GameMenu Play attempt $gm_attempt/3', prepared)
         self.assertIn('HitGadget: gamemenu.btn_Play', prepared)
         self.assertIn('gm_play_hit=0', prepared)
+        self.assertIn('shot "${scenario}-gamemenu-play-miss-${gm_attempt}"', prepared)
         self.assertIn('GameMenu Play did not register after 3 controlled presses', prepared)
         self.assertIn('Create Screen:[[:space:]]*leaguefixtures', prepared)
 
