@@ -58,14 +58,15 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('NSS-owned ANR detected', text, 'all other package ANRs must still fail the runtime gate')
         self.assertIn('runtime-fatal-logcat.txt', text, 'real crash/ANR evidence must still be preserved')
 
-    def test_gate_preparer_settles_post_save_news_flow(self):
+    def test_gate_preparer_uses_durable_save_as_fresh_boundary(self):
         p = Path('stage2_residual_tools/prepare_stage2_gate.py')
         text = p.read_text(encoding='utf-8')
-        self.assertIn('settle_bootstrap_to_gamemenu', text, 'fresh Career must drive post-save screens instead of only waiting')
-        self.assertIn('webpage', text, 'news/webpage screens must be recognized during bootstrap settlement')
-        self.assertIn('startransition', text, 'star transition must be recognized during bootstrap settlement')
-        self.assertIn('press_message_accept 2', text, 'known post-save webpage/message screens use the proven accept control')
-        self.assertIn('Bootstrap did not settle to GameMenu', text, 'bootstrap settlement must remain bounded and fail closed')
+        self.assertIn('Fresh Career save evidence missing', text,
+                      'fresh bootstrap must prove the real stock durable save')
+        self.assertIn('fresh-gamemenu || true', text,
+                      'post-save WebPageNews/StarTransition presentation must not block a proven saved Career')
+        self.assertIn('SAVE CAREER', text,
+                      'the stock durable save event must be the bootstrap boundary')
 
 
 if __name__ == '__main__':
