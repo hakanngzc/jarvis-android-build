@@ -14,37 +14,73 @@ HIERARCHY_REPLACEMENT = r'''  adb shell uiautomator dump /sdcard/nss-recents.xml
   adb shell cat /sdcard/nss-recents.xml > "$OUT/lifecycle-${tag}-recents-ui.xml" 2>/dev/null || true
   python3 - "$OUT/lifecycle-${tag}-recents-ui.xml" "$WORK/lifecycle-${tag}-recents-target.txt" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
+from pathlib import Path
 src,dst=sys.argv[1:]
 try:
     root=ET.parse(src).getroot()
 except Exception as e:
     raise SystemExit(f'cannot parse Recents UI hierarchy: {e}')
+
+def bounds(node):
+    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        return None
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2<=x1 or y2<=y1:
+        return None
+    return x1,y1,x2,y2
+
+def center(node):
+    b=bounds(node)
+    if not b:
+        return None
+    x1,y1,x2,y2=b
+    return (x1+x2)//2,(y1+y2)//2,(x2-x1)*(y2-y1),node.attrib.get('bounds','')
+
 terms=('new star soccer','newstarsoccer')
-candidates=[]
+named=[]
 for node in root.iter('node'):
     attrs=node.attrib
     hay=' '.join((attrs.get('text',''),attrs.get('content-desc',''),attrs.get('resource-id',''),attrs.get('package',''))).lower()
-    if not any(t in hay for t in terms):
-        continue
-    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',attrs.get('bounds',''))
-    if not m:
-        continue
-    x1,y1,x2,y2=map(int,m.groups())
-    if x2>x1 and y2>y1:
-        candidates.append(((x2-x1)*(y2-y1), (x1+x2)//2, (y1+y2)//2, hay, attrs.get('bounds','')))
+    c=center(node)
+    if c and any(t in hay for t in terms):
+        named.append((*c,hay))
+
+source='named'
+candidates=named
 if not candidates:
-    raise SystemExit('New Star Soccer task not found in Recents UI hierarchy')
-# Prefer the largest matching task/card node over child labels/icons.
-candidates.sort(reverse=True)
-_,x,y,hay,bounds=candidates[0]
-Path = __import__('pathlib').Path
+    # Android 14 launcher can expose task cards without app text/content-desc.
+    # Fail closed unless there is exactly one structural task card: a clickable
+    # FrameLayout directly under overview_panel containing a snapshot node.
+    cards=[]
+    for overview in root.iter('node'):
+        if not overview.attrib.get('resource-id','').endswith('/overview_panel'):
+            continue
+        for child in list(overview):
+            attrs=child.attrib
+            if attrs.get('class')!='android.widget.FrameLayout' or attrs.get('clickable')!='true':
+                continue
+            has_snapshot=any(n.attrib.get('resource-id','').endswith('/snapshot') for n in child.iter('node'))
+            c=center(child)
+            if has_snapshot and c:
+                cards.append((*c,'structural-task-card'))
+    if len(cards)==1:
+        candidates=cards
+        source='unique-structural-task-card'
+    elif len(cards)>1:
+        raise SystemExit(f'multiple unlabeled Recents task cards ({len(cards)}); refusing to guess NSS target')
+    else:
+        raise SystemExit('no named or structural Recents task card found')
+
+candidates.sort(key=lambda x:x[2],reverse=True)
+x,y,area,bound,hay=candidates[0]
 Path(dst).write_text(f'{x} {y}\n',encoding='utf-8')
-print('recents_nss_target',x,y,bounds,hay)
+print('recents_nss_target',source,x,y,bound,hay)
 PY
   if [ ! -s "$WORK/lifecycle-${tag}-recents-target.txt" ]; then
     shot "lifecycle-${tag}-recents-target-missing"
     lifecycle_record "${tag}_recents_target_found" FAIL
-    echo "NSS task target not found in Recents ($tag)"
+    echo "NSS task target not found unambiguously in Recents ($tag)"
     return 1
   fi
   read -r x y < "$WORK/lifecycle-${tag}-recents-target.txt"
