@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -10,12 +11,21 @@ def same_after_restart(post, restart):
     keys = (
         'sdate','clubnationid','clubid','goalbonus','wage',
         'lastnegotiations','lasttransferdate','playerrecordsha256',
+        'playerrecordnodatesha256',
         'clubrecordsha256','competitionrecordsha256','additionalclubrecordsha256',
     )
     return all(post.get(k) == restart.get(k) for k in keys)
 
 
-def verify_scenario(scenario, base, post, restart, destination_club_id=None, second_after_reload=None):
+def has_retired_restart_mainmenu_proof(text):
+    if not text:
+        return False
+    created = re.search(r'Create Screen:[[:space:]]*mainmenu', text, re.I) is not None
+    active = re.search(r'(?:SETTING ACTIVE:|SetActive:)[[:space:]]*mainmenu', text, re.I) is not None
+    return created and active
+
+
+def verify_scenario(scenario, base, post, restart, destination_club_id=None, retire_restart_mainmenu=False):
     checks = {}
     checks['restart_equivalent'] = same_after_restart(post, restart)
     checks['player_record_changed'] = post.get('playerrecordsha256') != base.get('playerrecordsha256')
@@ -48,8 +58,17 @@ def verify_scenario(scenario, base, post, restart, destination_club_id=None, sec
     elif scenario == 'retire':
         checks.update({
             'date_decremented_once': post['sdate'] == base['sdate'] - 1,
-            'second_probe_checkpoint_supplied': second_after_reload is not None,
-            'second_probe_is_noop_after_reload': second_after_reload is not None and same_after_restart(restart, second_after_reload),
+            # m_ButtonPlay is statically verified as the sole gameplay writer
+            # of durable m_retired. Normalize only m_sdate and require another
+            # player-record mutation to survive restart, avoiding an invented
+            # CSV index for m_retired.
+            'retirement_state_changed_beyond_date':
+                post.get('playerrecordnodatesha256') is not None
+                and post.get('playerrecordnodatesha256') != base.get('playerrecordnodatesha256'),
+            # A retired slot is no longer reopened through Career/SaveSlot in
+            # the stock UI. The real restart/load boundary is stock MainMenu,
+            # where retired slot metadata has already been consumed.
+            'retired_restart_mainmenu_reached': bool(retire_restart_mainmenu),
         })
     else:
         raise ValueError(f'unknown scenario {scenario!r}')
@@ -68,18 +87,21 @@ def main():
     ap.add_argument('--post', type=Path, required=True)
     ap.add_argument('--restart', type=Path, required=True)
     ap.add_argument('--destination-club-id', type=int)
-    ap.add_argument('--second-after-reload', type=Path)
+    ap.add_argument('--retire-mainmenu-proof', type=Path)
     ap.add_argument('--out', type=Path, required=True)
     args = ap.parse_args()
 
     load = lambda p: json.loads(p.read_text(encoding='utf-8'))
+    proof_text = ''
+    if args.retire_mainmenu_proof:
+        proof_text = args.retire_mainmenu_proof.read_text(encoding='utf-8', errors='replace')
     result = verify_scenario(
         args.scenario,
         load(args.base),
         load(args.post),
         load(args.restart),
         destination_club_id=args.destination_club_id,
-        second_after_reload=load(args.second_after_reload) if args.second_after_reload else None,
+        retire_restart_mainmenu=has_retired_restart_mainmenu_proof(proof_text),
     )
     args.out.write_text(json.dumps(result, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     print(json.dumps(result, sort_keys=True))
