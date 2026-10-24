@@ -1,6 +1,13 @@
 import unittest
 
-from patch_lifecycle_probe_v4 import CENTER_ANCHOR, harden_generated_script
+from patch_lifecycle_probe_v4 import (
+    CENTER_ANCHOR,
+    GL_DRIVER_ANCHOR,
+    CAREER_ROUNDTRIP_ANCHOR,
+    harden_generated_script,
+    inject_gl_resume_patch,
+    inject_stress_roundtrips,
+)
 
 
 PLAY_EDGE_ANCHOR = 'press_play(){ local x y; read -r x y < <(logical_xy 553 829); press_physical "$x" "$y" "${1:-2}"; }'
@@ -31,6 +38,18 @@ class LifecyclePatchV4Test(unittest.TestCase):
         out = harden_generated_script(CENTER_ANCHOR + '\n' + PLAY_EDGE_ANCHOR)
         self.assertIn('logical_xy 553 900', out)
         self.assertNotIn('logical_xy 553 829', out)
+
+    def test_injects_candidate_gl_resume_race_patch_after_startup_harness(self):
+        out = inject_gl_resume_patch(GL_DRIVER_ANCHOR)
+        self.assertIn('base-career-probe-pre-gl.apk', out)
+        self.assertIn('lifecycle/patch_gl_resume_race.py', out)
+        self.assertIn('LIFECYCLE_GL_RESUME_PATCH.json', out)
+
+    def test_stresses_real_recents_roundtrip_five_times(self):
+        out = inject_stress_roundtrips(CAREER_ROUNDTRIP_ANCHOR)
+        self.assertIn('for lifecycle_cycle in 1 2 3 4 5', out)
+        self.assertIn('lifecycle_background_roundtrip "career-${lifecycle_cycle}"', out)
+        self.assertNotIn('\nlifecycle_background_roundtrip career\n', '\n' + out + '\n')
 
     def test_refuses_changed_v3_shape(self):
         with self.assertRaises(ValueError):
