@@ -7,6 +7,7 @@ from patch_long_career_driver import (
     CAREER_OPEN_ANCHOR,
     SLOT_ANCHOR,
     POST_CREATE_ANCHOR,
+    PLAY_EDGE_ANCHOR,
     transform,
 )
 from patch_long_career_season_probe import SEASON_DELTA, build_probe_units
@@ -34,6 +35,7 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         return (
             'header\n' +
             PATCH_ANCHOR + '\n' +
+            PLAY_EDGE_ANCHOR + '\n' +
             'sign_one(){\n' + SIGN_ANCHOR + '\n}\n' +
             CAREER_OPEN_ANCHOR + '\n' +
             SLOT_ANCHOR + '\n' +
@@ -62,6 +64,11 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('adb root > "$OUT/endurance-adb-root.txt"', out)
         self.assertIn('adb wait-for-device', out)
         self.assertLess(out.index('prepare_save_access\n'), out.index('dump_save season-0-baseline'))
+
+    def test_uses_verified_api29_play_hitbox_center(self):
+        out = transform(self.fixture())
+        self.assertIn('logical_xy 553 900', out)
+        self.assertNotIn('logical_xy 553 829', out)
 
     def test_initial_navigation_uses_stable_logical_targets(self):
         out = transform(self.fixture())
