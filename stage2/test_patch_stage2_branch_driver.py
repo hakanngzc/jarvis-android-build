@@ -57,6 +57,16 @@ class Stage2BranchTransformTest(unittest.TestCase):
         self.assertIn("ap.add_argument('--pid', type=int)", src)
         self.assertIn('device.attach(args.pid if args.pid else args.package)', src)
 
+    def test_frida_runner_compiles_agent_with_java_bridge(self):
+        src = Path('run_frida_script.py').read_text(encoding='utf-8')
+        self.assertIn('frida.Compiler()', src)
+        self.assertIn('compiler.build(', src)
+        self.assertIn("project_root=str(project_root)", src)
+        scenario = Path('stage2_branch_scenario.js').read_text(encoding='utf-8')
+        smoke = Path('frida_smoke.js').read_text(encoding='utf-8')
+        self.assertIn("import Java from 'frida-java-bridge';", scenario)
+        self.assertIn("import Java from 'frida-java-bridge';", smoke)
+
     def test_removes_old_stage3_tail_before_exit(self):
         out = adapt_generated_script(FIXTURE)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
