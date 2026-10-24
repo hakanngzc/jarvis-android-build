@@ -17,13 +17,13 @@ class GLContextSurvivalRenderPatchTest(unittest.TestCase):
 
     def test_focus_gain_resumes_game_and_reenables_render_without_view_resume(self):
         stock, patched = build_focus_sequences(**self.ids)
-        # Gain-focus block is exactly 10 code units, preserving the branch target.
+        # Method registers are v0=this, v1=hasFocus. On this branch v1 is already true.
+        # Keep the gain-focus block exactly 10 code units so the verified branch target is unchanged.
         gain = patched[2:12]
-        self.assertEqual(gain[0:2], [0x0154, self.ids['game_field_id']])
-        self.assertEqual(gain[2:5], [0x106E, self.ids['game_resume_method_id'], 0x0001])
-        self.assertEqual(gain[5], 0x1012)  # const/4 v0, #1
-        self.assertEqual(gain[6:8], [0x015B, self.ids['can_render_field_id']])  # iput-boolean v0, v1
-        self.assertEqual(gain[8:10], [0x0000, 0x0000])
+        self.assertEqual(gain[0:2], [0x0054, self.ids['game_field_id']])
+        self.assertEqual(gain[2:5], [0x106E, self.ids['game_resume_method_id'], 0x0000])
+        self.assertEqual(gain[5:7], [0x015C, self.ids['can_render_field_id']])
+        self.assertEqual(gain[7:10], [0x0000, 0x0000, 0x0000])
         self.assertNotIn(self.ids['view_resume_method_id'], gain)
 
     def test_focus_loss_keeps_suspend_and_removes_view_pause(self):
