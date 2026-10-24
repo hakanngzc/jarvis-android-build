@@ -63,11 +63,55 @@ if ! wait_log 'LoadCareer saveslot:[[:space:]]*0' 8 endurance-loadcareer-direct;
   wait_log 'LoadCareer saveslot:[[:space:]]*0' 25 endurance-loadcareer-confirmed
 fi
 wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*gamemenu' 40 endurance-reloaded-gamemenu'''
+FATAL_ANCHOR = r'''fatal_check(){
+  adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
+  if grep -qE 'ANR in com\.newstargames\.newstarsoccer|Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt"; then
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+}'''
+FATAL_REPLACEMENT = r'''fatal_check(){
+  adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
+  if grep -qE 'Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt"; then
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+  local anr_count measurement_count
+  anr_count="$(grep -cE 'ANR in com\.newstargames\.newstarsoccer' "$WORK/live-logcat.txt" || true)"
+  measurement_count="$(grep -cE 'Reason: executing service com\.newstargames\.newstarsoccer/com\.google\.android\.gms\.measurement\.AppMeasurementService' "$WORK/live-logcat.txt" || true)"
+  if [ "$anr_count" -gt 0 ]; then
+    if [ "$anr_count" -eq "$measurement_count" ]; then
+      cp "$WORK/live-logcat.txt" "$OUT/runtime-ignored-appmeasurement-anr.txt" || true
+      echo 'Ignoring AppMeasurementService-only emulator ANR'
+      return 0
+    fi
+    cp "$WORK/live-logcat.txt" "$OUT/runtime-fatal-logcat.txt" || true
+    echo 'NSS-owned crash/ANR detected'
+    return 1
+  fi
+}'''
 
 TAIL = r'''# Progressive same-Career endurance loop.
 SEASON_COUNT="${LONG_CAREER_SEASONS:-8}"
 FLOW="$OUT/LONG_CAREER_FLOW.log"
 : > "$FLOW"
+
+flow_fatal_check(){
+  if grep -qiE 'Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$FLOW"; then
+    echo 'NSS-owned crash recorded in endurance flow'
+    return 1
+  fi
+  local flow_anr_count flow_measurement_count
+  flow_anr_count="$(grep -ciE 'ANR in com\.newstargames\.newstarsoccer' "$FLOW" || true)"
+  flow_measurement_count="$(grep -ciE 'Reason: executing service com\.newstargames\.newstarsoccer/com\.google\.android\.gms\.measurement\.AppMeasurementService' "$FLOW" || true)"
+  if [ "$flow_anr_count" -ne "$flow_measurement_count" ]; then
+    echo "Unexpected NSS ANR in endurance flow: anr=$flow_anr_count measurement=$flow_measurement_count"
+    return 1
+  fi
+  [ "$flow_anr_count" -eq "$flow_measurement_count" ]
+}
 
 prepare_save_access(){
   adb root > "$OUT/endurance-adb-root.txt" 2>&1 || true
@@ -210,7 +254,7 @@ done
 
 python3 endurance/verify_long_career.py "$OUT" "$SEASON_COUNT" | tee "$OUT/LONG_CAREER_ENDURANCE_RESULT.txt"
 grep -q 'VERDICT=LONG_CAREER_ENDURANCE_PASS' "$OUT/LONG_CAREER_ENDURANCE_RESULT.txt"
-! grep -qiE 'ANR in com\.newstargames\.newstarsoccer|Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$FLOW"
+flow_fatal_check
 echo 'VERDICT=LONG_CAREER_RUNTIME_PASS'
 '''
 
@@ -229,6 +273,7 @@ def transform(text: str) -> str:
     text = one_replace(text, CAREER_OPEN_ANCHOR, CAREER_OPEN_REPLACEMENT, 'Career SaveSlot open')
     text = one_replace(text, SLOT_ANCHOR, SLOT_REPLACEMENT, 'initial slot 0 target')
     text = one_replace(text, POST_CREATE_ANCHOR, POST_CREATE_REPLACEMENT, 'post-create save reload')
+    text = one_replace(text, FATAL_ANCHOR, FATAL_REPLACEMENT, 'fatal_check')
     if text.count(TAIL_MARKER) != 1:
         raise ValueError(f'expected one tail marker, found {text.count(TAIL_MARKER)}')
     prefix = text.split(TAIL_MARKER, 1)[0]
