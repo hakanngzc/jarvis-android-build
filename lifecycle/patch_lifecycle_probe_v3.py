@@ -28,12 +28,12 @@ HELPER = r'''foreground_from_recents(){
 
 open_saveslot_from_mainmenu(){
   local tag="$1" attempt x y
-  read -r x y < <(logical_xy 480 664)
+  read -r x y < <(logical_xy 480 624)
   for attempt in 1 2 3; do
     clear_log
     press_physical "$x" "$y" 2
     if wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 6 "${tag}-attempt-${attempt}"; then
-      echo "Opened SaveSlot via logical Career target on attempt $attempt"
+      echo "Opened SaveSlot via verified logical Career target on attempt $attempt"
       return 0
     fi
     shot "${tag}-attempt-${attempt}-miss"
