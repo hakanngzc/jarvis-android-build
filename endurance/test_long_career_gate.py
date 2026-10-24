@@ -83,6 +83,9 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('Initial Career did not reach save boundary', out)
         self.assertIn('LoadCareer saveslot:', out)
         self.assertIn('endurance-reloaded-gamemenu', out)
+        self.assertIn('for reopen_attempt in 1 2 3', out)
+        self.assertIn('endurance-reload-saveslot-attempt-${reopen_attempt}', out)
+        self.assertIn('Could not reopen SaveSlot after initial Career save', out)
         self.assertNotIn(POST_CREATE_ANCHOR, out)
 
     def test_season_entry_retries_only_until_leaguefixtures_is_verified(self):
