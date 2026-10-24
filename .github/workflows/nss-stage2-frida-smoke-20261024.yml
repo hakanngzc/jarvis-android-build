@@ -1,0 +1,59 @@
+name: NSS Stage2 Frida Smoke 20261024
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - nss-residual-static-20261024
+    paths:
+      - '.github/workflows/nss-stage2-frida-smoke-20261024.yml'
+      - 'stage2/frida_smoke.js'
+      - 'stage2/run_frida_script.py'
+      - 'stage2/patch_stage2_frida_smoke_driver.py'
+      - 'stage2/test_patch_stage2_frida_smoke_driver.py'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned probe dependencies
+        run: python -m pip install --disable-pip-version-check pillow==12.0.0 frida==17.24.3
+      - name: Validate Stage2 smoke transform
+        working-directory: stage2
+        run: python3 -m unittest test_patch_stage2_frida_smoke_driver.py -v
+      - name: Derive Stage2 smoke driver
+        run: |
+          python3 stage2/patch_stage2_frida_smoke_driver.py \
+            nss_stage3_knockout_runtime.sh stage2/run_stage2_frida_smoke.sh
+          bash -n stage2/run_stage2_frida_smoke.sh
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run stock Career Frida smoke on API 29
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: bash stage2/run_stage2_frida_smoke.sh extra-time
+      - name: Upload Stage2 smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage2-frida-smoke-api29-20261024
+          path: ${{ runner.temp }}/nss-stage3-knockout-extra-time/out/
+          retention-days: 30
