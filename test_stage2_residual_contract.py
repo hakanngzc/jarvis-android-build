@@ -81,6 +81,17 @@ class Stage2ResidualContractTests(unittest.TestCase):
         self.assertIn('local tag="$1" x="$2" y="$3"', text)
         self.assertIn('local before="$OUT/${tag}-before.png" after="$OUT/${tag}-after.png"', text)
 
+    def test_prepared_open_slot_scope_is_nounset_safe(self):
+        for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
+            with self.subTest(gate=gate):
+                prepared = prepare_gate(Path(gate))
+                self.assertIn('local tag attempt reached slot_attempt slot_hit', prepared)
+                self.assertIn('tag="${1-}"', prepared)
+                self.assertIn('reached=0', prepared)
+                self.assertIn('slot_hit=0', prepared)
+                self.assertIn('"$WORK/${tag}-slot0-attempt-${slot_attempt}.txt"', prepared)
+                self.assertNotIn('local tag="$1" attempt reached=0', prepared)
+
     def test_prepared_gates_use_durable_save_then_restart_not_news_settlement(self):
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
             with self.subTest(gate=gate):
