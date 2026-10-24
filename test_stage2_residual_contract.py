@@ -45,10 +45,6 @@ class Stage2ResidualContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, text, f'probe must not directly write durable field {forbidden}')
 
     def test_checkpoint_contract_markers_account_for_fixed_serialization_loops(self):
-        # NSS 4.31 p_GetPlayerData has two fixed loops before these markers:
-        # 10 * (items, vehicles, properties) and
-        # 100 * (technique, pace, vision, setpieces, power).
-        # Their runtime CSV positions are therefore 59/60 + 522 = 581/582.
         self.assertEqual(FIELD_INDEX['lastnegotiations'], 581)
         self.assertEqual(FIELD_INDEX['lasttransferdate'], 582)
 
@@ -145,6 +141,14 @@ class Stage2ResidualContractTests(unittest.TestCase):
                 self.assertIn('HitGadget: (message|chooseclub)\\.btn_Ok', prepared)
                 self.assertIn('Create Screen:[[:space:]]*choosenation', prepared)
                 self.assertNotIn('cmp -s "$before" "$after"', prepared)
+
+    def test_prepared_stage2_traversal_requires_stock_gamemenu_play_hit(self):
+        prepared = prepare_gate(Path('stage2_residual_gate.sh'))
+        self.assertIn('GameMenu Play attempt $gm_attempt/3', prepared)
+        self.assertIn('HitGadget: gamemenu.btn_Play', prepared)
+        self.assertIn('gm_play_hit=0', prepared)
+        self.assertIn('GameMenu Play did not register after 3 controlled presses', prepared)
+        self.assertIn('Create Screen:[[:space:]]*leaguefixtures', prepared)
 
     def test_gate_preparer_accepts_both_residual_gate_sources(self):
         for gate in ('stage2_residual_gate.sh', 'stage4_natural_season_gate.sh'):
