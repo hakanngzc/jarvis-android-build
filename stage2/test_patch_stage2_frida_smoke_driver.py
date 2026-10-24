@@ -41,6 +41,13 @@ class Stage2FridaSmokeTransformTest(unittest.TestCase):
         self.assertIn('compiler.build(', runner)
         self.assertIn('session.create_script(bundle)', runner)
 
+    def test_smoke_attach_uses_verified_numeric_pid(self):
+        out = adapt_generated_script(FIXTURE)
+        self.assertIn('STAGE2_SMOKE_PID="$(pid_one)"', out)
+        self.assertIn('test -n "$STAGE2_SMOKE_PID"', out)
+        self.assertIn('--pid "$STAGE2_SMOKE_PID"', out)
+        self.assertIn('stage2-smoke-no-process.log', out)
+
     def test_refuses_changed_install_shape(self):
         with self.assertRaises(ValueError):
             adapt_generated_script(FIXTURE.replace('adb install-multiple -r', 'adb install-multiple --changed -r'))
