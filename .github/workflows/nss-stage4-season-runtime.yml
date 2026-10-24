@@ -9,10 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  residual-contract-red:
+  residual-static:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Run residual contract tests
-        run: python3 -m unittest test_stage2_residual_contract.py test_stage4_natural_policy.py -v
+      - name: Compile residual tooling
+        run: python3 -m py_compile stage2_residual_tools/*.py stage4_tools/verify_stage4_natural_season.py
+      - name: Check shell syntax
+        run: bash -n stage2_residual_gate.sh stage4_natural_season_gate.sh
+      - name: Run residual tests
+        run: python3 -m unittest test_stage2_residual_contract.py test_verify_stage2_residual.py test_stage4_natural_policy.py -v
