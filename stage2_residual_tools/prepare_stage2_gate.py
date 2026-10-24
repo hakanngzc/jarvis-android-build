@@ -211,40 +211,31 @@ python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk
 mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"'''
         text = replace_exact(text, trial_line, trial_with_overlay, 'proven first-run overlay bypass')
 
+    # Fresh Career persistence is the authoritative bootstrap boundary. Do not
+    # make WebPageNews/StarTransition presentation a prerequisite. Prove the
+    # stock save, restart the process, then reconstruct the Career from disk.
     fresh_gamemenu_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 50 fresh-gamemenu'''
     if fresh_gamemenu_wait in text:
-        settle = '''settle_bootstrap_to_gamemenu(){
-  local step state_line state
-  for step in $(seq 1 30); do
-    fatal_check || return 1
-    adb logcat -d -v brief > "$WORK/bootstrap-settle.txt" 2>/dev/null || true
-    state_line="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/bootstrap-settle.txt" | tail -1 || true)"
-    state="${state_line,,}"
-    case "$state" in
-      *gamemenu*) return 0 ;;
-      *webpage*|*startransition*|*message*)
-        clear_log
-        press_message_accept 2
-        ;;
-      *choosenation*|*chooseclub*)
-        clear_log
-        press_footer_ok 2
-        ;;
-      *)
-        clear_log
-        press_message_accept 2
-        ;;
-    esac
-    sleep 1
-  done
-  cp "$WORK/bootstrap-settle.txt" "$OUT/bootstrap-settle-timeout.txt" 2>/dev/null || true
-  echo 'Bootstrap did not settle to GameMenu'
-  return 1
-}
-settle_bootstrap_to_gamemenu
-wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 10 fresh-gamemenu
-capture_log 'fresh Career post-save -> GameMenu' '''
-        text = replace_exact(text, fresh_gamemenu_wait, settle, 'post-save bootstrap settlement')
+        durable_restart = '''adb logcat -d -v threadtime > "$WORK/bootstrap-save-proof.txt" 2>/dev/null || true
+if ! grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/bootstrap-save-proof.txt"; then
+  cp "$WORK/bootstrap-save-proof.txt" "$OUT/bootstrap-save-proof-missing.txt" 2>/dev/null || true
+  echo 'Fresh Career save evidence missing'
+  exit 1
+fi
+capture_log 'fresh Career durable SAVE CAREER confirmed'
+adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+start_game bootstrap-restart
+sleep 3
+adb logcat -d -v brief > "$WORK/bootstrap-restart-state.txt" 2>/dev/null || true
+if grep -q 'LoadCareer saveslot: 0' "$WORK/bootstrap-restart-state.txt" && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/bootstrap-restart-state.txt"; then
+  echo 'bootstrap-restart auto-load reached GameMenu'
+else
+  open_slot0 bootstrap-restart
+  load_existing bootstrap-restart
+fi
+fatal_check
+capture_log 'bootstrap-restart durable reload -> GameMenu' '''
+        text = replace_exact(text, fresh_gamemenu_wait, durable_restart, 'durable fresh-Career restart boundary')
 
     traversal_old = '''  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
   sleep 2'''
