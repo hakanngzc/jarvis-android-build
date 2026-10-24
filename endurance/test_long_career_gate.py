@@ -97,6 +97,18 @@ class LongCareerDriverTransformTest(unittest.TestCase):
         self.assertIn('enter_leaguefixtures "$season"', out)
         self.assertNotIn('press_play 3\n  wait_log \'Create Screen:[[:space:]]*leaguefixtures', out)
 
+    def test_season_entry_captures_state_focus_and_ui_before_each_tap(self):
+        out = transform(self.fixture())
+        self.assertIn('capture_season_entry_diagnostics(){', out)
+        self.assertIn('shot "season-${season}-leaguefixtures-attempt-${attempt}-before"', out)
+        self.assertIn('dumpsys activity activities', out)
+        self.assertIn('dumpsys window windows', out)
+        self.assertIn('uiautomator dump /sdcard/endurance-entry.xml', out)
+        self.assertIn('season-${season}-leaguefixtures-attempt-${attempt}-ui.xml', out)
+        capture_at = out.index('capture_season_entry_diagnostics "$season" "$attempt"')
+        tap_at = out.index('press_play 3', capture_at)
+        self.assertLess(capture_at, tap_at)
+
     def test_requires_restart_reload_after_every_season(self):
         out = transform(self.fixture())
         self.assertIn('for season in $(seq 1 "$SEASON_COUNT")', out)
