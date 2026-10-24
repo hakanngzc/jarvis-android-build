@@ -1,0 +1,160 @@
+name: NSS Stage6 Production Preflight
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage6-production-rollout-20261024]
+    paths:
+      - 'stage6_public/append_logo_atlas.py'
+      - 'stage6_public/inspect_key_tail.py'
+      - 'stage6_public/production_logo_pipeline.py'
+      - 'stage6_public/build_production_logo_apk.py'
+      - 'stage6_public/patch_club_badge_override.py'
+      - 'stage6_public/verify_rebuilt_badge_override.py'
+      - 'stage6_public/apply_club_badge_override_dex.sh'
+      - 'stage6_public/manifests/**'
+      - 'stage6_public/test_production_logo_*.py'
+      - 'stage6_public/test_build_production_logo_apk.py'
+      - '.github/workflows/nss-stage6-production-preflight.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nss-stage6-production-preflight-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  production-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate production code contracts
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check pillow
+          PYTHONPATH=stage6_public python3 -m unittest \
+            stage6_public/test_production_logo_pipeline.py \
+            stage6_public/test_production_logo_multrow.py \
+            stage6_public/test_build_production_logo_apk.py \
+            stage6_public/test_patch_club_badge_override_mapping.py \
+            stage6_public/test_verify_rebuilt_badge_override.py -v
+          python3 -m py_compile \
+            stage6_public/production_logo_pipeline.py \
+            stage6_public/build_production_logo_apk.py \
+            stage6_public/patch_club_badge_override.py \
+            stage6_public/verify_rebuilt_badge_override.py
+          bash -n stage6_public/apply_club_badge_override_dex.sh
+      - name: Generate CI-only TUR1 logo inputs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image,ImageDraw
+          manifest=Path('stage6_public/manifests/turkey_tur1.json')
+          root=manifest.parent.resolve(); data=json.loads(manifest.read_text(encoding='utf-8'))
+          for row in data['clubs']:
+              cid=int(row['club_id']); out=(root/row['asset']).resolve(); out.relative_to(root)
+              out.parent.mkdir(parents=True,exist_ok=True)
+              a=(cid*37)%190+30; b=(cid*71)%190+30; c=(cid*101)%190+30
+              im=Image.new('RGBA',(128,128),(0,0,0,0)); d=ImageDraw.Draw(im)
+              d.rounded_rectangle((8,8,120,120),radius=22,fill=(245,240,222,255),outline=(18,35,55,255),width=6)
+              d.polygon([(16,20),(112,20),(96,106),(64,120),(32,106)],fill=(a,b,c,255))
+              d.rectangle((27,42,101,55),fill=(18,35,55,255)); d.text((34,66),str(cid),fill=(255,255,255,255))
+              im.save(out)
+          print('STAGE6_CI_ASSETS=PASS count='+str(len(data['clubs']))+' test_only=true')
+          PY
+      - name: Download exact publisher-stock NSS 4.31
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage6-production/xapk" stage6_public_artifacts/production
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          curl -fL --retry 3 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141 Safari/537.36' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage6-production/nss431.xapk"
+          echo 'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e  '"$RUNNER_TEMP/stage6-production/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage6-production/nss431.xapk" -d "$RUNNER_TEMP/stage6-production/xapk"
+          BASE="$RUNNER_TEMP/stage6-production/xapk/com.newstargames.newstarsoccer.apk"
+          echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+      - name: Download pinned smali toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage6-production/tools"
+          BAK="$RUNNER_TEMP/stage6-production/tools/baksmali-3.0.10-fat.jar"
+          SMA="$RUNNER_TEMP/stage6-production/tools/smali-3.0.10-fat.jar"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/3.0.10/baksmali-3.0.10-fat.jar' -o "$BAK"
+          curl -fL --retry 3 'https://github.com/baksmali/smali/releases/download/3.0.10/smali-3.0.10-fat.jar' -o "$SMA"
+          echo '37ae4a41a8886e15c20b8362fa4250f96bbdb55e1a608199ad8b5dff068b588f  '"$BAK" | sha256sum -c -
+          echo '32fa0e88a6c397b3922201adf5f3e534fbaed5a663c71d0c558c3ddce0af844a  '"$SMA" | sha256sum -c -
+          echo "BAKSMALI_JAR=$BAK" >> "$GITHUB_ENV"
+          echo "SMALI_JAR=$SMA" >> "$GITHUB_ENV"
+      - name: Build production asset layer
+        run: |
+          set -euo pipefail
+          python3 stage6_public/build_production_logo_apk.py \
+            "$BASE" "$RUNNER_TEMP/stage6-production/assets.apk" \
+            stage6_public/manifests/turkey_tur1.json \
+            "$RUNNER_TEMP/stage6-production/assets-work" \
+            stage6_public_artifacts/production/assets-report.json UIAtlas145
+      - name: Apply production DEX mapping
+        run: |
+          set -euo pipefail
+          bash stage6_public/apply_club_badge_override_dex.sh \
+            "$RUNNER_TEMP/stage6-production/assets.apk" \
+            "$RUNNER_TEMP/stage6-production/final-unsigned.apk" \
+            "$RUNNER_TEMP/stage6-production/dex-work" \
+            stage6_public_artifacts/production/dex-report.json \
+            stage6_public/manifests/turkey_tur1.json
+          python3 stage6_public/inspect_key_tail.py \
+            "$RUNNER_TEMP/stage6-production/final-unsigned.apk" \
+            stage6_public_artifacts/production/key-tail.json
+      - name: Require production verdict
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,zipfile
+          from pathlib import Path
+          A=json.load(open('stage6_public_artifacts/production/assets-report.json',encoding='utf-8'))
+          D=json.load(open('stage6_public_artifacts/production/dex-report.json',encoding='utf-8'))
+          K=json.load(open('stage6_public_artifacts/production/key-tail.json',encoding='utf-8'))
+          M=json.load(open('stage6_public/manifests/turkey_tur1.json',encoding='utf-8'))
+          expected={str(int(r['club_id'])):int(r['style']) for r in M['clubs']}
+          assert len(expected)==18 and len(set(expected.values()))==18
+          assert A['club_count']==18 and {str(k):v for k,v in A['overrides'].items()}==expected
+          assert A['forbidden_test_surfaces_preserved'] is True and A['test_overlay_present'] is False
+          assert A['atlas_layout']=={'cell_size':128,'columns':16,'rows':2,'width':2048,'height':256}
+          assert A['append']['old_atlas_count']==144 and A['append']['new_atlas_count']==145
+          assert len(A['append']['record_names'])==18
+          assert A['append']['alias_suffix_sha256_before']==A['append']['alias_suffix_sha256_after']
+          assert A['append']['source_prefix_sha256']==A['append']['patched_prefix_sha256']
+          assert A['selector']['stock_design15_count_before']==A['selector']['stock_design15_count_after']
+          assert A['selector']['selector_insert_count']>=2
+          assert D['other_dex_preserved'] is True
+          assert D['classes3_sha256_before']!=D['classes3_sha256_after']
+          assert D['override']['fallback']=='m_id % 15'
+          assert D['override']['override_count']==18
+          assert {str(k):v for k,v in D['override']['overrides'].items()}==expected
+          assert D['override']['divisor_register_restored'] is True
+          assert K['atlas_count_prefix']==145 and K['last_atlas']['name']=='UIAtlas145'
+          assert K['last_atlas']['width']==2048 and K['last_atlas']['height']==256
+          assert K['last_atlas']['count']==18 and K['parsed_all_last_atlas_records'] is True
+          final=Path('/home/runner/work/_temp/stage6-production/final-unsigned.apk')
+          # RUNNER_TEMP can vary; use report parent-independent path from known env via glob.
+          candidates=list(Path('/home/runner/work/_temp').glob('stage6-production/final-unsigned.apk'))
+          assert candidates, 'final unsigned APK missing'
+          final=candidates[0]
+          with zipfile.ZipFile(final) as z:
+              names=set(z.namelist())
+              assert 'assets/monkey/NewGUI/Atlases/UIAtlas145.png' in names
+              for bad in ('STAGE6_TEST_ONLY_LOGO_PROOF_BEGIN','STAGE6_TEST_ONLY_LOGO_PROOF_END'):
+                  assert bad not in z.read('assets/monkey/NewGUI/Screens/mainmenu.uis').decode('utf-8-sig')
+                  assert bad not in z.read('assets/monkey/NewGUI/Screens/ShieldAnims.uih').decode('utf-8-sig')
+              for row in M['clubs']:
+                  assert row['symbol'] in z.read('assets/monkey/NewGUI/Screens/ShieldAnims.uih').decode('utf-8-sig')
+          print('STAGE6_PRODUCTION_PREFLIGHT=PASS clubs=18 atlas=144->145 multirow=true dex_mapping=18 test_overlay=false')
+          PY
+          echo 'STAGE6_PRODUCTION_PREFLIGHT=PASS' > stage6_public_artifacts/production/verdict.txt
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss-stage6-production-preflight
+          path: stage6_public_artifacts/production/**
