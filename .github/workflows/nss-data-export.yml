@@ -53,6 +53,24 @@ jobs:
               if len(hits)!=1: raise SystemExit(f'{r}: {hits}')
           print('exported',len(manifest),'files')
           PY
+      - name: Download Reep football identity reference
+        run: |
+          set -euo pipefail
+          mkdir -p nss431-export/reference/reep
+          curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/teams.csv -o nss431-export/reference/reep/teams.csv
+          curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/names.csv -o nss431-export/reference/reep/names.csv
+          curl -fL --retry 3 https://raw.githubusercontent.com/withqwerty/reep/main/data/competitions.csv -o nss431-export/reference/reep/competitions.csv
+          python3 - <<'PY'
+          import csv,json,pathlib
+          out=pathlib.Path('nss431-export/reference/reep')
+          meta={}
+          for fn in ('teams.csv','names.csv','competitions.csv'):
+              p=out/fn
+              with p.open(encoding='utf-8-sig',newline='') as f:
+                  r=csv.reader(f); header=next(r); sample=[next(r,None) for _ in range(3)]
+              meta[fn]={'header':header,'sample':sample,'size':p.stat().st_size}
+          (out/'schema-sample.json').write_text(json.dumps(meta,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
       - name: Upload export
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
