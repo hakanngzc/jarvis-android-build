@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "cell_size": 128,
+  "clubs": [
+    {"club_id": 3132, "name": "Alanyaspor", "style": 16, "symbol": "REBORNClub3132", "asset": "../production_logos/turkey/3132.png"},
+    {"club_id": 3135, "name": "Göztepe", "style": 17, "symbol": "REBORNClub3135", "asset": "../production_logos/turkey/3135.png"},
+    {"club_id": 3138, "name": "Antalyaspor", "style": 18, "symbol": "REBORNClub3138", "asset": "../production_logos/turkey/3138.png"},
+    {"club_id": 3141, "name": "Beşiktaş", "style": 19, "symbol": "REBORNClub3141", "asset": "../production_logos/turkey/3141.png"},
+    {"club_id": 3158, "name": "Eyüpspor", "style": 20, "symbol": "REBORNClub3158", "asset": "../production_logos/turkey/3158.png"},
+    {"club_id": 3159, "name": "Karagümrük", "style": 21, "symbol": "REBORNClub3159", "asset": "../production_logos/turkey/3159.png"},
+    {"club_id": 3160, "name": "Fenerbahçe", "style": 22, "symbol": "REBORNClub3160", "asset": "../production_logos/turkey/3160.png"},
+    {"club_id": 3163, "name": "Galatasaray", "style": 23, "symbol": "REBORNClub3163", "asset": "../production_logos/turkey/3163.png"},
+    {"club_id": 3164, "name": "Gaziantep FK", "style": 24, "symbol": "REBORNClub3164", "asset": "../production_logos/turkey/3164.png"},
+    {"club_id": 3168, "name": "Gençlerbirliği", "style": 25, "symbol": "REBORNClub3168", "asset": "../production_logos/turkey/3168.png"},
+    {"club_id": 3175, "name": "Başakşehir", "style": 26, "symbol": "REBORNClub3175", "asset": "../production_logos/turkey/3175.png"},
+    {"club_id": 3183, "name": "Kasımpaşa", "style": 27, "symbol": "REBORNClub3183", "asset": "../production_logos/turkey/3183.png"},
+    {"club_id": 3185, "name": "Kayserispor", "style": 28, "symbol": "REBORNClub3185", "asset": "../production_logos/turkey/3185.png"},
+    {"club_id": 3186, "name": "Kocaelispor", "style": 29, "symbol": "REBORNClub3186", "asset": "../production_logos/turkey/3186.png"},
+    {"club_id": 3187, "name": "Konyaspor", "style": 30, "symbol": "REBORNClub3187", "asset": "../production_logos/turkey/3187.png"},
+    {"club_id": 3202, "name": "Samsunspor", "style": 31, "symbol": "REBORNClub3202", "asset": "../production_logos/turkey/3202.png"},
+    {"club_id": 3207, "name": "Trabzonspor", "style": 32, "symbol": "REBORNClub3207", "asset": "../production_logos/turkey/3207.png"},
+    {"club_id": 3216, "name": "Çaykur Rizespor", "style": 33, "symbol": "REBORNClub3216", "asset": "../production_logos/turkey/3216.png"}
+  ]
+}
