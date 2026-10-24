@@ -92,22 +92,13 @@ capture_flow(){
   } >> "$FLOW"
 }
 
-open_saved_slot0(){
-  local tag="$1" x y sx sy
-  start_menu
-  read -r x y < <(logical_xy 480 664)
+restart_saved_career(){
+  local tag="$1"
+  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
   clear_log
-  press_physical "$x" "$y" 2
-  wait_log 'Create Screen:[[:space:]]*saveslot|SetActive:[[:space:]]*saveslot|SETTING ACTIVE:[[:space:]]*saveslot' 15 "$tag-saveslot"
-  shot "$tag-saveslot"
-  read -r sx sy < <(logical_xy 320 280)
-  clear_log
-  press_physical "$sx" "$sy" 3
-  if ! wait_log 'LoadCareer saveslot:[[:space:]]*0' 8 "$tag-loadcareer-direct"; then
-    press_message_accept 2
-    wait_log 'LoadCareer saveslot:[[:space:]]*0' 25 "$tag-loadcareer-confirmed"
-  fi
-  wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 45 "$tag-gamemenu"
+  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null 2>&1 || true
+  wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 "$tag-loadcareer"
+  wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 "$tag-gamemenu"
   fatal_check
 }
 
@@ -138,7 +129,7 @@ for season in $(seq 1 "$SEASON_COUNT"); do
   dump_save "season-${season}-post"
   shot "season-${season}-post"
 
-  open_saved_slot0 "season-${season}-reload"
+  restart_saved_career "season-${season}-reload"
   dump_save "season-${season}-reload"
   fatal_check
   capture_flow "season $season after restart/load"
