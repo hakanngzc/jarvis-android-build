@@ -178,14 +178,80 @@ settle_loaded_gamemenu(){
   return 1
 }
 
+dismiss_measurement_anr_modal(){
+  local tag="$1" attempt xml target live x y anr_count measurement_count
+  xml="$OUT/${tag}-measurement-anr-ui.xml"
+  target="$WORK/${tag}-measurement-anr-wait-target.txt"
+  live="$OUT/${tag}-measurement-anr-live.log"
+  rm -f "$target"
+  for attempt in $(seq 1 90); do
+    adb logcat -d -v threadtime > "$live" 2>/dev/null || true
+    if ! grep -qE 'Process: com\.newstargames\.newstarsoccer, PID:|FATAL EXCEPTION.*com\.newstargames\.newstarsoccer' "$live"; then
+      anr_count="$(grep -cE 'ANR in com\.newstargames\.newstarsoccer' "$live" || true)"
+      measurement_count="$(grep -cE 'Reason: executing service com\.newstargames\.newstarsoccer/com\.google\.android\.gms\.measurement\.AppMeasurementService' "$live" || true)"
+      if [ "$anr_count" -gt 0 ] && [ "$anr_count" -eq "$measurement_count" ]; then
+        adb shell uiautomator dump /sdcard/endurance-anr.xml >/dev/null 2>&1 || true
+        adb shell cat /sdcard/endurance-anr.xml > "$xml" 2>/dev/null || true
+        if grep -q 'text="Wait"' "$xml" && grep -qiE 'NSS[^<]*(isn.t|is not)[^<]*responding|NSS[^<]*responding' "$xml"; then
+          python3 - "$xml" "$target" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+from pathlib import Path
+src,dst=sys.argv[1:]
+try:
+    root=ET.parse(src).getroot()
+except Exception:
+    raise SystemExit(1)
+for node in root.iter('node'):
+    if node.attrib.get('text') != 'Wait':
+        continue
+    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2>x1 and y2>y1:
+        Path(dst).write_text(f'{(x1+x2)//2} {(y1+y2)//2}\n',encoding='utf-8')
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+          if [ -s "$target" ]; then
+            read -r x y < "$target"
+            adb shell input tap "$x" "$y" >/dev/null 2>&1 || true
+            printf 'measurement_anr_wait_dismissed=PASS\n' | tee "$OUT/${tag}-measurement-anr-recovery.txt"
+            return 0
+          fi
+        fi
+      fi
+    fi
+    sleep 1
+  done
+  return 0
+}
+
 restart_saved_career(){
   local tag="$1"
   adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
   clear_log
   adb shell am start -n "$PKG/.MonkeyGame" >/dev/null 2>&1 || true
-  wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 "$tag-loadcareer"
-  wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 "$tag-gamemenu"
-  settle_loaded_gamemenu "$tag"
+  rm -f "$OUT/${tag}-measurement-anr-recovery.txt" "$OUT/${tag}-measurement-anr-live.log"
+  dismiss_measurement_anr_modal "$tag" &
+  ENDURANCE_ANR_WATCHER_PID=$!
+  if ! wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 "$tag-loadcareer"; then
+    kill "$ENDURANCE_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+    wait "$ENDURANCE_ANR_WATCHER_PID" 2>/dev/null || true
+    return 1
+  fi
+  if ! wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 "$tag-gamemenu"; then
+    kill "$ENDURANCE_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+    wait "$ENDURANCE_ANR_WATCHER_PID" 2>/dev/null || true
+    return 1
+  fi
+  if ! settle_loaded_gamemenu "$tag"; then
+    kill "$ENDURANCE_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+    wait "$ENDURANCE_ANR_WATCHER_PID" 2>/dev/null || true
+    return 1
+  fi
+  kill "$ENDURANCE_ANR_WATCHER_PID" >/dev/null 2>&1 || true
+  wait "$ENDURANCE_ANR_WATCHER_PID" 2>/dev/null || true
   fatal_check
 }
 
