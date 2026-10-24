@@ -58,6 +58,12 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertNotIn('m_skipMatches', prepared)
         self.assertNotIn('m_Simulate', prepared)
 
+    def test_natural_workflow_actually_applies_prematch_preparer(self):
+        text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
+        self.assertIn('stage4_tools/prepare_stage4_prematch.py', text)
+        self.assertIn('stage4-natural-gate.prematch.sh', text)
+        self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"', text)
+
 
 if __name__ == '__main__':
     unittest.main()
