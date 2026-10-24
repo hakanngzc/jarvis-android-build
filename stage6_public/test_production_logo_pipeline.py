@@ -71,11 +71,13 @@ class ProductionLogoPipelineTests(unittest.TestCase):
 
     def test_shield_extension_is_data_driven_and_has_no_test_overlay(self):
         extension = render_shield_extension(self._manifest())
-        self.assertIn("REBORNClub3141", extension)
-        self.assertIn("REBORNClub3157", extension)
-        self.assertIn("REBORNClub3163", extension)
-        self.assertIn("BadgeStyle1==18", extension)
-        self.assertIn("BadgeStyle2==18", extension)
+        self.assertEqual(extension.count("Selector(MatchColours,BadgeStyle1)"), 1)
+        self.assertEqual(extension.count("Selector(MatchColours,BadgeStyle2)"), 1)
+        for symbol in ("REBORNClub3141", "REBORNClub3157", "REBORNClub3163"):
+            self.assertEqual(extension.count(f"Draw:({symbol},"), 2)
+        # A sibling selector contributes 16 blanks before custom style 16.
+        first_selector = extension.split("Selector(MatchColours,BadgeStyle2)", 1)[0]
+        self.assertGreaterEqual(first_selector.count("Rect:(0,0,0,0)"), 17)
         self.assertNotIn("STAGE6_TEST_ONLY_LOGO_PROOF", extension)
         self.assertNotIn("mainmenu.uis", extension)
         self.assertNotIn("onboarding", extension.lower())
