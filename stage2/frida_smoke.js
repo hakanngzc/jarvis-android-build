@@ -1,5 +1,7 @@
 'use strict';
 
+import Java from 'frida-java-bridge';
+
 Java.perform(function () {
   try {
     const Globals = Java.use('com.newstargames.newstarsoccer.bb_');
