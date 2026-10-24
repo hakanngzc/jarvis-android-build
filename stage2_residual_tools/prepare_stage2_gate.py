@@ -190,6 +190,16 @@ python3 stage3_tools/patch_first_run_overlays.py "$WORK/base-career-unsigned.apk
 mv "$WORK/base-career-overlay-unsigned.apk" "$WORK/base-career-unsigned.apk"'''
         text = replace_exact(text, trial_line, trial_with_overlay, 'proven first-run overlay bypass')
 
+    # A freshly-created stock Career can save successfully and then land on the
+    # news page rather than GameMenu. SAVE CAREER is the durable boundary; the
+    # later scenario runs still prove fresh-process LoadCareer -> GameMenu.
+    fresh_gamemenu_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 50 fresh-gamemenu'''
+    if fresh_gamemenu_wait in text:
+        fresh_post_save_wait = '''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu|Create Screen:[[:space:]]*webpagenews|SETTING ACTIVE:[[:space:]]*webpagenews|SetActive:[[:space:]]*webpagenews' 50 fresh-post-save
+fatal_check
+capture_log 'fresh Career durable save settled' '''
+        text = replace_exact(text, fresh_gamemenu_wait, fresh_post_save_wait, 'stock post-career landing screen')
+
     # Only Stage2 residual scenarios contain this trigger shape.
     traversal_old = '''  clear_log; press_play 4; fatal_check; capture_log "$scenario mutation trigger"
   sleep 2'''
