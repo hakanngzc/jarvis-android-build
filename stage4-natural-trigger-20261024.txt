@@ -7,4 +7,5 @@ Retry with stock HitGadget-proven ChooseClub/ChooseNation setup progression.
 Retry after nounset-safe open_slot0 handling.
 Retry with stock match.btn_Play-gated prematch tutorial handling.
 Retry after explicit prematch hardener workflow routing was verified.
+Retry after artifact-proven Pixel4 Welcome/help checkmark targeting.
 Natural season runtime uses no season-boundary seed or NewSeason probe.
