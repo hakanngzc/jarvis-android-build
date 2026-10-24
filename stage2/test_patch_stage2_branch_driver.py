@@ -38,6 +38,11 @@ class Stage2BranchTransformTest(unittest.TestCase):
         out = adapt_generated_script(FIXTURE)
         self.assertIn('FRIDA_VERSION=17.24.3', out)
 
+    def test_dump_save_initializes_tag_before_using_it_under_nounset(self):
+        out = adapt_generated_script(FIXTURE)
+        self.assertIn('local tag="$1"\n  local remote=', out)
+        self.assertNotIn('local tag="$1" remote=', out)
+
     def test_removes_old_stage3_tail_before_exit(self):
         out = adapt_generated_script(FIXTURE)
         self.assertNotIn('echo stage3-tail', out.split('exit 0', 1)[0])
