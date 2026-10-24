@@ -1,5 +1,5 @@
 import unittest
-from refine_catchall_owners import choose_candidate, structural_role, trace_owner_candidate
+from refine_catchall_owners import choose_candidate, structural_role, trace_owner_candidate, duty_family
 
 class RefineOwnersTest(unittest.TestCase):
     def test_choose_candidate_requires_margin(self):
@@ -12,6 +12,18 @@ class RefineOwnersTest(unittest.TestCase):
         self.assertEqual(structural_role('c_Node50'), 'collection_node')
         self.assertEqual(structural_role('c_SceneFactory'), 'factory')
         self.assertEqual(structural_role('c_ActionAfterPlay'), 'domain_object')
+
+    def test_duty_family_uses_exact_technical_families_without_claiming_subsystem(self):
+        self.assertEqual(duty_family('c_EX_Gel_Alpha', 'domain_object'), 'expression_engine')
+        self.assertEqual(duty_family('c_GelEmitter', 'domain_object'), 'gel_runtime')
+        self.assertEqual(duty_family('c_GLerp4', 'domain_object'), 'gel_runtime')
+        self.assertEqual(duty_family('c_Instance117', 'domain_object'), 'generated_instance_scaffold')
+        self.assertEqual(duty_family('c_AsyncReceiveAllOp', 'domain_object'), 'async_io_runtime')
+        self.assertEqual(duty_family('c_IOnSendComplete', 'domain_object'), 'async_io_runtime')
+        self.assertEqual(duty_family('c_ClearConsoleCommand', 'domain_object'), 'debug_console')
+        self.assertEqual(duty_family('c_Enumerator24', 'collection_iterator'), 'collection_iterator')
+        self.assertEqual(duty_family('c_SceneFactory', 'factory'), 'factory')
+        self.assertEqual(duty_family('c_ActionAfterPlay', 'domain_object'), 'unresolved')
 
     def test_owner_trace_accepts_only_unique_upstream_subsystem(self):
         reverse={
