@@ -9,7 +9,7 @@ from patch_stage2_frida_smoke_driver import INSTALL_ANCHOR, INSTALL_REPLACEMENT,
 KNOCKOUT_ANCHOR = '''python3 stage3/patch_stage3_knockout_apk.py "$MODE" "$WORK/base-career-probe.apk" "$WORK/base-knockout-probe.apk" \\
   --evidence "$OUT/STAGE3_KNOCKOUT_APK_PATCH.json" | tee "$OUT/STAGE3_KNOCKOUT_APK_PATCH.txt"'''
 KNOCKOUT_REPLACEMENT = '''cp "$WORK/base-career-probe.apk" "$WORK/base-knockout-probe.apk"
-python3 stage2/verify_stage2_writer_hashes.py "$WORK/base.apk" "$WORK/base-knockout-probe.apk" \\
+python3 stage2/verify_stage2_writer_hashes.py "$WORK/xapk/com.newstargames.newstarsoccer.apk" "$WORK/base-knockout-probe.apk" \\
   --out "$OUT/STAGE2_WRITER_HASHES.json" | tee "$OUT/STAGE2_WRITER_HASHES.txt"'''
 
 TRUNCATE_ANCHOR = '''shot career-gamemenu
