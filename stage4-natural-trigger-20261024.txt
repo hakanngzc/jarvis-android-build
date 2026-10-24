@@ -4,3 +4,4 @@ Retry after bounded stock post-save presentation settlement hardening.
 Retry after cross-gate preparer compatibility fix.
 Retry from durable fresh Career save -> process restart -> stock reload boundary.
 Retry with the proven Stage1 visual-change-paced ChooseClub progression.
+Retry after nounset-safe visual helper local-variable fix.
