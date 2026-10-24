@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'lifecycle'))
 from patch_lifecycle_probe_v3 import patch_script as lifecycle_v3_patch
+from patch_lifecycle_probe_v4 import FATAL_ANCHOR, harden_fatal_check
 from patch_stage2_frida_smoke_driver import INSTALL_ANCHOR, INSTALL_REPLACEMENT, one_replace
 
 KNOCKOUT_ANCHOR = '''python3 stage3/patch_stage3_knockout_apk.py "$MODE" "$WORK/base-career-probe.apk" "$WORK/base-knockout-probe.apk" \\
@@ -91,7 +92,9 @@ def adapt_generated_script(text: str) -> str:
 
 
 def patch_script(text: str) -> str:
-    return adapt_generated_script(lifecycle_v3_patch(text))
+    generated = lifecycle_v3_patch(text)
+    generated = harden_fatal_check(generated)
+    return adapt_generated_script(generated)
 
 
 def main() -> None:
