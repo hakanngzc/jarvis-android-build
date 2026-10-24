@@ -1,6 +1,7 @@
 import io
 import unittest
 import zipfile
+from pathlib import Path
 
 from patch_preserve_egl_activity import patch_apk_bytes, rewrite_manifest_activity
 
@@ -49,6 +50,11 @@ class PreserveEglActivityPatchTest(unittest.TestCase):
             z.writestr('classes4.dex',b'existing')
         with self.assertRaises(ValueError):
             patch_apk_bytes(src.getvalue(),b'helper')
+
+    def test_activity_shim_preserves_stock_monkeygame_preferences_namespace(self):
+        src=Path('java_shim/com/newstargames/newstarsoccer/RebornGame.java').read_text(encoding='utf-8')
+        self.assertIn('SharedPreferences getPreferences(int mode)',src)
+        self.assertIn('getSharedPreferences("MonkeyGame", mode)',src)
 
 
 if __name__=='__main__':
