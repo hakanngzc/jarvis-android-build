@@ -23,86 +23,70 @@ DRIVER = r'''capture_valid_live_frame(){
 }
 
 drive_live_chance(){
-  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" xy rc x y target_x target_y direction kick_xy kick_rc resume_xy resume_rc
+  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" class rc kind x y target_x target_y direction
   if ! capture_valid_live_frame "$frame"; then
     echo "cycle $cycle valid live frame unavailable @${elapsed}s; retrying on next match loop" >> "$FLOW"
     sleep 1
     return 0
   fi
 
-  # Phase 0: specific Half Time / Full Time resume controls must win before
-  # generic green-marker classification. Run173 proved a half-time UI element
-  # can look like the active green marker while the real PLAY football is also
-  # visible. The resume detector is deliberately restricted to lower-right UI.
-  resume_xy="$(python3 stage4_tools/find_match_resume.py "$frame" 2>>"$FLOW")" && resume_rc=0 || resume_rc=$?
-  if [ "$resume_rc" -eq 0 ]; then
-    read -r x y <<<"$resume_xy"
-    echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
-    adb shell input touchscreen tap "$x" "$y" </dev/null || true
+  # Single-decode classifier preserves the previously verified priority:
+  # stage4_tools/find_match_resume.py
+  # stage4_tools/find_live_ball.py
+  # stage4_tools/find_kick_ball.py
+  class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
+  if [ "$rc" -eq 1 ]; then
+    echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
     sleep 1
     return 0
   fi
-  if [ "$resume_rc" -ne 1 ]; then
-    echo "cycle $cycle match-resume detector failed rc=$resume_rc @${elapsed}s" >> "$FLOW"
+  if [ "$rc" -ne 0 ]; then
+    echo "cycle $cycle live-frame classifier failed rc=$rc @${elapsed}s" >> "$FLOW"
     return 1
   fi
 
-  # Phase A: NSS can render the small dark-green active-ball marker.
-  xy="$(python3 stage4_tools/find_live_ball.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
-  if [ "$rc" -eq 0 ]; then
-    read -r x y <<<"$xy"
-    : "${LIVE_INPUT_SEQ:=0}"
-    LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
-    direction=$((LIVE_INPUT_SEQ % 3))
-    case "$direction" in
-      1) target_x=540 ;;
-      2) target_x=180 ;;
-      *) target_x=900 ;;
-    esac
-    target_y=$((y - 500))
-    [ "$target_y" -ge 180 ] || target_y=180
-    [ "$target_y" -le 1750 ] || target_y=1750
-    echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
-    adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 1
-    return 0
-  fi
-  if [ "$rc" -ne 1 ]; then
-    echo "cycle $cycle live-marker detector failed rc=$rc @${elapsed}s" >> "$FLOW"
-    return 1
-  fi
-
-  # Phase B: actual kick/pass minigame. A huge or normal-scale white/black
-  # football can be rendered in the lower pitch. Detect it and flick upward.
-  # Resume is intentionally checked only once above: decoding the same full
-  # Pixel4 frame twice added substantial hosted-emulator overhead without any
-  # additional state coverage.
-  kick_xy="$(python3 stage4_tools/find_kick_ball.py "$frame" 2>>"$FLOW")" && kick_rc=0 || kick_rc=$?
-  if [ "$kick_rc" -eq 0 ]; then
-    read -r x y <<<"$kick_xy"
-    : "${LIVE_INPUT_SEQ:=0}"
-    LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
-    direction=$((LIVE_INPUT_SEQ % 3))
-    case "$direction" in
-      1) target_x=$((x + 80)) ;;
-      2) target_x=$((x - 80)) ;;
-      *) target_x="$x" ;;
-    esac
-    [ "$target_x" -ge 120 ] || target_x=120
-    [ "$target_x" -le 960 ] || target_x=960
-    target_y=$((y - 650))
-    [ "$target_y" -ge 220 ] || target_y=220
-    echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
-    adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 1
-    return 0
-  fi
-  if [ "$kick_rc" -ne 1 ]; then
-    echo "cycle $cycle kick-ball detector failed rc=$kick_rc @${elapsed}s" >> "$FLOW"
-    return 1
-  fi
-
-  echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
+  read -r kind x y <<<"$class"
+  case "$kind" in
+    resume)
+      echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      ;;
+    live)
+      : "${LIVE_INPUT_SEQ:=0}"
+      LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
+      direction=$((LIVE_INPUT_SEQ % 3))
+      case "$direction" in
+        1) target_x=540 ;;
+        2) target_x=180 ;;
+        *) target_x=900 ;;
+      esac
+      target_y=$((y - 500))
+      [ "$target_y" -ge 180 ] || target_y=180
+      [ "$target_y" -le 1750 ] || target_y=1750
+      echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
+      ;;
+    kick)
+      : "${LIVE_INPUT_SEQ:=0}"
+      LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
+      direction=$((LIVE_INPUT_SEQ % 3))
+      case "$direction" in
+        1) target_x=$((x + 80)) ;;
+        2) target_x=$((x - 80)) ;;
+        *) target_x="$x" ;;
+      esac
+      [ "$target_x" -ge 120 ] || target_x=120
+      [ "$target_x" -le 960 ] || target_x=960
+      target_y=$((y - 650))
+      [ "$target_y" -ge 220 ] || target_y=220
+      echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
+      ;;
+    *)
+      echo "cycle $cycle unknown live-frame class '$kind' @${elapsed}s" >> "$FLOW"
+      return 1
+      ;;
+  esac
   sleep 1
   return 0
 }
@@ -161,9 +145,9 @@ OLD = '''    # Real live-match interaction only: ordinary touchscreen swipes/tap
     swipe_logical 380 690 180 280 380; sleep 1
     press_logical 320 600 1'''
 
-NEW = '''    # Real live-match interaction only. Prefer specific stock resume controls,
-    # then active green marker / rendered ball phases. No match engine,
-    # simulate/debug branch or season state is patched.
+NEW = '''    # Real live-match interaction only. One validated rendered frame is
+    # classified once into resume/active-marker/kick-ball input. No match
+    # engine, simulate/debug branch or season state is patched.
     drive_live_chance "$cycle" "$elapsed"'''
 
 NAV_OLD = '''  for step in $(seq 1 50); do
@@ -205,7 +189,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied optimized validated-frame natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied single-decode validated-frame natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':

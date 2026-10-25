@@ -63,19 +63,15 @@ jobs:
   stage4-natural-runtime:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'Stage4 natural season runtime gate')
     runs-on: ubuntu-24.04
-    # Run186 attempt2 was still creating a fresh stock tapball chance at 354s;
-    # the old 180-minute job budget plus 360s per-match timeout produced a
-    # harness false-negative, not a stopped match. Keep the run bounded but
-    # allow natural live matches enough time to finish on hosted emulation.
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Validate natural-season tooling
         run: |
-          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_offline_runtime.py stage4_tools/prepare_stage4_short_league.py stage4_tools/prepare_stage4_event_navigation.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/validate_frame_png.py stage4_tools/find_league_picker.py stage4_tools/find_dilemma_choice.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/find_match_resume.py stage4_tools/verify_stage4_natural_season.py
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_offline_runtime.py stage4_tools/prepare_stage4_short_league.py stage4_tools/prepare_stage4_event_navigation.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/validate_frame_png.py stage4_tools/find_league_picker.py stage4_tools/find_dilemma_choice.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/find_match_resume.py stage4_tools/classify_live_frame.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py test_stage4_timeout_budget.py test_stage4_offline_runtime.py test_stage4_short_league.py test_stage4_event_navigation.py test_stage4_live_ball_driver.py test_stage4_live_input_speed.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage4_timeout_budget.py test_stage4_offline_runtime.py test_stage4_short_league.py test_stage4_event_navigation.py test_stage4_live_ball_driver.py test_stage4_live_input_speed.py test_stage4_single_decode_classifier.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
 
       - name: Enable KVM access
         run: |
