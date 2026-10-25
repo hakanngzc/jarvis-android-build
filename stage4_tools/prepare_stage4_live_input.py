@@ -8,7 +8,24 @@ DRIVER = r'''drive_live_chance(){
   local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" xy rc x y target_x target_y direction kick_xy kick_rc resume_xy resume_rc
   adb exec-out screencap -p > "$frame" 2>/dev/null || true
 
-  # Phase A: NSS can first render the small dark-green active-ball marker.
+  # Phase 0: specific Half Time / Full Time resume controls must win before
+  # generic green-marker classification. Run173 proved a half-time UI element
+  # can look like the active green marker while the real PLAY football is also
+  # visible. The resume detector is deliberately restricted to lower-right UI.
+  resume_xy="$(python3 stage4_tools/find_match_resume.py "$frame" 2>>"$FLOW")" && resume_rc=0 || resume_rc=$?
+  if [ "$resume_rc" -eq 0 ]; then
+    read -r x y <<<"$resume_xy"
+    echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
+    adb shell input touchscreen tap "$x" "$y" </dev/null || true
+    sleep 3
+    return 0
+  fi
+  if [ "$resume_rc" -ne 1 ]; then
+    echo "cycle $cycle match-resume detector failed rc=$resume_rc @${elapsed}s" >> "$FLOW"
+    return 1
+  fi
+
+  # Phase A: NSS can render the small dark-green active-ball marker.
   xy="$(python3 stage4_tools/find_live_ball.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
   if [ "$rc" -eq 0 ]; then
     read -r x y <<<"$xy"
@@ -33,10 +50,9 @@ DRIVER = r'''drive_live_chance(){
     return 1
   fi
 
-  # Phase B: check stock Match resume/continue controls BEFORE generic kick-ball
-  # classification. Run169 reached the real 90' Full Time screen and proved the
-  # lower-right Continue football can satisfy the large-ball visual heuristic.
-  # The specific rendered resume detector must therefore win classification.
+  # Phase B fallback: retain the same specific resume check after marker
+  # classification for compatibility with previously hardened generated gates.
+  # In normal execution Phase 0 already consumes genuine resume screens.
   resume_xy="$(python3 stage4_tools/find_match_resume.py "$frame" 2>>"$FLOW")" && resume_rc=0 || resume_rc=$?
   if [ "$resume_rc" -eq 0 ]; then
     read -r x y <<<"$resume_xy"
@@ -50,10 +66,8 @@ DRIVER = r'''drive_live_chance(){
     return 1
   fi
 
-  # Phase C: actual kick/pass minigame. A huge white/black football is rendered
-  # in the lower-middle pitch. Detect that ball and flick it upward. Any normal
-  # in-game kick is enough to let the natural match state continue; no match
-  # engine or simulate/debug method is touched.
+  # Phase C: actual kick/pass minigame. A huge or normal-scale white/black
+  # football can be rendered in the lower pitch. Detect it and flick upward.
   kick_xy="$(python3 stage4_tools/find_kick_ball.py "$frame" 2>>"$FLOW")" && kick_rc=0 || kick_rc=$?
   if [ "$kick_rc" -eq 0 ]; then
     read -r x y <<<"$kick_xy"
@@ -79,7 +93,7 @@ DRIVER = r'''drive_live_chance(){
     return 1
   fi
 
-  echo "cycle $cycle passive live phase @${elapsed}s: no active marker/resume control/kick ball" >> "$FLOW"
+  echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
   sleep 2
   return 0
 }
@@ -99,9 +113,6 @@ dismiss_interstitial_if_present(){
   ad_activity_active || return 0
   echo "navigate step $step foreground AdActivity detected; dismissing stock interstitial" >> "$FLOW"
 
-  # Prefer Android Back, but only while the actual AdMob AdActivity owns focus.
-  # Some interstitial creatives ignore Back, so fall back to the rendered
-  # top-right close control measured from the current physical display size.
   adb shell input keyevent 4 </dev/null || true
   for attempt in 1 2 3; do
     sleep 1
@@ -117,7 +128,6 @@ dismiss_interstitial_if_present(){
     x=$((w * 958 / 1000))
     y=$((h * 35 / 1000))
   else
-    # Proven API29 Pixel4 fallback used by this canonical runtime gate.
     x=1035; y=80
   fi
   echo "navigate step $step interstitial close fallback tap ${x},${y}" >> "$FLOW"
@@ -142,9 +152,8 @@ OLD = '''    # Real live-match interaction only: ordinary touchscreen swipes/tap
     swipe_logical 380 690 180 280 380; sleep 1
     press_logical 320 600 1'''
 
-NEW = '''    # Real live-match interaction only. Detect whichever stock rendered input
-    # phase is active (green marker, match resume/continue, or large kick ball)
-    # and perform an ordinary touchscreen gesture. No match engine,
+NEW = '''    # Real live-match interaction only. Prefer specific stock resume controls,
+    # then active green marker / rendered ball phases. No match engine,
     # simulate/debug branch or season state is patched.
     drive_live_chance "$cycle" "$elapsed"'''
 
@@ -187,7 +196,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied rendered natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied resume-priority natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':

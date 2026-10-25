@@ -58,6 +58,20 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertNotIn('m_skipMatches', prepared)
         self.assertNotIn('m_Simulate', prepared)
 
+    def test_live_preparer_prioritizes_specific_resume_before_generic_green_marker(self):
+        p = Path('stage4_tools/prepare_stage4_live_input.py')
+        self.assertTrue(p.exists(), 'Stage4 live-input hardener must exist')
+        module = load_module(str(p), 'prepare_stage4_live_input_resume_priority')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        resume = prepared.index('stage4_tools/find_match_resume.py')
+        marker = prepared.index('stage4_tools/find_live_ball.py')
+        kick = prepared.index('stage4_tools/find_kick_ball.py')
+        self.assertLess(resume, marker)
+        self.assertLess(resume, kick)
+        self.assertIn('dismiss_interstitial_if_present "$step"', prepared)
+        self.assertNotIn('m_skipMatches', prepared)
+        self.assertNotIn('m_Simulate', prepared)
+
     def test_natural_workflow_actually_applies_prematch_preparer(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         self.assertIn('stage4_tools/prepare_stage4_prematch.py', text)
