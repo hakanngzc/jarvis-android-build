@@ -11,15 +11,13 @@ from find_live_ball import decode_png_rgb
 def _find_compact_field_ball(w: int, h: int, bright: bytearray):
     # Later natural chances can render the playable football at normal field
     # scale rather than the earlier giant kick-ball scale. Run170 reached 80'
-    # with a real ~28x26 px football centered at ~74.4% screen height.
-    # Run185 proved the lower stadium/sponsor strip around ~81.2% can contain
-    # dense neutral-bright text components that otherwise look ball-sized.
-    # Keep this fallback inside the actual lower playing field, above that strip.
+    # with a real ~28x26 px football in the lower field. Search only the actual
+    # playing field above the sponsor strip proven by run185.
     x0, x1 = int(w * 0.08), int(w * 0.92)
     y0, y1 = int(h * 0.55), int(h * 0.79)
-    min_dim = max(12, int(w * 0.012))
-    max_dim = max(34, int(w * 0.065))
-    min_count = max(35, int(w * w * 0.00008))
+    min_dim = max(10, int(w * 0.012))
+    max_dim = max(24, int(w * 0.065))
+    min_count = max(20, int(w * w * 0.00008))
     mask = bytearray(bright)
     best = None
     best_count = -1
@@ -38,14 +36,10 @@ def _find_compact_field_ball(w: int, h: int, bright: bytearray):
                 idx = stack.pop()
                 cy, cx = divmod(idx, w)
                 count += 1
-                if cx < minx:
-                    minx = cx
-                if cx > maxx:
-                    maxx = cx
-                if cy < miny:
-                    miny = cy
-                if cy > maxy:
-                    maxy = cy
+                if cx < minx: minx = cx
+                if cx > maxx: maxx = cx
+                if cy < miny: miny = cy
+                if cy > maxy: maxy = cy
                 for dy in (-1, 0, 1):
                     ny = cy + dy
                     if ny < y0 or ny >= y1:
@@ -79,14 +73,12 @@ def _find_compact_field_ball(w: int, h: int, bright: bytearray):
 
 def find_kick_ball(path: Path):
     w, h, channels, rows = decode_png_rgb(path)
-    # NSS live chances first render some player-controlled balls as a very
-    # large, high-contrast white/black sphere in the lower-middle pitch.
-    # Run165 also proved that the half-time TV panel contains large neutral-
-    # white team circles around ~44-48% screen height. The real run156 kick
-    # ball center is ~69.3% screen height, so constrain large-ball candidate
-    # CENTERS to the lower field.
-    win = max(180, min(320, w // 4))
-    stride = max(12, w // 54)
+    # Scale the large-ball search window with the rendered frame. At the
+    # original Pixel4 width (1080) this remains 270 px. The natural-runtime
+    # low-resolution surface uses width 540, yielding 135 px with equivalent
+    # normalized geometry instead of the old hard 180 px minimum.
+    win = max(90, min(320, w // 4))
+    stride = max(6, w // 54)
     x_min = int(w * 0.12)
     x_max = int(w * 0.88) - win
     center_y_min = int(h * 0.68)
@@ -128,15 +120,9 @@ def find_kick_ball(path: Path):
                     best_count = count
                     best = (x0 + win // 2, y0 + win // 2)
 
-        # The real run156 giant kick frame is well above this 25% gate in the
-        # lower pitch region; run165 half-time TV circles are outside this
-        # center band. Preserve that proven classifier first.
         if best is not None and best_count >= int(win * win * 0.25):
             return best
 
-    # Run170 advanced naturally through half time and into minute 80, where
-    # the next stock input phase used a normal-scale football. Reuse the same
-    # ordinary swipe path by returning that rendered ball center as fallback.
     return _find_compact_field_ball(w, h, bright)
 
 
