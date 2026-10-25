@@ -13,45 +13,72 @@ REPLACEMENT = r'''wait_log 'Create Screen:[[:space:]]*choosenation|SETTING ACTIV
 # Run219 proved scroll-based Hong Kong targeting can land on Serbia because the
 # stock picker drag distance is not deterministic on hosted emulators. Use the
 # fifth row on the initial stock page instead: run199 captured this exact page
-# as Albania, Algeria, Andorra, Angola, Argentina, Armenia. The selection is
-# still not trusted until stock GetProspectiveClubs proves nation 9 and a
-# non-zero candidate set. No Career/season/fixture/match state is patched.
+# as Albania, Algeria, Andorra, Angola, Argentina, Armenia. Run221 then proved
+# that a single screenshot immediately after opening can miss the modal and a
+# second blind selector press can toggle/select the wrong surface. Therefore
+# each opener press is followed by bounded render-only polling before any row
+# tap. The selection is still not trusted until stock GetProspectiveClubs proves
+# nation 9 and a non-zero candidate set. No Career/season/fixture/match state is
+# patched.
 select_argentina_stock_league(){
-  local attempt frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
+  local attempt detect_attempt select_attempt modal_open frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
   for attempt in 1 2 3; do
-    echo "short-league Argentina picker attempt $attempt/3" >> "$FLOW"
+    echo "short-league Argentina picker open attempt $attempt/3" >> "$FLOW"
     press_logical 320 640 1
-    rm -f "$tmp" "$frame"
-    timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
-    if ! python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
-      echo "short-league Argentina picker frame invalid" >> "$FLOW"
-      continue
-    fi
-    mv -f "$tmp" "$frame"
-    cp "$frame" "$OUT/short-league-argentina-list.png"
-    xy="$(python3 stage4_tools/find_league_picker.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
-    if [ "$rc" -ne 0 ]; then
-      echo "short-league Argentina fifth-row detector failed rc=$rc" >> "$FLOW"
-      continue
-    fi
+    modal_open=0
+
+    # Do not press the selector again while the modal may simply still be
+    # rendering. Poll the frame first; run221 showed that blind re-presses can
+    # close the just-opened modal before the row detector sees it.
+    for detect_attempt in 1 2 3 4; do
+      rm -f "$tmp" "$frame"
+      timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
+      if ! python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+        echo "short-league Argentina modal frame invalid detect $detect_attempt/4" >> "$FLOW"
+        sleep 1
+        continue
+      fi
+      mv -f "$tmp" "$frame"
+      cp "$frame" "$OUT/short-league-argentina-list.png"
+      xy="$(python3 stage4_tools/find_league_picker.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
+      if [ "$rc" -eq 0 ]; then
+        modal_open=1
+        echo "short-league Argentina modal ready detect $detect_attempt/4" >> "$FLOW"
+        break
+      fi
+      echo "short-league Argentina modal not ready rc=$rc detect $detect_attempt/4" >> "$FLOW"
+      sleep 1
+    done
+    [ "$modal_open" -eq 1 ] || continue
 
     read -r x y <<<"$xy"
     echo "short-league rendered Argentina candidate row ${x},${y}" >> "$FLOW"
-    clear_log
-    adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 2
+    for select_attempt in 1 2 3; do
+      clear_log
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      sleep 2
 
-    rm -f "$tmp" "$post"
-    timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
-    if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+      rm -f "$tmp" "$post"
+      timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
+      if ! python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+        echo "short-league Argentina post-select frame invalid attempt $select_attempt/3" >> "$FLOW"
+        sleep 1
+        continue
+      fi
       mv -f "$tmp" "$post"
       cp "$post" "$OUT/short-league-argentina-selected.png"
       if ! python3 stage4_tools/find_league_picker.py "$post" >/dev/null 2>>"$FLOW"; then
         echo "short-league Argentina rendered row accepted" >> "$FLOW"
         return 0
       fi
-    fi
-    echo "short-league Argentina candidate did not close picker" >> "$FLOW"
+      echo "short-league Argentina row tap remained on modal attempt $select_attempt/3" >> "$FLOW"
+      sleep 1
+    done
+
+    # Modal is still open after bounded row taps; fail closed rather than
+    # blindly hitting the original selector coordinate inside an open modal.
+    echo "short-league Argentina modal remained open after row taps" >> "$FLOW"
+    return 1
   done
   echo "short-league Argentina rendered selection could not be proven" >> "$FLOW"
   return 1
@@ -119,7 +146,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_short_league.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied stock-UI Argentina natural-season selection: {dst}')
+    print(f'Applied render-polled stock-UI Argentina natural-season selection: {dst}')
 
 
 if __name__ == '__main__':
