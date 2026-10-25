@@ -104,8 +104,13 @@ def _find_large_kick_ball(w: int, h: int, bright: bytearray):
     return None
 
 
-def classify_live_frame(path: Path):
+def classify_live_frame(path: Path, include_size: bool = False):
     w, h, channels, rows = decode_png_rgb(path)
+
+    def result(kind: str, x: int, y: int):
+        if include_size:
+            return kind, x, y, w, h
+        return kind, x, y
 
     # Resume is highest-priority and cheap to test once the PNG is decoded.
     rx0, rx1 = int(w * 0.72), w
@@ -122,11 +127,12 @@ def classify_live_frame(path: Path):
             if g > 90 and g >= r + 25 and g >= b + 25:
                 green += 1
     if neutral >= int(total * 0.08) and green >= int(total * 0.01):
-        return 'resume', round(w * 0.865), round(h * 0.812)
+        return result('resume', round(w * 0.865), round(h * 0.812))
 
-    # Build both masks in one pass. Older harnesses decoded the same 1080x2280
-    # PNG independently for resume/live/kick classification; this keeps the
-    # exact stock-screen evidence while removing that repeated CPU cost.
+    # Build both masks in one pass. Older harnesses decoded the same frame
+    # independently for resume/live/kick classification; this keeps one PNG
+    # decode and also lets the CLI return the exact rendered dimensions so the
+    # input driver can scale swipes after an Android wm-size override.
     live_y0, live_y1 = int(h * 0.25), int(h * 0.88)
     live = bytearray(w * h)
     bright = bytearray(w * h)
@@ -143,13 +149,13 @@ def classify_live_frame(path: Path):
 
     hit = _find_live_component(w, h, live)
     if hit is not None:
-        return 'live', hit[0], hit[1]
+        return result('live', hit[0], hit[1])
 
     hit = _find_large_kick_ball(w, h, bright)
     if hit is None:
         hit = _find_compact_field_ball(w, h, bright)
     if hit is not None:
-        return 'kick', hit[0], hit[1]
+        return result('kick', hit[0], hit[1])
 
     return None
 
@@ -158,13 +164,13 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit('usage: classify_live_frame.py SCREENSHOT.png')
     try:
-        hit = classify_live_frame(Path(sys.argv[1]))
+        hit = classify_live_frame(Path(sys.argv[1]), include_size=True)
     except Exception as exc:
         print(f'LIVE_FRAME_CLASSIFY_ERROR={exc}', file=sys.stderr)
         raise SystemExit(2)
     if hit is None:
         raise SystemExit(1)
-    print(hit[0], hit[1], hit[2])
+    print(hit[0], hit[1], hit[2], hit[3], hit[4])
 
 
 if __name__ == '__main__':

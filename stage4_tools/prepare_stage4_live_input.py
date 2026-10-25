@@ -23,7 +23,7 @@ DRIVER = r'''capture_valid_live_frame(){
 }
 
 drive_live_chance(){
-  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" class rc kind x y target_x target_y direction
+  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" class rc kind x y frame_w frame_h target_x target_y direction offset min_x max_x min_y max_y
   if ! capture_valid_live_frame "$frame"; then
     echo "cycle $cycle valid live frame unavailable @${elapsed}s; retrying on next match loop" >> "$FLOW"
     sleep 1
@@ -34,6 +34,8 @@ drive_live_chance(){
   # stage4_tools/find_match_resume.py
   # stage4_tools/find_live_ball.py
   # stage4_tools/find_kick_ball.py
+  # The CLI also returns the decoded frame dimensions, so every swipe remains
+  # inside the active surface after Stage4 switches from 1080x2280 to 540x1140.
   class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
   if [ "$rc" -eq 1 ]; then
     echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
@@ -45,10 +47,14 @@ drive_live_chance(){
     return 1
   fi
 
-  read -r kind x y <<<"$class"
+  read -r kind x y frame_w frame_h <<<"$class"
+  [[ "$frame_w" =~ ^[0-9]+$ && "$frame_h" =~ ^[0-9]+$ ]] || {
+    echo "cycle $cycle invalid classifier dimensions '$frame_w'x'$frame_h' @${elapsed}s" >> "$FLOW"
+    return 1
+  }
   case "$kind" in
     resume)
-      echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
+      echo "cycle $cycle match resume Play ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
       adb shell input touchscreen tap "$x" "$y" </dev/null || true
       ;;
     live)
@@ -56,31 +62,35 @@ drive_live_chance(){
       LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
       direction=$((LIVE_INPUT_SEQ % 3))
       case "$direction" in
-        1) target_x=540 ;;
-        2) target_x=180 ;;
-        *) target_x=900 ;;
+        1) target_x=$((frame_w / 2)) ;;
+        2) target_x=$((frame_w / 6)) ;;
+        *) target_x=$((frame_w * 5 / 6)) ;;
       esac
-      target_y=$((y - 500))
-      [ "$target_y" -ge 180 ] || target_y=180
-      [ "$target_y" -le 1750 ] || target_y=1750
-      echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
+      target_y=$((y - frame_h * 22 / 100))
+      min_y=$((frame_h * 8 / 100)); max_y=$((frame_h * 77 / 100))
+      [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
+      [ "$target_y" -le "$max_y" ] || target_y="$max_y"
+      echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
       ;;
     kick)
       : "${LIVE_INPUT_SEQ:=0}"
       LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
       direction=$((LIVE_INPUT_SEQ % 3))
+      offset=$((frame_w * 7 / 100))
       case "$direction" in
-        1) target_x=$((x + 80)) ;;
-        2) target_x=$((x - 80)) ;;
+        1) target_x=$((x + offset)) ;;
+        2) target_x=$((x - offset)) ;;
         *) target_x="$x" ;;
       esac
-      [ "$target_x" -ge 120 ] || target_x=120
-      [ "$target_x" -le 960 ] || target_x=960
-      target_y=$((y - 650))
-      [ "$target_y" -ge 220 ] || target_y=220
-      echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
+      min_x=$((frame_w * 11 / 100)); max_x=$((frame_w * 89 / 100))
+      [ "$target_x" -ge "$min_x" ] || target_x="$min_x"
+      [ "$target_x" -le "$max_x" ] || target_x="$max_x"
+      target_y=$((y - frame_h * 29 / 100))
+      min_y=$((frame_h * 10 / 100))
+      [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
+      echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
       ;;
     *)
       echo "cycle $cycle unknown live-frame class '$kind' @${elapsed}s" >> "$FLOW"
