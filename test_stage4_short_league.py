@@ -91,6 +91,21 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_preparer_waits_for_open_modal_before_any_second_selector_press(self):
+        module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_modal_wait')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        start = prepared.index('select_argentina_stock_league(){')
+        end = prepared.index('continue_after_argentina_stock_league(){', start)
+        selector = prepared[start:end]
+        self.assertIn('for detect_attempt in 1 2 3 4', selector)
+        self.assertIn('short-league Argentina modal ready', selector)
+        self.assertIn('modal_open=1', selector)
+        self.assertIn('[ "$modal_open" -eq 1 ] || continue', selector)
+        self.assertLess(selector.index('for detect_attempt in 1 2 3 4'), selector.index('adb shell input touchscreen tap "$x" "$y"'))
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, selector)
+
     def test_preparer_retries_stock_profile_next_after_argentina_selection(self):
         module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_next')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
