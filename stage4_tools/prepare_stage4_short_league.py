@@ -15,16 +15,19 @@ REPLACEMENT = r'''wait_log 'Create Screen:[[:space:]]*choosenation|SETTING ACTIV
 # fifth row on the initial stock page instead: run199 captured this exact page
 # as Albania, Algeria, Andorra, Angola, Argentina, Armenia. Run221 then proved
 # that a single screenshot immediately after opening can miss the modal and a
-# second blind selector press can toggle/select the wrong surface. Therefore
-# each opener press is followed by bounded render-only polling before any row
-# tap. The selection is still not trusted until stock GetProspectiveClubs proves
-# nation 9 and a non-zero candidate set. No Career/season/fixture/match state is
-# patched.
+# second blind selector press can toggle/select the wrong surface. Run225 proved
+# the stock selector's row center is not a reliable gadget hit; the rendered
+# left-arrow control is. Therefore the opener targets that proven arrow and is
+# followed by bounded render-only polling before any row tap. The selection is
+# still not trusted until stock GetProspectiveClubs proves nation 9 and a
+# non-zero candidate set. No Career/season/fixture/match state is patched.
 select_argentina_stock_league(){
   local attempt detect_attempt select_attempt modal_open frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
   for attempt in 1 2 3; do
     echo "short-league Argentina picker open attempt $attempt/3" >> "$FLOW"
-    press_logical 320 640 1
+    # API29 Pixel4 rendered Choose-League arrow centre: ~108,1393 physical,
+    # equivalent to logical (64,630). The stock arrow is the actual gadget.
+    press_logical 64 630 1
     modal_open=0
 
     # Do not press the selector again while the modal may simply still be
@@ -146,7 +149,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_short_league.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied render-polled stock-UI Argentina natural-season selection: {dst}')
+    print(f'Applied arrow-gated stock-UI Argentina natural-season selection: {dst}')
 
 
 if __name__ == '__main__':
