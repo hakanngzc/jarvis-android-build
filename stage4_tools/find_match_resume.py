@@ -12,9 +12,9 @@ def find_match_resume(path: Path):
     w, h, channels, rows = decode_png_rgb(path)
 
     # Stock NSS keeps the match screen active at half-time/full-time pauses and
-    # renders a large football-shaped PLAY button in the lower-right corner.
-    # Run165 proved that the TV panel above can also contain large neutral-white
-    # team circles, so only inspect the lower-right resume-button region.
+    # renders a large football-shaped PLAY/continue button in the lower-right.
+    # Run165 proved the half-time TV panel can contain large neutral-white team
+    # circles, so only inspect the lower-right resume-button region.
     x0, x1 = int(w * 0.72), w
     y0, y1 = int(h * 0.72), int(h * 0.88)
     if x1 <= x0 or y1 <= y0:
@@ -33,15 +33,16 @@ def find_match_resume(path: Path):
             if g > 90 and g >= r + 25 and g >= b + 25:
                 green += 1
 
-    # The real run165 half-time frame measures about 14% neutral-bright and
-    # 15% green in this region. A real run156 kick frame has enough neutral
-    # stadium detail to be dangerous, but only ~0.3% green here. Requiring both
-    # signals isolates the PLAY/football control without OCR or fixed pixels.
-    if neutral < int(total * 0.08) or green < int(total * 0.06):
+    # Half-time run165 measured ~14% neutral / ~6.2% green here. The real
+    # run171 90' Full Time continue control measured ~21.7% neutral / ~2.7%
+    # green, while normal kickoff and the run170 field frame measured 0% for
+    # both in this region. Keep the neutral requirement and lower only the
+    # green floor enough to include the verified Full Time variant.
+    if neutral < int(total * 0.08) or green < int(total * 0.01):
         return None
 
     # This normalized center is (934,1851) on the proven 1080x2280 Pixel4
-    # profile, matching the stock match Play control used by the runtime gate.
+    # profile, matching the stock match Play/continue control.
     return round(w * 0.865), round(h * 0.812)
 
 
