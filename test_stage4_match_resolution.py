@@ -46,37 +46,29 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         self.assertLess(footer, next_case)
         self.assertNotIn('message|webpage|startransition)', bootstrap)
 
-    def test_stage4_resizes_then_reloads_stock_career_before_season_loop(self):
+    def test_stage4_keeps_full_resolution_after_baseline(self):
         prepared = self.composed_gate()
         save_proof = prepared.index("capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'")
         baseline = prepared.index('dump_save natural-baseline; checkpoint natural-baseline')
-        resize = prepared.index('adb shell wm size 540x1140')
-        reload_open = prepared.index('open_slot0 natural-lowres', resize)
-        reload_existing = prepared.index('load_existing natural-lowres', reload_open)
         season_start = prepared.index('START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0')
         self.assertLess(save_proof, baseline)
-        self.assertLess(baseline, resize)
-        self.assertLess(resize, reload_open)
-        self.assertLess(reload_open, reload_existing)
-        self.assertLess(reload_existing, season_start)
-        self.assertNotIn('start_game natural-lowres', prepared)
-        self.assertIn("wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 30 natural-lowres-mainmenu", prepared)
-        self.assertIn("capture_log 'natural runtime resize -> stock Career reload -> GameMenu'", prepared)
-        self.assertIn('stage4_tools/validate_frame_png.py "$WORK/natural-lowres-ready.png"', prepared)
-        self.assertEqual(1, prepared.count('adb shell wm size 540x1140'))
+        self.assertLess(baseline, season_start)
+        self.assertNotIn('adb shell wm size 540x1140', prepared)
+        self.assertNotIn('natural-lowres', prepared)
+        self.assertIn("capture_log 'natural runtime full-resolution Career -> GameMenu'", prepared)
         self.assertEqual(2, prepared.count('BASE_FLOW_BYTES="$(wc -c < "$FLOW")"'))
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
     def test_effective_wm_size_parser_is_rewritten_in_composed_gate(self):
         prepared = self.composed_gate()
-        self.assertGreaterEqual(prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"), 2)
+        self.assertGreaterEqual(prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"), 1)
         self.assertNotIn("size=\"$(adb shell wm size 2>/dev/null | tr -d '\\r')\"", prepared)
         self.assertIn("sizes=re.findall(r'(\\d+)x(\\d+)',s)", prepared)
         self.assertIn('w,h=map(int,sizes[-1])', prepared)
         self.assertNotIn("w,h=map(int,re.search(r'(\\d+)x(\\d+)',s).groups())", prepared)
 
-    def test_kick_detector_scales_large_ball_window_for_half_resolution(self):
+    def test_kick_detector_scales_large_ball_window_for_full_and_half_resolution(self):
         text = Path('stage4_tools/find_kick_ball.py').read_text(encoding='utf-8')
         self.assertIn('win = max(90, min(320, w // 4))', text)
         self.assertIn('stride = max(6, w // 54)', text)
