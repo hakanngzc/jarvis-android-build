@@ -63,6 +63,12 @@ def _visible_rows(path: Path):
                         stack.append(n)
             box_w = maxx - minx + 1
             box_h = maxy - miny + 1
+            # A real league row sits inside the central list body. Broad green
+            # panels on a different/closed screen can be clipped by our ROI and
+            # otherwise look row-shaped, so reject components touching either
+            # horizontal ROI boundary.
+            if minx <= x0 + 2 or maxx >= x1 - 3:
+                continue
             if (
                 int(w * 0.40) <= box_w <= int(w * 0.76)
                 and int(h * 0.028) <= box_h <= int(h * 0.09)
