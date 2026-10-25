@@ -9,9 +9,11 @@ class ChooseClubStepTargetTests(unittest.TestCase):
         self.assertIn('tap 805 1845', text, 'Welcome/help checkmark must use the raw run132 PNG measured center')
         self.assertIn('x=560..1050, y=1714..1978', text,
                       'keep the artifact measurement that justifies the Welcome target')
-        self.assertIn('fresh-setup-ok-3', text)
+        self.assertIn('fresh-setup-ok-2|fresh-setup-ok-3', text,
+                      'player-profile Next can occur at setup step 2 or 3; run190 proves step 2')
         self.assertIn('tap 940 1830', text, 'player-profile Next must use the measured arrow-center target')
         self.assertIn('Pixel4 player-profile Next target 940,1830', text)
+        self.assertIn('Run190 proves the player-profile surface can be setup step 2', text)
         self.assertNotIn('tap 620 1425', text, 'discard the previously mis-scaled Welcome target')
 
 

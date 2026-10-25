@@ -30,10 +30,11 @@ HELPERS = r'''press_and_require_stock_hit(){
               ;;
           esac
           ;;
-        fresh-setup-ok-3)
-          # Artifact run122 shows the third setup surface is the player-profile
-          # screen, not another OK dialog. The white Next arrow center measures
-          # about 940,1830 on the 1080x2280 Pixel4 frame.
+        fresh-setup-ok-2|fresh-setup-ok-3)
+          # Run190 proves the player-profile surface can be setup step 2, while
+          # run122 observed it as step 3. Do not bind this real rendered screen
+          # to one incidental setup index: both use the measured white Next
+          # football center at about 940,1830 on 1080x2280 Pixel4.
           echo "setup $tag attempt $attempt: Pixel4 player-profile Next target 940,1830"
           if [ "$attempt" = 1 ]; then
             adb shell input touchscreen tap 940 1830 </dev/null || true
