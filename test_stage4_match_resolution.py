@@ -46,20 +46,23 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         self.assertLess(footer, next_case)
         self.assertNotIn('message|webpage|startransition)', bootstrap)
 
-    def test_stage4_removes_redundant_preseason_restart_and_resizes_after_baseline(self):
+    def test_stage4_resizes_then_reloads_stock_career_before_season_loop(self):
         prepared = self.composed_gate()
         save_proof = prepared.index("capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'")
         baseline = prepared.index('dump_save natural-baseline; checkpoint natural-baseline')
         resize = prepared.index('adb shell wm size 540x1140')
+        reload_open = prepared.index('open_slot0 natural-lowres', resize)
+        reload_existing = prepared.index('load_existing natural-lowres', reload_open)
         season_start = prepared.index('START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0')
         self.assertLess(save_proof, baseline)
         self.assertLess(baseline, resize)
-        self.assertLess(resize, season_start)
+        self.assertLess(resize, reload_open)
+        self.assertLess(reload_open, reload_existing)
+        self.assertLess(reload_existing, season_start)
         self.assertNotIn('start_game natural-lowres', prepared)
-        self.assertNotIn('open_slot0 natural-lowres', prepared)
-        self.assertNotIn('load_existing natural-lowres', prepared)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 30 natural-lowres-mainmenu", prepared)
+        self.assertIn("capture_log 'natural runtime resize -> stock Career reload -> GameMenu'", prepared)
         self.assertIn('stage4_tools/validate_frame_png.py "$WORK/natural-lowres-ready.png"', prepared)
-        self.assertIn("capture_log 'natural runtime in-process render surface -> 540x1140'", prepared)
         self.assertEqual(1, prepared.count('adb shell wm size 540x1140'))
         self.assertEqual(2, prepared.count('BASE_FLOW_BYTES="$(wc -c < "$FLOW")"'))
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
