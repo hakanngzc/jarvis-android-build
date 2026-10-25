@@ -28,7 +28,7 @@ def write_rgb_png(path: Path, width: int, height: int, pixels: bytearray) -> Non
 
 
 class Stage4ShortLeagueTests(unittest.TestCase):
-    def test_picker_detector_finds_first_rendered_albania_row(self):
+    def test_picker_detector_returns_first_visible_hong_kong_candidate(self):
         detector = load_module('stage4_tools/find_league_picker.py', 'find_league_picker_synthetic')
         width, height = 360, 640
         pixels = bytearray(width * height * 3)
@@ -44,10 +44,24 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'picker.png'
             write_rgb_png(p, width, height, pixels)
-            x, y = detector.find_albania_row(p)
+            x, y = detector.find_hong_kong_row(p)
             expected_x, expected_y = centers[0]
             self.assertLessEqual(abs(x - expected_x), 2)
             self.assertLessEqual(abs(y - expected_y), 2)
+
+    def test_picker_detector_accepts_partially_clipped_scrolled_page(self):
+        detector = load_module('stage4_tools/find_league_picker.py', 'find_league_picker_partial')
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+        for y0 in (145, 205, 265):
+            for y in range(y0, y0 + 28):
+                for x in range(78, 282):
+                    i = (y * width + x) * 3
+                    pixels[i:i + 3] = bytes((35, 175, 25))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'partial.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertIsNotNone(detector.find_hong_kong_row(p))
 
     def test_picker_detector_rejects_closed_screen_shape(self):
         detector = load_module('stage4_tools/find_league_picker.py', 'find_league_picker_closed')
@@ -61,32 +75,31 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'closed.png'
             write_rgb_png(p, width, height, pixels)
-            self.assertIsNone(detector.find_albania_row(p))
+            self.assertIsNone(detector.find_hong_kong_row(p))
 
-    def test_preparer_selects_rendered_albania_and_requires_viable_trial_clubs(self):
+    def test_preparer_selects_hong_kong_and_requires_nation_87_plus_viable_clubs(self):
         module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        self.assertIn('stage4_tools/find_league_picker.py', prepared)
-        self.assertIn('short-league Albania stock row accepted', prepared)
-        self.assertIn('continue_after_albania_stock_league(){', prepared)
-        self.assertIn('List of prospective clubs size:', prepared)
-        self.assertIn("grep -qE 'List of prospective clubs size:[[:space:]]*[1-9][0-9]*'", prepared)
-        self.assertIn('short-league Albania produced viable prospective clubs', prepared)
-        self.assertNotIn('short-league Andorra stock row accepted', prepared)
+        self.assertIn('for page in 1 2 3 4 5 6 7', prepared)
+        self.assertIn('short-league Hong Kong rendered row accepted', prepared)
+        self.assertIn('continue_after_hong_kong_stock_league(){', prepared)
+        self.assertIn("GetProspectiveClubs for nation Id:[[:space:]]*87", prepared)
+        self.assertIn("List of prospective clubs size:[[:space:]]*[1-9][0-9]*", prepared)
+        self.assertIn('short-league Hong Kong nation 87 produced viable prospective clubs', prepared)
+        self.assertNotIn('short-league Albania stock row accepted', prepared)
+        self.assertNotIn('Philippines', prepared)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
-    def test_preparer_retries_proven_profile_next_after_albania_selection(self):
+    def test_preparer_retries_stock_profile_next_after_hong_kong_selection(self):
         module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_next')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
         self.assertIn('for attempt in 1 2 3', prepared)
         self.assertIn('input touchscreen tap 940 1830', prepared)
         self.assertIn('input touchscreen swipe 940 1830 940 1830 220', prepared)
-        self.assertIn('continue_after_albania_stock_league || exit 218', prepared)
-        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
-            self.assertNotIn(forbidden, prepared)
+        self.assertIn('continue_after_hong_kong_stock_league || exit 218', prepared)
 
     def test_workflow_applies_short_league_before_prematch(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')

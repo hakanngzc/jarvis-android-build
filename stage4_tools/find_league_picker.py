@@ -8,10 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from find_live_ball import decode_png_rgb
 
 
-def find_albania_row(path: Path):
+def _visible_rows(path: Path):
     w, h, channels, rows = decode_png_rgb(path)
-    y0, y1 = int(h * 0.18), int(h * 0.72)
-    x0, x1 = int(w * 0.15), int(w * 0.85)
+    y0, y1 = int(h * 0.16), int(h * 0.74)
+    x0, x1 = int(w * 0.12), int(w * 0.88)
     mask = bytearray(w * h)
     for y in range(y0, y1):
         row = rows[y]
@@ -64,18 +64,23 @@ def find_albania_row(path: Path):
             box_w = maxx - minx + 1
             box_h = maxy - miny + 1
             if (
-                int(w * 0.45) <= box_w <= int(w * 0.72)
-                and int(h * 0.035) <= box_h <= int(h * 0.08)
-                and count > int(w * h * 0.004)
+                int(w * 0.40) <= box_w <= int(w * 0.76)
+                and int(h * 0.028) <= box_h <= int(h * 0.09)
+                and count > int(w * h * 0.003)
             ):
                 components.append(((miny + maxy) // 2, (minx + maxx) // 2))
-
     components.sort()
-    # Stock selector top rows are Albania, Algeria, Andorra, Angola, Argentina,
-    # Armenia. Run199 proved Andorra can yield zero prospective trial clubs;
-    # select the first rendered row (Albania) instead and let the runtime gate
-    # prove that stock GetProspectiveClubs returns a non-zero candidate set.
-    if len(components) < 5:
+    return components
+
+
+def find_hong_kong_row(path: Path):
+    components = _visible_rows(path)
+    # Runtime stock log from run217 proves the rendered league-only selector
+    # ordering: Hong Kong is the 43rd league-bearing nation (zero-based index
+    # 42). The caller performs seven slow 600-logical-height page drags, so the
+    # target is the first visible row. Accept a partially clipped page too; the
+    # stock nation-id proof after selection remains authoritative.
+    if not components:
         return None
     y, x = components[0]
     return x, y
@@ -85,7 +90,7 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit('usage: find_league_picker.py SCREENSHOT.png')
     try:
-        hit = find_albania_row(Path(sys.argv[1]))
+        hit = find_hong_kong_row(Path(sys.argv[1]))
     except Exception as exc:
         print(f'LEAGUE_PICKER_DETECT_ERROR={exc}', file=sys.stderr)
         raise SystemExit(2)
