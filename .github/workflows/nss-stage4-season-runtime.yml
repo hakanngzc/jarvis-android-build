@@ -4,7 +4,7 @@ name: NSS Residual Runtime Closure
 on:
   workflow_dispatch:
   push:
-    branches: [nss-residual-runtime-20261024]
+    branches: [nss-residual-runtime-20261024, nss-natural-fast-20261025]
 
 permissions:
   contents: read
@@ -71,7 +71,7 @@ jobs:
         run: |
           python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/find_match_resume.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py test_stage4_live_ball_driver.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage4_live_ball_driver.py test_stage4_live_pacing.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
 
       - name: Enable KVM access
         run: |
