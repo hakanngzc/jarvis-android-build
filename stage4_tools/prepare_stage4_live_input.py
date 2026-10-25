@@ -23,7 +23,37 @@ DRIVER = r'''capture_valid_live_frame(){
 }
 
 drive_live_chance(){
-  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" class rc kind x y frame_w frame_h target_x target_y direction offset min_x max_x min_y max_y
+  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" class rc kind x y frame_w frame_h target_x target_y direction offset min_x max_x min_y max_y event_count now probe_due=0 new_event=0
+  : "${LIVE_EVENT_COUNT:=0}"
+  : "${LIVE_LAST_PROBE_EPOCH:=0}"
+
+  # Each natural_match_cycle clears logcat immediately before stock Match Play,
+  # so elapsed 0/1 is a safe cycle-local reset for the event cursor.
+  if [ "$elapsed" -le 1 ]; then
+    LIVE_EVENT_COUNT=0
+    LIVE_LAST_PROBE_EPOCH=0
+  fi
+
+  # Stock runtime publishes player-chance phases through these real screen-state
+  # markers. Polling logcat is cheap compared with decoding a 1080x2280 PNG.
+  # A new matchminigame/tapball marker triggers an immediate rendered-frame
+  # classification; otherwise a bounded periodic probe still catches Half Time
+  # / Full Time resume controls that do not publish those chance markers.
+  adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true
+  event_count="$(grep -cE 'SETTING ACTIVE:[[:space:]]*(matchminigame|tapball)' "$WORK/live-phase-gate.log" 2>/dev/null || true)"
+  [[ "$event_count" =~ ^[0-9]+$ ]] || event_count=0
+  [ "$event_count" -le "$LIVE_EVENT_COUNT" ] || new_event=1
+
+  now="$(date +%s)"
+  if [ "$LIVE_LAST_PROBE_EPOCH" -eq 0 ] || [ $((now - LIVE_LAST_PROBE_EPOCH)) -ge 8 ]; then
+    probe_due=1
+  fi
+  if [ "$new_event" -eq 0 ] && [ "$probe_due" -eq 0 ]; then
+    sleep 0.25
+    return 0
+  fi
+  LIVE_LAST_PROBE_EPOCH="$now"
+
   if ! capture_valid_live_frame "$frame"; then
     echo "cycle $cycle valid live frame unavailable @${elapsed}s; retrying on next match loop" >> "$FLOW"
     sleep 1
@@ -35,11 +65,18 @@ drive_live_chance(){
   # stage4_tools/find_live_ball.py
   # stage4_tools/find_kick_ball.py
   # The CLI also returns the decoded frame dimensions, so every swipe remains
-  # inside the active surface after Stage4 switches from 1080x2280 to 540x1140.
+  # inside the active rendered surface.
   class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
   if [ "$rc" -eq 1 ]; then
     echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
-    sleep 1
+    # If a fresh stock chance marker arrived before its graphics fully settled,
+    # keep the event cursor unconsumed so the next loop retries that same phase.
+    if [ "$new_event" -eq 1 ]; then
+      sleep 1
+    else
+      sleep 0.25
+    fi
+    LIVE_LAST_PROBE_EPOCH="$(date +%s)"
     return 0
   fi
   if [ "$rc" -ne 0 ]; then
@@ -97,6 +134,9 @@ drive_live_chance(){
       return 1
       ;;
   esac
+
+  LIVE_EVENT_COUNT="$event_count"
+  LIVE_LAST_PROBE_EPOCH="$(date +%s)"
   sleep 1
   return 0
 }
@@ -155,9 +195,10 @@ OLD = '''    # Real live-match interaction only: ordinary touchscreen swipes/tap
     swipe_logical 380 690 180 280 380; sleep 1
     press_logical 320 600 1'''
 
-NEW = '''    # Real live-match interaction only. One validated rendered frame is
-    # classified once into resume/active-marker/kick-ball input. No match
-    # engine, simulate/debug branch or season state is patched.
+NEW = '''    # Real live-match interaction only. Stock matchminigame/tapball log events
+    # gate expensive rendered-frame decoding; an 8-second periodic probe still
+    # catches Half Time / Full Time resume controls. No match engine,
+    # simulate/debug branch or season state is patched.
     drive_live_chance "$cycle" "$elapsed"'''
 
 NAV_OLD = '''  for step in $(seq 1 50); do
@@ -199,7 +240,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied single-decode validated-frame natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied log-gated single-decode natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':
