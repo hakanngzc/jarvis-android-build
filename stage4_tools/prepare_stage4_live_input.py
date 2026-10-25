@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 DRIVER = r'''drive_live_chance(){
-  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" xy rc x y target_x target_y direction kick_xy kick_rc
+  local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" xy rc x y target_x target_y direction kick_xy kick_rc resume_xy resume_rc
   adb exec-out screencap -p > "$frame" 2>/dev/null || true
 
   # Phase A: NSS can first render the small dark-green active-ball marker.
@@ -63,7 +63,25 @@ DRIVER = r'''drive_live_chance(){
     return 1
   fi
 
-  echo "cycle $cycle passive live phase @${elapsed}s: no active marker/kick ball" >> "$FLOW"
+  # Phase C: the match itself remains the active screen at half-time and some
+  # continuation pauses. Stock NSS renders a football-shaped PLAY control in
+  # the lower-right. Run165 timed out at 45' because Phase B mistook a team TV
+  # circle for the kick ball and never pressed this control. Detect the actual
+  # rendered resume button and use an ordinary touchscreen tap.
+  resume_xy="$(python3 stage4_tools/find_match_resume.py "$frame" 2>>"$FLOW")" && resume_rc=0 || resume_rc=$?
+  if [ "$resume_rc" -eq 0 ]; then
+    read -r x y <<<"$resume_xy"
+    echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
+    adb shell input touchscreen tap "$x" "$y" </dev/null || true
+    sleep 3
+    return 0
+  fi
+  if [ "$resume_rc" -ne 1 ]; then
+    echo "cycle $cycle match-resume detector failed rc=$resume_rc @${elapsed}s" >> "$FLOW"
+    return 1
+  fi
+
+  echo "cycle $cycle passive live phase @${elapsed}s: no active marker/kick ball/resume control" >> "$FLOW"
   sleep 2
   return 0
 }
@@ -77,9 +95,9 @@ OLD = '''    # Real live-match interaction only: ordinary touchscreen swipes/tap
     press_logical 320 600 1'''
 
 NEW = '''    # Real live-match interaction only. Detect whichever stock rendered input
-    # phase is active (green marker or large kick ball) and perform an ordinary
-    # touchscreen swipe. No match engine, simulate/debug branch or season state
-    # is patched.
+    # phase is active (green marker, large kick ball, or match resume Play) and
+    # perform an ordinary touchscreen gesture. No match engine, simulate/debug
+    # branch or season state is patched.
     drive_live_chance "$cycle" "$elapsed"'''
 
 
@@ -100,7 +118,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied two-phase rendered-ball natural live-match input: {dst}')
+    print(f'Applied three-phase rendered natural live-match input: {dst}')
 
 
 if __name__ == '__main__':
