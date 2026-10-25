@@ -72,6 +72,9 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         prepared = self.composed_gate()
         self.assertGreaterEqual(prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"), 2)
         self.assertNotIn("size=\"$(adb shell wm size 2>/dev/null | tr -d '\\r')\"", prepared)
+        self.assertIn("sizes=re.findall(r'(\\d+)x(\\d+)',s)", prepared)
+        self.assertIn('w,h=map(int,sizes[-1])', prepared)
+        self.assertNotIn("w,h=map(int,re.search(r'(\\d+)x(\\d+)',s).groups())", prepared)
 
     def test_kick_detector_scales_large_ball_window_for_half_resolution(self):
         text = Path('stage4_tools/find_kick_ball.py').read_text(encoding='utf-8')

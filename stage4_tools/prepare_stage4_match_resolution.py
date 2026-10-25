@@ -41,6 +41,12 @@ START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 SIZE_OLD = '''size="$(adb shell wm size 2>/dev/null | tr -d '\\r')"'''
 SIZE_NEW = '''size="$(adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1)"'''
 
+LOGICAL_SIZE_OLD = '''x,y=map(float,sys.argv[1:]); s=subprocess.check_output(['adb','shell','wm','size'],text=True)
+w,h=map(int,re.search(r'(\\d+)x(\\d+)',s).groups()); scale=w/640.0; top=(h-960*scale)/2.0'''
+LOGICAL_SIZE_NEW = '''x,y=map(float,sys.argv[1:]); s=subprocess.check_output(['adb','shell','wm','size'],text=True)
+sizes=re.findall(r'(\\d+)x(\\d+)',s)
+w,h=map(int,sizes[-1]); scale=w/640.0; top=(h-960*scale)/2.0'''
+
 BOOTSTRAP_RE = re.compile(
     r'''adb logcat -d -v threadtime > "\$WORK/bootstrap-save-proof\.txt".*?capture_log 'bootstrap-restart durable reload -> GameMenu'\s*''',
     re.S,
@@ -114,6 +120,15 @@ def harden(text: str) -> str:
     # stale full-Pixel4 physical coordinates.
     text = text.replace(SIZE_OLD, SIZE_NEW)
 
+    # logical_xy parses `wm size` directly in Python. With an override Android
+    # prints physical first and override second; re.search therefore kept the
+    # stale 1080x2280 geometry and run205 injected out-of-bounds touches after
+    # resizing to 540x1140. Require exactly one helper and use the final size.
+    logical_count = text.count(LOGICAL_SIZE_OLD)
+    if logical_count != 1:
+        raise SystemExit(f'expected one logical_xy wm-size parser, found {logical_count}')
+    text = text.replace(LOGICAL_SIZE_OLD, LOGICAL_SIZE_NEW, 1)
+
     count = text.count(POST_BASELINE_OLD)
     if count != 1:
         raise SystemExit(f'expected one post-baseline start anchor, found {count}')
@@ -125,7 +140,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_match_resolution.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied Stage4 state-driven fresh bootstrap plus resize-triggered stock Career reload: {dst}')
+    print(f'Applied Stage4 resize-safe logical input plus stock Career reload: {dst}')
 
 
 if __name__ == '__main__':
