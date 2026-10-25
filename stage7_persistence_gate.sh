@@ -154,7 +154,9 @@ BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V
 ZIPALIGN="$BT/zipalign"; APKSIGNER="$BT/apksigner"
 keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -keypass android -alias ci -dname 'CN=NSS Stage7 CI' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
 sign_one(){
-  local src="$1" dst="$2" tmp="$WORK/aligned-$(basename "$dst")"
+  local src="$1"
+  local dst="$2"
+  local tmp="$WORK/aligned-$(basename "$dst")"
   "$ZIPALIGN" -f 4 "$src" "$tmp"
   "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci --ks-pass pass:android --key-pass pass:android --out "$dst" "$tmp"
   "$APKSIGNER" verify --verbose "$dst" >/dev/null
@@ -204,7 +206,7 @@ open_slot0 stage7
 load_existing stage7
 dump_save pre-save
 
-# GameMenu -> LeagueFixtures -> TEST-ONLY sentinel trigger -> untouched stock p_SaveCareer.
+# GameMenu -> LeagueFixtures -> TEST-ONLY g_GSPlayerPlayMatches sentinel trigger.
 clear_log
 press_play 4
 wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 30 leaguefixtures
@@ -217,7 +219,7 @@ capture_log 'Stage7 sentinels -> stock p_SaveCareer'
 sleep 2
 dump_save post-save
 
-# Process death + untouched stock slot reload. App data remains intact.
+# Process death + stock slot reload. App data remains intact.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 start_game reload
 wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 reload-loadcareer

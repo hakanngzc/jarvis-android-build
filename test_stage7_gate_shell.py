@@ -13,6 +13,11 @@ class Stage7GateShellTests(unittest.TestCase):
         self.assertIn("wait_log 'SAVE CAREER|SaveCareer|SaveState'",text)
         self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0'",text)
         self.assertIn('STAGE7_PERSISTENCE_RUNTIME_PASS',text)
-        self.assertNotIn('pm clear "$PKG"',text.split('# Install Stage7 probe update')[1])
+        self.assertNotIn('pm clear "$PKG"', text.split('# Install Stage7 probe update')[1])
+        self.assertNotIn('local src="$1" dst="$2" tmp=', text)
+        self.assertIn('local src="$1"', text)
+        self.assertIn('local dst="$2"', text)
+        self.assertIn('local tmp="$WORK/aligned-$(basename "$dst")"', text)
 
-if __name__=='__main__':unittest.main()
+if __name__=='__main__':
+    unittest.main()
