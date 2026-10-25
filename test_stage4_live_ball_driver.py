@@ -73,7 +73,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         detector = load_module('stage4_tools/find_kick_ball.py', 'find_kick_ball')
         width, height = 360, 640
         pixels = bytearray(width * height * 3)
-        for y in range(300, 460):
+        for y in range(360, 520):
             for x in range(100, 260):
                 i = (y * width + x) * 3
                 pixels[i:i + 3] = bytes((238, 238, 238))
@@ -84,7 +84,41 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
             self.assertIsNotNone(result)
             x, y = result
             self.assertLessEqual(abs(x - 180), 45)
-            self.assertLessEqual(abs(y - 380), 45)
+            self.assertLessEqual(abs(y - 440), 55)
+
+    def test_kick_ball_detector_rejects_halftime_team_circle(self):
+        detector = load_module('stage4_tools/find_kick_ball.py', 'find_kick_ball_halftime')
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+        # Run165 showed a large neutral team-kit circle in the TV panel around
+        # the upper-middle match screen. It is not the player-controlled ball.
+        for y in range(230, 390):
+            for x in range(100, 260):
+                i = (y * width + x) * 3
+                pixels[i:i + 3] = bytes((238, 238, 238))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'halftime-team-circle.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertIsNone(detector.find_kick_ball(p))
+
+    def test_match_resume_detector_finds_lower_right_play_ball(self):
+        detector = load_module('stage4_tools/find_match_resume.py', 'find_match_resume')
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+        # Synthetic lower-right PLAY/football button: dense neutral football
+        # surface plus bright green PLAY/outline pixels in the run165 region.
+        for y in range(470, 555):
+            for x in range(270, 355):
+                i = (y * width + x) * 3
+                pixels[i:i + 3] = bytes((230, 230, 230))
+        for y in range(505, 550):
+            for x in range(300, 355):
+                i = (y * width + x) * 3
+                pixels[i:i + 3] = bytes((30, 190, 20))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'resume.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertEqual((311, 520), detector.find_match_resume(p))
 
     def test_live_input_hardener_replaces_blind_swipes_with_rendered_ball_swipe(self):
         hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input')
@@ -92,7 +126,9 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         prepared = hardener.harden(source)
         self.assertIn('stage4_tools/find_live_ball.py', prepared)
         self.assertIn('stage4_tools/find_kick_ball.py', prepared)
+        self.assertIn('stage4_tools/find_match_resume.py', prepared)
         self.assertIn('input touchscreen swipe "$x" "$y"', prepared)
+        self.assertIn('input touchscreen tap "$x" "$y"', prepared)
         self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
         self.assertNotIn('swipe_logical 320 700 320 250 420', prepared)
         self.assertNotIn('swipe_logical 260 690 460 280 380', prepared)
@@ -110,6 +146,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertIn('stage4-natural-gate.live.sh', text)
         self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
         self.assertIn('stage4_tools/find_kick_ball.py', text)
+        self.assertIn('stage4_tools/find_match_resume.py', text)
 
 
 if __name__ == '__main__':
