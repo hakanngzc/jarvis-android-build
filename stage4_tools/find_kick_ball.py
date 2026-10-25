@@ -11,11 +11,12 @@ from find_live_ball import decode_png_rgb
 def _find_compact_field_ball(w: int, h: int, bright: bytearray):
     # Later natural chances can render the playable football at normal field
     # scale rather than the earlier giant kick-ball scale. Run170 reached 80'
-    # with a real ~28x26 px football in the lower field. Search only the lower
-    # playing region for a compact, dense, near-square neutral-bright component
-    # so player sprites, score UI and the large resume/kick controls stay out.
+    # with a real ~28x26 px football centered at ~74.4% screen height.
+    # Run185 proved the lower stadium/sponsor strip around ~81.2% can contain
+    # dense neutral-bright text components that otherwise look ball-sized.
+    # Keep this fallback inside the actual lower playing field, above that strip.
     x0, x1 = int(w * 0.08), int(w * 0.92)
-    y0, y1 = int(h * 0.55), int(h * 0.88)
+    y0, y1 = int(h * 0.55), int(h * 0.79)
     min_dim = max(12, int(w * 0.012))
     max_dim = max(34, int(w * 0.065))
     min_count = max(35, int(w * w * 0.00008))

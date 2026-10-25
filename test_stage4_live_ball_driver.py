@@ -64,6 +64,22 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
             write_rgb_png(p, width, height, pixels)
             self.assertEqual((100, 154), detector.find_live_ball(p))
 
+    def test_detector_accepts_dim_grey_green_marker_seen_in_run185(self):
+        detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_run185_colour')
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+        # Run185 rendered the active ring around RGB (21..31, 60..100, 21..31),
+        # which is greener than the pitch but not as saturated as earlier rings.
+        for y in range(300, 380):
+            for x in range(120, 200):
+                if x < 136 or x >= 184 or y < 316 or y >= 364:
+                    i = (y * width + x) * 3
+                    pixels[i:i + 3] = bytes((27, 63, 27))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'run185-dim-marker.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertEqual((160, 340), detector.find_live_ball(p))
+
     def test_detector_ignores_disconnected_green_pitch_distractors(self):
         detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_components')
         width, height = 360, 320
@@ -119,6 +135,21 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
             p = Path(td) / 'halftime-team-circle.png'
             write_rgb_png(p, width, height, pixels)
             self.assertIsNone(detector.find_kick_ball(p))
+
+    def test_compact_kick_ball_ignores_run185_lower_sponsor_strip(self):
+        detector = load_module('stage4_tools/find_kick_ball.py', 'find_kick_ball_run185_strip')
+        width, height = 360, 640
+        bright = bytearray(width * height)
+        # Run170 real compact ball band: ~74% screen height.
+        for y in range(465, 485):
+            for x in range(160, 180):
+                bright[y * width + x] = 1
+        # Run185 false positive sponsor/tribune text: ~81% screen height and
+        # denser/larger than the real ball, so the old 0.88 lower bound won.
+        for y in range(520, 545):
+            for x in range(120, 145):
+                bright[y * width + x] = 1
+        self.assertEqual((170, 474), detector._find_compact_field_ball(width, height, bright))
 
     def test_match_resume_detector_finds_lower_right_play_ball(self):
         detector = load_module('stage4_tools/find_match_resume.py', 'find_match_resume')

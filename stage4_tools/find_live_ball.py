@@ -83,7 +83,12 @@ def find_live_ball(path: Path):
         for x in range(width):
             i = x * channels
             r, g, b = row[i], row[i + 1], row[i + 2]
-            if 18 <= g <= 125 and r <= 16 and b <= 16 and g >= r + 15 and g >= b + 15:
+            # Earlier chances use a very dark green ring. Run185 proved later
+            # stock chances can render the same active-ball marker as a dimmer,
+            # grey-green ring around roughly RGB (20..31, 60..100, 20..31).
+            # Keep the hue dominance requirement strong while allowing that
+            # measured rendered variant.
+            if 45 <= g <= 135 and r <= 45 and b <= 45 and g >= r + 25 and g >= b + 25:
                 mask[base + x] = 1
 
     # Keep disconnected pitch/goal greens separate. The active tutorial/chance
@@ -130,7 +135,13 @@ def find_live_ball(path: Path):
                         mask[n] = 0
                         stack.append(n)
             box_w, box_h = maxx - minx + 1, maxy - miny + 1
-            if 25 <= box_w <= 180 and 25 <= box_h <= 180 and count >= 120 and count > best_count:
+            if not (25 <= box_w <= 180 and 25 <= box_h <= 180 and count >= 120):
+                continue
+            aspect = box_w / box_h
+            density = count / (box_w * box_h)
+            if not (0.70 <= aspect <= 1.40 and density >= 0.08):
+                continue
+            if count > best_count:
                 best_count = count
                 best = (round((minx + maxx) / 2), round((miny + maxy) / 2))
     return best
