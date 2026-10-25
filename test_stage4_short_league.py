@@ -53,7 +53,6 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         detector = load_module('stage4_tools/find_league_picker.py', 'find_league_picker_closed')
         width, height = 360, 640
         pixels = bytearray(width * height * 3)
-        # Closed ChooseNation has a few very wide green controls, not six modal rows.
         for y0 in (180, 280, 380):
             for y in range(y0, y0 + 45):
                 for x in range(20, 340):
@@ -76,6 +75,20 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         self.assertIn('stage4_tools/find_league_picker.py', prepared)
         self.assertIn('short-league Andorra stock row accepted', prepared)
         self.assertNotIn('press_logical 320 400 2', prepared)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
+    def test_preparer_retries_proven_profile_next_after_andorra_selection(self):
+        module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_next')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        self.assertIn('continue_after_andorra_stock_league(){', prepared)
+        self.assertIn('for attempt in 1 2 3', prepared)
+        self.assertIn('input touchscreen tap 940 1830', prepared)
+        self.assertIn('input touchscreen swipe 940 1830 940 1830 220', prepared)
+        self.assertIn('short-league profile Next stock transition accepted', prepared)
+        self.assertIn('continue_after_andorra_stock_league || exit 218', prepared)
+        self.assertIn('LoadDataAndStartTrial|TrialDone', prepared)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
