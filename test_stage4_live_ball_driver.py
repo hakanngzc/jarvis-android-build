@@ -125,9 +125,6 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertIn('input touchscreen swipe "$x" "$y"', prepared)
         self.assertIn('input touchscreen tap "$x" "$y"', prepared)
         self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
-        # Run169 reached the real 90' Full Time screen, where the lower-right
-        # Continue control also resembles a large football. Resume/continue
-        # must be classified before the generic kick-ball detector.
         self.assertLess(
             prepared.index('stage4_tools/find_match_resume.py'),
             prepared.index('stage4_tools/find_kick_ball.py'),
@@ -135,6 +132,22 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertNotIn('swipe_logical 320 700 320 250 420', prepared)
         self.assertNotIn('swipe_logical 260 690 460 280 380', prepared)
         self.assertNotIn('swipe_logical 380 690 180 280 380', prepared)
+        self.assertNotIn('m_Simulate', prepared)
+        self.assertNotIn('m_skipMatches', prepared)
+
+    def test_live_input_hardener_dismisses_only_foreground_admob_interstitial_before_navigation(self):
+        hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_ad_guard')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = hardener.harden(source)
+        self.assertIn('com.newstargames.newstarsoccer/com.google.android.gms.ads.AdActivity', prepared)
+        self.assertIn('dismiss_interstitial_if_present "$step"', prepared)
+        self.assertIn('adb shell input keyevent 4', prepared)
+        self.assertIn('adb shell wm size', prepared)
+        self.assertIn('w * 958 / 1000', prepared)
+        self.assertIn('h * 35 / 1000', prepared)
+        nav_guard = prepared.index('dismiss_interstitial_if_present "$step"')
+        nav_clear = prepared.index('clear_log', nav_guard)
+        self.assertLess(nav_guard, nav_clear)
         self.assertNotIn('m_Simulate', prepared)
         self.assertNotIn('m_skipMatches', prepared)
 
