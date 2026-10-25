@@ -77,16 +77,19 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
         short = 'stage4_tools/prepare_stage4_short_league.py'
+        events = 'stage4_tools/prepare_stage4_event_navigation.py'
         prematch = 'stage4_tools/prepare_stage4_prematch.py'
         live = 'stage4_tools/prepare_stage4_live_input.py'
-        for token in (offline, short, prematch, live):
+        for token in (offline, short, events, prematch, live):
             self.assertIn(token, text)
         self.assertLess(text.index(offline), text.index(short))
-        self.assertLess(text.index(short), text.index(prematch))
+        self.assertLess(text.index(short), text.index(events))
+        self.assertLess(text.index(events), text.index(prematch))
         self.assertLess(text.index(prematch), text.index(live))
         self.assertIn('stage4-natural-gate.visual.sh', text)
         self.assertIn('stage4-natural-gate.offline.sh', text)
         self.assertIn('stage4-natural-gate.shortleague.sh', text)
+        self.assertIn('stage4-natural-gate.events.sh', text)
         self.assertIn('stage4-natural-gate.prematch.sh', text)
         self.assertIn(
             'python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.offline.sh"',
@@ -97,7 +100,11 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
             text,
         )
         self.assertIn(
-            'python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"',
+            'python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh" "$RUNNER_TEMP/stage4-natural-gate.events.sh"',
+            text,
+        )
+        self.assertIn(
+            'python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.events.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"',
             text,
         )
         self.assertIn(
