@@ -54,8 +54,13 @@ for bootstrap_step in $(seq 1 30); do
     dilemma|splashmessage)
       resolve_stage4_dilemma || exit 1
       ;;
-    message|webpage|startransition)
+    message|startransition)
       press_message_accept 2
+      ;;
+    webpage)
+      # webpagenews.uis owns M_Footer:(ON,webpage.btn_Ok,,). Run202 proved
+      # the message-button coordinate never emits a HitGadget on this screen.
+      press_footer_ok 2
       ;;
     contract)
       press_footer_ok 2
