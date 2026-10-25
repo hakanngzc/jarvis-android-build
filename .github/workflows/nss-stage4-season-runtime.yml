@@ -4,7 +4,7 @@ name: NSS Residual Runtime Closure
 on:
   workflow_dispatch:
   push:
-    branches: [nss-residual-runtime-20261024]
+    branches: [nss-stage4-fast-philippines-20261025]
 
 permissions:
   contents: read
