@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from find_live_ball import decode_png_rgb
 
 
-def find_andorra_row(path: Path):
+def find_albania_row(path: Path):
     w, h, channels, rows = decode_png_rgb(path)
     y0, y1 = int(h * 0.18), int(h * 0.72)
     x0, x1 = int(w * 0.15), int(w * 0.85)
@@ -72,10 +72,12 @@ def find_andorra_row(path: Path):
 
     components.sort()
     # Stock selector top rows are Albania, Algeria, Andorra, Angola, Argentina,
-    # Armenia. Andorra is therefore the third rendered row.
+    # Armenia. Run199 proved Andorra can yield zero prospective trial clubs;
+    # select the first rendered row (Albania) instead and let the runtime gate
+    # prove that stock GetProspectiveClubs returns a non-zero candidate set.
     if len(components) < 5:
         return None
-    y, x = components[2]
+    y, x = components[0]
     return x, y
 
 
@@ -83,7 +85,7 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit('usage: find_league_picker.py SCREENSHOT.png')
     try:
-        hit = find_andorra_row(Path(sys.argv[1]))
+        hit = find_albania_row(Path(sys.argv[1]))
     except Exception as exc:
         print(f'LEAGUE_PICKER_DETECT_ERROR={exc}', file=sys.stderr)
         raise SystemExit(2)

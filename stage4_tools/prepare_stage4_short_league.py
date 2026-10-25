@@ -11,10 +11,10 @@ ANCHOR = (
 
 REPLACEMENT = r'''wait_log 'Create Screen:[[:space:]]*choosenation|SETTING ACTIVE:[[:space:]]*choosenation|SetActive:[[:space:]]*choosenation' 30 choosenation
 # Natural-season setup optimization only: open the stock rendered league picker
-# and select its visible Andorra row. A rendered-frame gate is required because
-# hosted-emulator touchscreen taps can occasionally be consumed. No save field,
-# season date, fixture, competition state or match/simulate method is patched.
-select_andorra_stock_league(){
+# and select its visible Albania row. Run199 proved Andorra can create a stock
+# trial bootstrap with zero prospective clubs. No save field, season date,
+# fixture, competition state or match/simulate method is patched here.
+select_albania_stock_league(){
   local attempt frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
   for attempt in 1 2 3 4; do
     echo "short-league picker open attempt $attempt/4" >> "$FLOW"
@@ -30,7 +30,7 @@ select_andorra_stock_league(){
     if [ "$rc" -eq 0 ]; then
       read -r x y <<<"$xy"
       cp "$frame" "$OUT/short-league-list-open.png"
-      echo "short-league rendered Andorra row ${x},${y}" >> "$FLOW"
+      echo "short-league rendered Albania row ${x},${y}" >> "$FLOW"
       adb shell input touchscreen tap "$x" "$y" </dev/null || true
       sleep 2
       rm -f "$tmp" "$post"
@@ -38,29 +38,27 @@ select_andorra_stock_league(){
       if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
         mv -f "$tmp" "$post"
         if ! python3 stage4_tools/find_league_picker.py "$post" >/dev/null 2>>"$FLOW"; then
-          cp "$post" "$OUT/short-league-andorra-selected.png"
-          echo "short-league Andorra stock row accepted" >> "$FLOW"
+          cp "$post" "$OUT/short-league-albania-selected.png"
+          echo "short-league Albania stock row accepted" >> "$FLOW"
           return 0
         fi
       fi
-      echo "short-league Andorra tap did not close picker; retrying" >> "$FLOW"
+      echo "short-league Albania tap did not close picker; retrying" >> "$FLOW"
     elif [ "$rc" -ne 1 ]; then
       echo "short-league picker detector failed rc=$rc" >> "$FLOW"
     fi
   done
-  echo "short-league stock Andorra selection could not be proven" >> "$FLOW"
+  echo "short-league stock Albania selection could not be proven" >> "$FLOW"
   return 1
 }
 
-continue_after_andorra_stock_league(){
+continue_after_albania_stock_league(){
   local attempt evidence size
   size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
   for attempt in 1 2 3; do
     clear_log
     echo "short-league profile Next attempt $attempt/3" >> "$FLOW"
     if [[ "$size" == *1080x2280* ]]; then
-      # Run184 proves Andorra selection returns to the same player-profile
-      # surface whose stock Next control was already measured at 940,1830.
       if [ "$attempt" = 1 ]; then
         adb shell input touchscreen tap 940 1830 </dev/null || true
       else
@@ -73,22 +71,29 @@ continue_after_andorra_stock_league(){
 
     evidence="$WORK/short-league-next-${attempt}.txt"
     adb logcat -d -v brief > "$evidence" 2>/dev/null || true
-    if grep -qiE 'LoadDataAndStartTrial|TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
-      cp "$evidence" "$OUT/short-league-next-${attempt}.txt" 2>/dev/null || true
+    cp "$evidence" "$OUT/short-league-next-${attempt}.txt" 2>/dev/null || true
+
+    if grep -qE 'List of prospective clubs size:[[:space:]]*0([^0-9]|$)' "$evidence"; then
+      echo "short-league Albania produced zero prospective clubs" >> "$FLOW"
+      return 1
+    fi
+    if grep -qE 'List of prospective clubs size:[[:space:]]*[1-9][0-9]*' "$evidence" \
+       && grep -qiE 'LoadDataAndStartTrial|TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
+      echo "short-league Albania produced viable prospective clubs" >> "$FLOW"
       echo "short-league profile Next stock transition accepted" >> "$FLOW"
       return 0
     fi
-    cp "$evidence" "$OUT/short-league-next-${attempt}.txt" 2>/dev/null || true
+
     fatal_check || return 1
-    echo "short-league profile Next attempt $attempt did not advance; retrying" >> "$FLOW"
+    echo "short-league profile Next attempt $attempt did not prove viable bootstrap; retrying" >> "$FLOW"
   done
   shot "short-league-next-timeout"
-  echo "short-league profile Next could not reach stock career bootstrap" >> "$FLOW"
+  echo "short-league profile Next could not reach viable stock career bootstrap" >> "$FLOW"
   return 1
 }
 
-select_andorra_stock_league || exit 219
-continue_after_andorra_stock_league || exit 218'''
+select_albania_stock_league || exit 219
+continue_after_albania_stock_league || exit 218'''
 
 
 def harden(text: str) -> str:
@@ -103,7 +108,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_short_league.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied rendered-gated stock-UI Andorra short-league selection: {dst}')
+    print(f'Applied rendered-gated stock-UI Albania short-league selection: {dst}')
 
 
 if __name__ == '__main__':
