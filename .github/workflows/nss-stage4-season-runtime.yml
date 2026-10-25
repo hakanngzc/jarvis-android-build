@@ -1,4 +1,4 @@
-# Residual runtime closure: shared durable-save bootstrap plus priority-ordered three-phase rendered live-match input.
+# Residual runtime closure: shared durable-save bootstrap plus rendered natural live-match input.
 name: NSS Residual Runtime Closure
 
 on:
@@ -69,9 +69,9 @@ jobs:
 
       - name: Validate natural-season tooling
         run: |
-          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/find_match_resume.py stage4_tools/verify_stage4_natural_season.py
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_short_league.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/find_match_resume.py stage4_tools/verify_stage4_natural_season.py
           bash -n stage4_natural_season_gate.sh
-          python3 -m unittest test_stage4_natural_policy.py test_stage4_live_ball_driver.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
+          python3 -m unittest test_stage4_natural_policy.py test_stage4_short_league.py test_stage4_live_ball_driver.py test_stage2_residual_contract.py test_chooseclub_step_targets.py test_runtime_start_retry.py -v
 
       - name: Enable KVM access
         run: |
@@ -103,7 +103,8 @@ jobs:
             python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
             python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.start.sh"
             python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.start.sh" "$RUNNER_TEMP/stage4-natural-gate.visual.sh"
-            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
             python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/stage4-natural-gate.prematch.sh" "$RUNNER_TEMP/stage4-natural-gate.live.sh"
             bash -n "$RUNNER_TEMP/stage4-natural-gate.live.sh"
             bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"
