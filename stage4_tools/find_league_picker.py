@@ -63,10 +63,6 @@ def _visible_rows(path: Path):
                         stack.append(n)
             box_w = maxx - minx + 1
             box_h = maxy - miny + 1
-            # A real league row sits inside the central list body. Broad green
-            # panels on a different/closed screen can be clipped by our ROI and
-            # otherwise look row-shaped, so reject components touching either
-            # horizontal ROI boundary.
             if minx <= x0 + 2 or maxx >= x1 - 3:
                 continue
             if (
@@ -79,16 +75,14 @@ def _visible_rows(path: Path):
     return components
 
 
-def find_hong_kong_row(path: Path):
+def find_argentina_row(path: Path):
     components = _visible_rows(path)
-    # Runtime stock log from run217 proves the rendered league-only selector
-    # ordering: Hong Kong is the 43rd league-bearing nation (zero-based index
-    # 42). The caller performs seven slow 600-logical-height page drags, so the
-    # target is the first visible row. Accept a partially clipped page too; the
-    # stock nation-id proof after selection remains authoritative.
-    if not components:
+    # Run199 captured the initial stock page exactly: Albania, Algeria,
+    # Andorra, Angola, Argentina, Armenia. Argentina is the fifth row, so no
+    # scrolling is required. The runtime caller still verifies nation id 9.
+    if len(components) < 5:
         return None
-    y, x = components[0]
+    y, x = components[4]
     return x, y
 
 
@@ -96,7 +90,7 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit('usage: find_league_picker.py SCREENSHOT.png')
     try:
-        hit = find_hong_kong_row(Path(sys.argv[1]))
+        hit = find_argentina_row(Path(sys.argv[1]))
     except Exception as exc:
         print(f'LEAGUE_PICKER_DETECT_ERROR={exc}', file=sys.stderr)
         raise SystemExit(2)
