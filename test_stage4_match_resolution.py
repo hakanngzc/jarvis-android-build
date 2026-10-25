@@ -26,12 +26,21 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         self.assertIn('for bootstrap_step in $(seq 1 30)', prepared)
         self.assertIn('bootstrap_state="$(latest_state)"', prepared)
         self.assertIn('dilemma|splashmessage)', prepared)
-        self.assertIn('message|webpage|startransition)', prepared)
+        self.assertIn('message|startransition)', prepared)
+        self.assertIn('webpage)', prepared)
         self.assertIn("capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'", prepared)
         self.assertIn('Fresh Career did not finish stock bootstrap to GameMenu', prepared)
         self.assertNotIn('start_game bootstrap-restart', prepared)
         self.assertNotIn('open_slot0 bootstrap-restart', prepared)
         self.assertNotIn('load_existing bootstrap-restart', prepared)
+
+    def test_fresh_webpagenews_uses_stock_webpage_footer_ok(self):
+        prepared = self.composed_gate()
+        start = prepared.index('for bootstrap_step in $(seq 1 30)')
+        end = prepared.index('[ "$bootstrap_saved" -eq 1 ]', start)
+        bootstrap = prepared[start:end]
+        self.assertIn('webpage)\n      press_footer_ok 2', bootstrap)
+        self.assertNotIn('message|webpage|startransition)', bootstrap)
 
     def test_stage4_removes_redundant_preseason_restart_and_resizes_after_baseline(self):
         prepared = self.composed_gate()
