@@ -21,3 +21,5 @@ class Stage7GateShellTests(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main()
+
+# Clean rerun trigger after signing-helper regression fix.
