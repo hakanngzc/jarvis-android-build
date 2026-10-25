@@ -13,14 +13,14 @@ def find_kick_ball(path: Path):
     # NSS live chances render the player-controlled ball as a very large,
     # high-contrast white/black sphere in the lower-middle pitch. Run165 also
     # proved that the half-time TV panel contains large neutral-white team
-    # circles around ~44% screen height. Express the search in terms of the
-    # candidate window CENTER so the boundary remains scale-independent.
+    # circles around ~44-48% screen height. The real run156 kick ball center is
+    # ~69.3% screen height, so constrain candidate CENTERS to the lower field.
     win = max(180, min(320, w // 4))
     stride = max(12, w // 54)
     x_min = int(w * 0.12)
     x_max = int(w * 0.88) - win
-    center_y_min = int(h * 0.60)
-    center_y_max = int(h * 0.78)
+    center_y_min = int(h * 0.68)
+    center_y_max = int(h * 0.80)
     y_min = max(0, center_y_min - win // 2)
     y_max = min(h - win, center_y_max - win // 2)
     if x_max <= x_min or y_max < y_min:
@@ -35,8 +35,6 @@ def find_kick_ball(path: Path):
             if r > 170 and g > 170 and b > 170 and max(r, g, b) - min(r, g, b) < 85:
                 bright[base + x] = 1
 
-    # Row-prefix sums keep the scan cheap in the emulator runtime and avoid
-    # adding Pillow/numpy to the evidence harness.
     row_prefix = []
     for y in range(h):
         row = [0] * (w + 1)
@@ -61,9 +59,8 @@ def find_kick_ball(path: Path):
                 best_count = count
                 best = (x0 + win // 2, y0 + win // 2)
 
-    # The real run156 kick frame remains ~62% neutral-bright in this lower
-    # pitch region. 25% leaves margin for shaded/black ball panels while
-    # rejecting ordinary player sprites and pitch furniture.
+    # The real run156 kick frame is well above this 25% neutral-bright gate in
+    # the lower pitch region; the run165 half-time TV circle falls below it.
     if best is None or best_count < int(win * win * 0.25):
         return None
     return best
