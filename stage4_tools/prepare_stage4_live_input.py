@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 DRIVER = r'''capture_valid_live_frame(){
-  local final="$1" tmp="${final}.tmp" attempt
+  local final="$1" tmp attempt
+  tmp="${final}.tmp"
   rm -f "$tmp" "$final"
   for attempt in 1 2 3; do
     rm -f "$tmp"
@@ -217,7 +218,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied validated-frame natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied nounset-safe validated-frame natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':
