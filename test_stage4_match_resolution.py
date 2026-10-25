@@ -34,8 +34,9 @@ class Stage4MatchResolutionTests(unittest.TestCase):
             self.assertNotIn(forbidden, prepared)
 
     def test_effective_wm_size_parser_is_rewritten_when_helpers_exist(self):
+        boundary = load_module('stage4_tools/prepare_stage4_boundary_scope.py', 'boundary_for_wm_parser')
         resolution = load_module('stage4_tools/prepare_stage4_match_resolution.py', 'stage4_match_resolution_wm')
-        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        source = boundary.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
         helper = 'size="$(adb shell wm size 2>/dev/null | tr -d \'\\r\')"\n'
         synthetic = helper + helper + source
         prepared = resolution.harden(synthetic)
