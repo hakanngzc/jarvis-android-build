@@ -36,14 +36,53 @@ BOOTSTRAP_RE = re.compile(
     r'''adb logcat -d -v threadtime > "\$WORK/bootstrap-save-proof\.txt".*?capture_log 'bootstrap-restart durable reload -> GameMenu'\s*''',
     re.S,
 )
-BOOTSTRAP_NEW = r'''wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 50 fresh-gamemenu
-adb logcat -d -v threadtime > "$WORK/bootstrap-save-proof.txt" 2>/dev/null || true
-if ! grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/bootstrap-save-proof.txt"; then
+BOOTSTRAP_NEW = r'''bootstrap_saved=0
+bootstrap_gamemenu=0
+for bootstrap_step in $(seq 1 30); do
+  fatal_check || exit 1
+  adb logcat -d -v threadtime > "$WORK/bootstrap-save-proof.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/bootstrap-save-proof.txt"; then
+    bootstrap_saved=1
+  fi
+  bootstrap_state="$(latest_state)"
+  echo "fresh bootstrap step ${bootstrap_step}: state=${bootstrap_state} saved=${bootstrap_saved}" >> "$FLOW"
+  case "$bootstrap_state" in
+    gamemenu)
+      bootstrap_gamemenu=1
+      break
+      ;;
+    dilemma|splashmessage)
+      resolve_stage4_dilemma || exit 1
+      ;;
+    message|webpage|startransition)
+      press_message_accept 2
+      ;;
+    contract)
+      press_footer_ok 2
+      ;;
+    unknown)
+      # During initial Career creation the stock game can emit SAVE CAREER
+      # before the following news/transition surface publishes SetActive. Give
+      # it a bounded settle before classifying again; do not drive gameplay.
+      sleep 2
+      ;;
+    *)
+      echo "unexpected fresh bootstrap state: $bootstrap_state" >> "$FLOW"
+      exit 218
+      ;;
+  esac
+done
+[ "$bootstrap_saved" -eq 1 ] || {
   cp "$WORK/bootstrap-save-proof.txt" "$OUT/bootstrap-save-proof-missing.txt" 2>/dev/null || true
   echo 'Fresh Career save evidence missing'
   exit 1
-fi
-capture_log 'fresh Career durable SAVE CAREER confirmed'
+}
+[ "$bootstrap_gamemenu" -eq 1 ] || {
+  adb logcat -d -v threadtime > "$OUT/bootstrap-gamemenu-timeout.txt" 2>/dev/null || true
+  echo 'Fresh Career did not finish stock bootstrap to GameMenu'
+  exit 219
+}
+capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'
 '''
 
 
@@ -72,7 +111,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_match_resolution.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied Stage4-only no-restart baseline plus in-process half-resolution surface: {dst}')
+    print(f'Applied Stage4 state-driven fresh bootstrap plus no-restart half-resolution surface: {dst}')
 
 
 if __name__ == '__main__':
