@@ -17,7 +17,7 @@ DRIVER = r'''drive_live_chance(){
     read -r x y <<<"$resume_xy"
     echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 3
+    sleep "${LIVE_INPUT_SETTLE_SECONDS:-1}"
     return 0
   fi
   if [ "$resume_rc" -ne 1 ]; then
@@ -42,7 +42,7 @@ DRIVER = r'''drive_live_chance(){
     [ "$target_y" -le 1750 ] || target_y=1750
     echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 3
+    sleep "${LIVE_INPUT_SETTLE_SECONDS:-1}"
     return 0
   fi
   if [ "$rc" -ne 1 ]; then
@@ -58,7 +58,7 @@ DRIVER = r'''drive_live_chance(){
     read -r x y <<<"$resume_xy"
     echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 3
+    sleep "${LIVE_INPUT_SETTLE_SECONDS:-1}"
     return 0
   fi
   if [ "$resume_rc" -ne 1 ]; then
@@ -85,7 +85,7 @@ DRIVER = r'''drive_live_chance(){
     [ "$target_y" -ge 220 ] || target_y=220
     echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 3
+    sleep "${LIVE_INPUT_SETTLE_SECONDS:-1}"
     return 0
   fi
   if [ "$kick_rc" -ne 1 ]; then
