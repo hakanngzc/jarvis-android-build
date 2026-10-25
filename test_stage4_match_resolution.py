@@ -36,9 +36,8 @@ class Stage4MatchResolutionTests(unittest.TestCase):
     def test_effective_wm_size_parser_is_rewritten_when_helpers_exist(self):
         resolution = load_module('stage4_tools/prepare_stage4_match_resolution.py', 'stage4_match_resolution_wm')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
-        marker = 'BASE_FLOW_BYTES="$(wc -c < "$FLOW")"\nSTART_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'
         helper = 'size="$(adb shell wm size 2>/dev/null | tr -d \'\\r\')"\n'
-        synthetic = source.replace(marker, helper + helper + marker, 1)
+        synthetic = helper + helper + source
         prepared = resolution.harden(synthetic)
         self.assertEqual(2, prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"))
         self.assertNotIn("size=\"$(adb shell wm size 2>/dev/null | tr -d '\\r')\"", prepared)
