@@ -8,24 +8,33 @@ from pathlib import Path
 POST_BASELINE_OLD = '''BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
 START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 POST_BASELINE_NEW = '''BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
-# Stage4 already has a freshly saved Career on GameMenu. Do not add another
-# pre-season process restart: run193 hit the stock async sound-loader race and
-# run195 proved the redundant restart can also lose MainMenu Career input.
-# Reduce only rendered pixels in the already-proven process. This changes no
-# save field, fixture, season date, competition state or match method.
+# Run205 proved that Android's wm-size override recreates the NSS Activity and
+# returns the stock UI to MainMenu. Keep the lower rendered resolution for the
+# long natural-match loop, but explicitly reload the already-saved Career
+# through stock MainMenu -> SaveSlot -> LoadCareer before driving fixtures.
+# No save field, fixture, season date, competition state or match method is
+# patched by this transition.
+clear_log
 adb shell wm size 540x1140 >/dev/null
-sleep 3
+wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 30 natural-lowres-mainmenu || {
+  adb logcat -d -v threadtime > "$OUT/natural-lowres-mainmenu-timeout.txt" 2>/dev/null || true
+  echo 'wm-size recreation did not reach stock MainMenu'
+  exit 215
+}
+fatal_check
+open_slot0 natural-lowres
+load_existing natural-lowres
 fatal_check
 rm -f "$WORK/natural-lowres-ready.png"
 timeout 8s adb exec-out screencap -p > "$WORK/natural-lowres-ready.png" 2>/dev/null || true
 python3 stage4_tools/validate_frame_png.py "$WORK/natural-lowres-ready.png" >> "$FLOW" 2>&1 || {
   cp "$WORK/natural-lowres-ready.png" "$OUT/natural-lowres-invalid.png" 2>/dev/null || true
-  echo 'post-baseline low-resolution rendered frame invalid' >> "$FLOW"
+  echo 'post-reload low-resolution rendered frame invalid' >> "$FLOW"
   exit 217
 }
 cp "$WORK/natural-lowres-ready.png" "$OUT/natural-lowres-ready.png"
 test -n "$(adb shell pidof "$PKG" | tr -d '\\r' || true)" || exit 216
-capture_log 'natural runtime in-process render surface -> 540x1140'
+capture_log 'natural runtime resize -> stock Career reload -> GameMenu'
 BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
 START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 
@@ -93,8 +102,8 @@ capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'
 
 def harden(text: str) -> str:
     # Stage2's shared persistence hardener adds a baseline restart that is useful
-    # for Stage2 branch persistence but redundant for this Stage4 natural-season
-    # gate. Stage4 has its own mandatory post-season restart/reload proof.
+    # for Stage2 branch persistence but redundant before the Stage4 resize. The
+    # resize itself has a stock Career reload because Android recreates Activity.
     matches = list(BOOTSTRAP_RE.finditer(text))
     if len(matches) != 1:
         raise SystemExit(f'expected one shared bootstrap-restart block, found {len(matches)}')
@@ -116,7 +125,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_match_resolution.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied Stage4 state-driven fresh bootstrap plus no-restart half-resolution surface: {dst}')
+    print(f'Applied Stage4 state-driven fresh bootstrap plus resize-triggered stock Career reload: {dst}')
 
 
 if __name__ == '__main__':
