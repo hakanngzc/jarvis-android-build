@@ -34,6 +34,23 @@ class Stage4LiveInputSpeedTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_live_driver_scales_swipe_targets_to_current_rendered_frame(self):
+        hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'stage4_live_input_scaled')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = hardener.harden(source)
+        driver_start = prepared.index('drive_live_chance(){')
+        driver_end = prepared.index("\n}\n", driver_start) + 3
+        driver = prepared[driver_start:driver_end]
+        self.assertIn('read -r kind x y frame_w frame_h <<<"$class"', driver)
+        self.assertIn('target_x=$((frame_w / 2))', driver)
+        self.assertIn('target_x=$((frame_w / 6))', driver)
+        self.assertIn('target_x=$((frame_w * 5 / 6))', driver)
+        self.assertIn('target_y=$((y - frame_h * 22 / 100))', driver)
+        self.assertIn('target_y=$((y - frame_h * 29 / 100))', driver)
+        self.assertNotIn('target_x=900', driver)
+        self.assertNotIn('target_x=540', driver)
+        self.assertNotIn('target_x=180', driver)
+
 
 if __name__ == '__main__':
     unittest.main()
