@@ -13,34 +13,39 @@ def load_module(path_str: str, name: str):
 
 
 class Stage4MatchResolutionTests(unittest.TestCase):
-    def test_lowres_surface_is_configured_before_new_process_and_state_neutral(self):
+    def composed_gate(self):
+        stage2 = load_module('stage2_residual_tools/prepare_stage2_gate.py', 'stage2_for_stage4_resolution')
         boundary = load_module('stage4_tools/prepare_stage4_boundary_scope.py', 'boundary_for_resolution')
         resolution = load_module('stage4_tools/prepare_stage4_match_resolution.py', 'stage4_match_resolution')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
-        prepared = resolution.harden(boundary.harden(source))
+        return resolution.harden(boundary.harden(stage2.prepare_text(source)))
+
+    def test_stage4_removes_redundant_preseason_restart_and_resizes_after_baseline(self):
+        prepared = self.composed_gate()
+        save_proof = prepared.index("capture_log 'fresh Career durable SAVE CAREER confirmed'")
         baseline = prepared.index('dump_save natural-baseline; checkpoint natural-baseline')
         resize = prepared.index('adb shell wm size 540x1140')
-        restart = prepared.index('start_game natural-lowres')
-        reload = prepared.index('load_existing natural-lowres')
         season_start = prepared.index('START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0')
+        self.assertLess(save_proof, baseline)
         self.assertLess(baseline, resize)
-        self.assertLess(resize, restart)
-        self.assertLess(restart, reload)
-        self.assertLess(reload, season_start)
+        self.assertLess(resize, season_start)
+        self.assertNotIn('start_game bootstrap-restart', prepared)
+        self.assertNotIn('open_slot0 bootstrap-restart', prepared)
+        self.assertNotIn('load_existing bootstrap-restart', prepared)
+        self.assertNotIn('start_game natural-lowres', prepared)
+        self.assertNotIn('open_slot0 natural-lowres', prepared)
+        self.assertNotIn('load_existing natural-lowres', prepared)
+        self.assertIn('stage4_tools/validate_frame_png.py "$WORK/natural-lowres-ready.png"', prepared)
+        self.assertIn("capture_log 'natural runtime in-process render surface -> 540x1140'", prepared)
+        self.assertIn('run195 proved the redundant restart can also lose MainMenu Career input', prepared)
         self.assertEqual(1, prepared.count('adb shell wm size 540x1140'))
-        self.assertNotIn('natural runtime render surface -> 540x1140', prepared)
         self.assertEqual(2, prepared.count('BASE_FLOW_BYTES="$(wc -c < "$FLOW")"'))
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
-    def test_effective_wm_size_parser_is_rewritten_when_helpers_exist(self):
-        boundary = load_module('stage4_tools/prepare_stage4_boundary_scope.py', 'boundary_for_wm_parser')
-        resolution = load_module('stage4_tools/prepare_stage4_match_resolution.py', 'stage4_match_resolution_wm')
-        source = boundary.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
-        helper = 'size="$(adb shell wm size 2>/dev/null | tr -d \'\\r\')"\n'
-        synthetic = helper + helper + source
-        prepared = resolution.harden(synthetic)
-        self.assertEqual(2, prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"))
+    def test_effective_wm_size_parser_is_rewritten_in_composed_gate(self):
+        prepared = self.composed_gate()
+        self.assertGreaterEqual(prepared.count("adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1"), 2)
         self.assertNotIn("size=\"$(adb shell wm size 2>/dev/null | tr -d '\\r')\"", prepared)
 
     def test_kick_detector_scales_large_ball_window_for_half_resolution(self):
