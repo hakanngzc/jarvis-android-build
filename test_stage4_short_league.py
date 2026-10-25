@@ -91,14 +91,18 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
-    def test_preparer_opens_league_picker_through_rendered_arrow_gadget(self):
-        module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_arrow')
+    def test_preparer_opens_league_picker_at_source_defined_pressable_center(self):
+        module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_button_center')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
         start = prepared.index('select_argentina_stock_league(){')
         end = prepared.index('continue_after_argentina_stock_league(){', start)
         selector = prepared[start:end]
-        self.assertIn('press_logical 64 630 1', selector)
+        # choosenation.uis: outer origin (12,208) + league origin (6,348) +
+        # M_StandardButton (28,75,572,82), whose pressable inset is +5/-10.
+        # Logical pressable area = x 51..613, y 636..708; use its safe centre.
+        self.assertIn('press_logical 332 672 1', selector)
+        self.assertNotIn('press_logical 64 630 1', selector)
         self.assertNotIn('press_logical 320 640 1', selector)
 
     def test_preparer_waits_for_open_modal_before_any_second_selector_press(self):
