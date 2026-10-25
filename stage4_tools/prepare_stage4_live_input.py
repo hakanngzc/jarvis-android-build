@@ -39,7 +39,7 @@ drive_live_chance(){
     read -r x y <<<"$resume_xy"
     echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 3
+    sleep 1
     return 0
   fi
   if [ "$resume_rc" -ne 1 ]; then
@@ -64,7 +64,7 @@ drive_live_chance(){
     [ "$target_y" -le 1750 ] || target_y=1750
     echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 3
+    sleep 1
     return 0
   fi
   if [ "$rc" -ne 1 ]; then
@@ -72,24 +72,11 @@ drive_live_chance(){
     return 1
   fi
 
-  # Phase B fallback: retain the same specific resume check after marker
-  # classification for compatibility with previously hardened generated gates.
-  # In normal execution Phase 0 already consumes genuine resume screens.
-  resume_xy="$(python3 stage4_tools/find_match_resume.py "$frame" 2>>"$FLOW")" && resume_rc=0 || resume_rc=$?
-  if [ "$resume_rc" -eq 0 ]; then
-    read -r x y <<<"$resume_xy"
-    echo "cycle $cycle match resume Play ${x},${y} @${elapsed}s" >> "$FLOW"
-    adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 3
-    return 0
-  fi
-  if [ "$resume_rc" -ne 1 ]; then
-    echo "cycle $cycle match-resume detector failed rc=$resume_rc @${elapsed}s" >> "$FLOW"
-    return 1
-  fi
-
-  # Phase C: actual kick/pass minigame. A huge or normal-scale white/black
+  # Phase B: actual kick/pass minigame. A huge or normal-scale white/black
   # football can be rendered in the lower pitch. Detect it and flick upward.
+  # Resume is intentionally checked only once above: decoding the same full
+  # Pixel4 frame twice added substantial hosted-emulator overhead without any
+  # additional state coverage.
   kick_xy="$(python3 stage4_tools/find_kick_ball.py "$frame" 2>>"$FLOW")" && kick_rc=0 || kick_rc=$?
   if [ "$kick_rc" -eq 0 ]; then
     read -r x y <<<"$kick_xy"
@@ -107,7 +94,7 @@ drive_live_chance(){
     [ "$target_y" -ge 220 ] || target_y=220
     echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} @${elapsed}s" >> "$FLOW"
     adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 420 </dev/null || true
-    sleep 3
+    sleep 1
     return 0
   fi
   if [ "$kick_rc" -ne 1 ]; then
@@ -116,7 +103,7 @@ drive_live_chance(){
   fi
 
   echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
-  sleep 2
+  sleep 1
   return 0
 }
 '''
@@ -218,7 +205,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied nounset-safe validated-frame natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied optimized validated-frame natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':
