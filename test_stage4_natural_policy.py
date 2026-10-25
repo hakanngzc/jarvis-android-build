@@ -74,11 +74,17 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
 
     def test_natural_workflow_actually_applies_prematch_preparer(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
+        self.assertIn('stage4_tools/prepare_stage4_short_league.py', text)
         self.assertIn('stage4_tools/prepare_stage4_prematch.py', text)
         self.assertIn('stage4-natural-gate.visual.sh', text)
+        self.assertIn('stage4-natural-gate.shortleague.sh', text)
         self.assertIn('stage4-natural-gate.prematch.sh', text)
         self.assertIn(
-            'python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"',
+            'python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh"',
+            text,
+        )
+        self.assertIn(
+            'python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"',
             text,
         )
         self.assertIn(
