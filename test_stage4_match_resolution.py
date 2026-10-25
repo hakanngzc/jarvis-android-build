@@ -39,7 +39,11 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         start = prepared.index('for bootstrap_step in $(seq 1 30)')
         end = prepared.index('[ "$bootstrap_saved" -eq 1 ]', start)
         bootstrap = prepared[start:end]
-        self.assertIn('webpage)\n      press_footer_ok 2', bootstrap)
+        webpage = bootstrap.index('webpage)')
+        footer = bootstrap.index('press_footer_ok 2', webpage)
+        next_case = bootstrap.index('contract)', webpage)
+        self.assertLess(webpage, footer)
+        self.assertLess(footer, next_case)
         self.assertNotIn('message|webpage|startransition)', bootstrap)
 
     def test_stage4_removes_redundant_preseason_restart_and_resizes_after_baseline(self):
