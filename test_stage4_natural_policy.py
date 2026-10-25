@@ -69,18 +69,31 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertLess(resume, marker)
         self.assertLess(resume, kick)
         self.assertIn('dismiss_interstitial_if_present "$step"', prepared)
+        self.assertIn('stage4_tools/validate_frame_png.py', prepared)
         self.assertNotIn('m_skipMatches', prepared)
         self.assertNotIn('m_Simulate', prepared)
 
-    def test_natural_workflow_actually_applies_prematch_preparer(self):
+    def test_natural_workflow_applies_full_hardening_chain(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
-        self.assertIn('stage4_tools/prepare_stage4_short_league.py', text)
-        self.assertIn('stage4_tools/prepare_stage4_prematch.py', text)
+        offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
+        short = 'stage4_tools/prepare_stage4_short_league.py'
+        prematch = 'stage4_tools/prepare_stage4_prematch.py'
+        live = 'stage4_tools/prepare_stage4_live_input.py'
+        for token in (offline, short, prematch, live):
+            self.assertIn(token, text)
+        self.assertLess(text.index(offline), text.index(short))
+        self.assertLess(text.index(short), text.index(prematch))
+        self.assertLess(text.index(prematch), text.index(live))
         self.assertIn('stage4-natural-gate.visual.sh', text)
+        self.assertIn('stage4-natural-gate.offline.sh', text)
         self.assertIn('stage4-natural-gate.shortleague.sh', text)
         self.assertIn('stage4-natural-gate.prematch.sh', text)
         self.assertIn(
-            'python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh"',
+            'python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.offline.sh"',
+            text,
+        )
+        self.assertIn(
+            'python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-natural-gate.offline.sh" "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh"',
             text,
         )
         self.assertIn(
