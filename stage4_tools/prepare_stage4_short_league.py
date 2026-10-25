@@ -13,52 +13,60 @@ REPLACEMENT = r'''wait_log 'Create Screen:[[:space:]]*choosenation|SETTING ACTIV
 # Run217's stock runtime log gives the authoritative league-bearing selector
 # order: Hong Kong is zero-based index 42 among nations with leagues. Seven slow
 # 600-logical-height page drags therefore place it on the first visible row.
+# Run219 proved that reopening the picker retains its scroll position, so a
+# detector retry must never repeat those seven drags or it overshoots to Serbia.
 # The selection is not trusted until stock GetProspectiveClubs proves nation 87
 # and a non-zero candidate set. No Career/season/fixture/match state is patched.
 select_hong_kong_stock_league(){
-  local attempt page frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
-  for attempt in 1 2; do
-    echo "short-league Hong Kong picker attempt $attempt/2" >> "$FLOW"
-    press_logical 320 640 1
+  local page detect_attempt frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
+  echo "short-league Hong Kong picker open" >> "$FLOW"
+  press_logical 320 640 1
 
-    for page in 1 2 3 4 5 6 7; do
-      echo "short-league Hong Kong page scroll $page/7" >> "$FLOW"
-      swipe_logical 320 760 320 160 1600
-      sleep 1
-    done
+  for page in 1 2 3 4 5 6 7; do
+    echo "short-league Hong Kong page scroll $page/7" >> "$FLOW"
+    swipe_logical 320 760 320 160 1600
+    sleep 1
+  done
 
+  # Stay at the same scroll offset while the rendered list settles. Run219's
+  # first detector read was transiently empty; the second picker open preserved
+  # the offset and seven more drags overshot from Hong Kong to Serbia. Only the
+  # screenshot/detector is retried here.
+  for detect_attempt in 1 2 3 4; do
     rm -f "$tmp" "$frame"
     timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
     if ! python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
-      echo "short-league Hong Kong scrolled frame invalid" >> "$FLOW"
+      echo "short-league Hong Kong frame invalid detect attempt $detect_attempt/4" >> "$FLOW"
+      sleep 1
       continue
     fi
     mv -f "$tmp" "$frame"
     cp "$frame" "$OUT/short-league-hong-kong-list.png"
     xy="$(python3 stage4_tools/find_league_picker.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
-    if [ "$rc" -ne 0 ]; then
-      echo "short-league Hong Kong first-row detector failed rc=$rc" >> "$FLOW"
-      continue
-    fi
+    if [ "$rc" -eq 0 ]; then
+      read -r x y <<<"$xy"
+      echo "short-league rendered Hong Kong candidate row ${x},${y}" >> "$FLOW"
+      clear_log
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      sleep 2
 
-    read -r x y <<<"$xy"
-    echo "short-league rendered Hong Kong candidate row ${x},${y}" >> "$FLOW"
-    clear_log
-    adb shell input touchscreen tap "$x" "$y" </dev/null || true
-    sleep 2
-
-    rm -f "$tmp" "$post"
-    timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
-    if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
-      mv -f "$tmp" "$post"
-      cp "$post" "$OUT/short-league-hong-kong-selected.png"
-      if ! python3 stage4_tools/find_league_picker.py "$post" >/dev/null 2>>"$FLOW"; then
-        echo "short-league Hong Kong rendered row accepted" >> "$FLOW"
-        return 0
+      rm -f "$tmp" "$post"
+      timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
+      if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+        mv -f "$tmp" "$post"
+        cp "$post" "$OUT/short-league-hong-kong-selected.png"
+        if ! python3 stage4_tools/find_league_picker.py "$post" >/dev/null 2>>"$FLOW"; then
+          echo "short-league Hong Kong rendered row accepted" >> "$FLOW"
+          return 0
+        fi
       fi
+      echo "short-league Hong Kong candidate did not close picker" >> "$FLOW"
+      return 1
     fi
-    echo "short-league Hong Kong candidate did not close picker" >> "$FLOW"
+    echo "short-league Hong Kong first-row detector failed rc=$rc attempt $detect_attempt/4" >> "$FLOW"
+    sleep 1
   done
+
   echo "short-league Hong Kong rendered selection could not be proven" >> "$FLOW"
   return 1
 }
