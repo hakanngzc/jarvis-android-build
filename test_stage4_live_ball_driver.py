@@ -28,6 +28,28 @@ def write_rgb_png(path: Path, width: int, height: int, pixels: bytearray) -> Non
 
 
 class Stage4LiveBallDriverTests(unittest.TestCase):
+    def test_frame_validator_accepts_complete_png(self):
+        validator = load_module('stage4_tools/validate_frame_png.py', 'validate_frame_png_ok')
+        width, height = 32, 32
+        pixels = bytearray(width * height * 3)
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'complete.png'
+            write_rgb_png(p, width, height, pixels)
+            self.assertEqual((True, None), validator.validate_frame(p))
+
+    def test_frame_validator_rejects_truncated_png(self):
+        validator = load_module('stage4_tools/validate_frame_png.py', 'validate_frame_png_truncated')
+        width, height = 32, 32
+        pixels = bytearray(width * height * 3)
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'truncated.png'
+            write_rgb_png(p, width, height, pixels)
+            data = p.read_bytes()
+            p.write_bytes(data[:len(data) // 2])
+            ok, error = validator.validate_frame(p)
+            self.assertFalse(ok)
+            self.assertTrue(error)
+
     def test_detector_finds_dense_green_active_ball_marker(self):
         detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball')
         width, height = 240, 320
@@ -135,6 +157,22 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertNotIn('m_Simulate', prepared)
         self.assertNotIn('m_skipMatches', prepared)
 
+    def test_live_input_hardener_validates_atomic_screenshot_before_detectors(self):
+        hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_frame_retry')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = hardener.harden(source)
+        self.assertIn('capture_valid_live_frame(){', prepared)
+        self.assertIn('tmp="${final}.tmp"', prepared)
+        self.assertIn('for attempt in 1 2 3', prepared)
+        self.assertIn('timeout 8s adb exec-out screencap -p > "$tmp"', prepared)
+        self.assertIn('stage4_tools/validate_frame_png.py "$tmp"', prepared)
+        self.assertIn('mv -f "$tmp" "$final"', prepared)
+        self.assertIn('valid live frame unavailable', prepared)
+        capture = prepared.index('capture_valid_live_frame "$frame"')
+        resume = prepared.index('stage4_tools/find_match_resume.py', capture)
+        self.assertLess(capture, resume)
+        self.assertNotIn('adb exec-out screencap -p > "$frame"', prepared)
+
     def test_live_input_hardener_dismisses_only_foreground_admob_interstitial_before_navigation(self):
         hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_ad_guard')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
@@ -162,6 +200,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
         self.assertIn('stage4_tools/find_kick_ball.py', text)
         self.assertIn('stage4_tools/find_match_resume.py', text)
+        self.assertIn('stage4_tools/validate_frame_png.py', text)
 
 
 if __name__ == '__main__':

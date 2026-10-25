@@ -4,9 +4,30 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-DRIVER = r'''drive_live_chance(){
+DRIVER = r'''capture_valid_live_frame(){
+  local final="$1" tmp="${final}.tmp" attempt
+  rm -f "$tmp" "$final"
+  for attempt in 1 2 3; do
+    rm -f "$tmp"
+    timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
+    if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+      mv -f "$tmp" "$final"
+      return 0
+    fi
+    echo "live frame capture retry $attempt/3" >> "$FLOW"
+    sleep 1
+  done
+  rm -f "$tmp"
+  return 1
+}
+
+drive_live_chance(){
   local cycle="$1" elapsed="$2" frame="$WORK/live-chance.png" xy rc x y target_x target_y direction kick_xy kick_rc resume_xy resume_rc
-  adb exec-out screencap -p > "$frame" 2>/dev/null || true
+  if ! capture_valid_live_frame "$frame"; then
+    echo "cycle $cycle valid live frame unavailable @${elapsed}s; retrying on next match loop" >> "$FLOW"
+    sleep 1
+    return 0
+  fi
 
   # Phase 0: specific Half Time / Full Time resume controls must win before
   # generic green-marker classification. Run173 proved a half-time UI element
@@ -196,7 +217,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_live_input.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied resume-priority natural live-match input plus foreground interstitial guard: {dst}')
+    print(f'Applied validated-frame natural live-match input plus foreground interstitial guard: {dst}')
 
 
 if __name__ == '__main__':
