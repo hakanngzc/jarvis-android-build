@@ -51,6 +51,23 @@ class Stage4LiveInputSpeedTests(unittest.TestCase):
         self.assertNotIn('target_x=540', driver)
         self.assertNotIn('target_x=180', driver)
 
+    def test_live_driver_gates_expensive_frame_decode_on_stock_match_events(self):
+        hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'stage4_live_input_log_gate')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = hardener.harden(source)
+        driver_start = prepared.index('drive_live_chance(){')
+        driver_end = prepared.index("\n}\n", driver_start) + 3
+        driver = prepared[driver_start:driver_end]
+        self.assertIn('LIVE_EVENT_COUNT', driver)
+        self.assertIn('LIVE_LAST_PROBE_EPOCH', driver)
+        self.assertIn('matchminigame|tapball', driver)
+        self.assertIn('event_count', driver)
+        self.assertIn('probe_due', driver)
+        self.assertIn('sleep 0.25', driver)
+        self.assertLess(driver.index('event_count'), driver.index('capture_valid_live_frame "$frame"'))
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
 
 if __name__ == '__main__':
     unittest.main()
