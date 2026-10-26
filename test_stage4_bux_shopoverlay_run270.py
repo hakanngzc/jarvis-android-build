@@ -68,6 +68,32 @@ class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_run284_bottom_message_achievement_keeps_matchstats_play_route(self):
+        module = load_module(
+            'stage4_tools/prepare_stage4_event_navigation.py',
+            'prepare_stage4_event_navigation_run284_bottommessageachievement',
+        )
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+
+        # Run #284 proves bottommessageachievement can become the newest log marker
+        # while MatchStats is still the actionable underlying screen. Treating it
+        # as generic message sends the message-accept coordinate, dismisses the
+        # achievement, and then hits skills.btn_Ratings on the silently exposed
+        # screen. Run #254 proves stock Play on the same achievement state reaches
+        # matchstats.btn_Play -> PlayToDate -> leaguefixtures instead.
+        self.assertIn('*bottommessageachievement*) echo bottommessageachievement;;', prepared)
+        self.assertLess(
+            prepared.index('*bottommessageachievement*) echo bottommessageachievement;;'),
+            prepared.index('*message*) echo message;;'),
+        )
+        self.assertEqual(
+            prepared.count('bottommessageachievement) press_play 2;;'),
+            2,
+        )
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
 
 if __name__ == '__main__':
     unittest.main()
