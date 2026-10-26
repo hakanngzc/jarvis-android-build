@@ -14,7 +14,8 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertLess(self.workflow.index('bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
 
     def test_navigation_reinstalls_non_playmatches_probe_base(self):
-        self.assertIn('stage7-work/signed/base-career.apk',self.shell)
+        self.assertIn('stage7-work/base-career-unsigned.apk',self.shell)
+        self.assertIn('patch_stage8_age_unlock.py',self.shell)
         self.assertIn('install-multiple -r',self.shell)
         self.assertNotIn('base-stage7-saveonly.apk',self.shell)
 
@@ -25,7 +26,7 @@ class Stage8NavigationGateTests(unittest.TestCase):
 
     def test_relationship_family_routes_are_present(self):
         self.assertIn('route relationships-achievements 561 837 achievements',self.shell)
-        self.assertIn('route relationships-lifestyle 249 837 shoplifestyle',self.shell)
+        self.assertIn('route relationships-lifestyle 249 837 shop',self.shell)
         self.assertIn('route relationships-casino 405 837 casino',self.shell)
 
     def test_casino_subfamilies_are_present(self):
