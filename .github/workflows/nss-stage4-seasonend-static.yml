@@ -1,0 +1,73 @@
+name: NSS Stage4 Season-End Static Proof
+
+on:
+  push:
+    branches: [nss-residual-runtime-20261024]
+    paths:
+      - '.github/workflows/nss-stage4-seasonend-static.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seasonend-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout runtime harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Checkout canonical NSS lab
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: hakanngzc/NSS-Reborn-Lab
+          ref: d981f12babce30961d2596d9698b1cd903e39613
+          path: lab
+      - name: Dump stock SeasonEndTransfer bytecode
+        run: |
+          mkdir -p "$RUNNER_TEMP/stage4-seasonend-static"
+          PYTHONPATH="$PWD/lab/tools" python3 - <<'PY' > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt"
+          import io, tempfile, zipfile
+          from pathlib import Path
+          from dex_inspect import Dex
+
+          xapk=Path('lab/input/NSS-Base.xapk')
+          with zipfile.ZipFile(xapk) as xz:
+              base=xz.read('com.newstargames.newstarsoccer.apk')
+
+          targets={
+              'Lcom/newstargames/newstarsoccer/bb_GSContractUtility;': {'g_GSSeasonEndTransfer'},
+              'Lcom/newstargames/newstarsoccer/c_TScreen_Message;': {'m_DoCallFunction'},
+          }
+          found=set()
+          with zipfile.ZipFile(io.BytesIO(base)) as az:
+              for dex_name in sorted(n for n in az.namelist() if Path(n).name.startswith('classes') and n.endswith('.dex')):
+                  with tempfile.NamedTemporaryFile(suffix='.dex', delete=False) as tf:
+                      tf.write(az.read(dex_name)); p=Path(tf.name)
+                  try:
+                      d=Dex(p)
+                      for cls,names in targets.items():
+                          for kind,mid,meta,access,code in d.class_methods(cls):
+                              name=meta[1]
+                              if name not in names: continue
+                              found.add((cls,name))
+                              print(f'=== {dex_name} {cls}->{name} method_id={mid} access={hex(access)} code={hex(code)} ===')
+                              regs,ins,outs,tries,units,items=d.disasm(code)
+                              print(f'regs={regs} ins={ins} outs={outs} tries={tries} units={units}')
+                              for off,op,args,raw in items:
+                                  print(f'{off:05x}: {raw:<32} {op:<24} {args}')
+                  finally:
+                      p.unlink(missing_ok=True)
+          for cls,names in targets.items():
+              for name in names:
+                  if (cls,name) not in found:
+                      raise SystemExit(f'MISSING {cls}->{name}')
+          PY
+          grep -n -E 'SeasonEndTransfer|DesiredTransfer|NewSeason|Message|SetUpScreen|DoCallFunction' "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt" > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt" || true
+          cat "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt"
+      - name: Upload season-end static proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-seasonend-static-proof
+          path: ${{ runner.temp }}/stage4-seasonend-static/
+          retention-days: 7
