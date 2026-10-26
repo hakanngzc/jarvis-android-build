@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download verified NSS 4.31 and inspect match controls
+      - name: Download verified NSS 4.31 and inspect match time button
         run: |
           set -euo pipefail
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
@@ -27,9 +27,6 @@ jobs:
           BASE=/tmp/xapk/com.newstargames.newstarsoccer.apk
           echo "$BASE_SHA  $BASE" | sha256sum -c -
           unzip -p "$BASE" assets/monkey/NewGUI/Screens/match.uis > /tmp/match.uis
-          echo STAGE4_MATCH_CONTROLS_BEGIN
-          grep -nEi 'speed|fast|slow|pause|play|button|gadget|btn_' /tmp/match.uis | head -n 200 || true
-          echo STAGE4_MATCH_CONTROLS_END
-          echo STAGE4_MATCH_UI_HEAD_BEGIN
-          sed -n '1,260p' /tmp/match.uis
-          echo STAGE4_MATCH_UI_HEAD_END
+          echo STAGE4_TIME_BUTTON_CONTEXT_BEGIN
+          sed -n '1215,1285p' /tmp/match.uis
+          echo STAGE4_TIME_BUTTON_CONTEXT_END
