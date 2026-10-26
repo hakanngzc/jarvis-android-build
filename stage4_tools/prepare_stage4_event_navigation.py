@@ -82,13 +82,14 @@ NAV_OLD = '''    case "$state" in
 
 NAV_NEW = '''    case "$state" in
       dilemma|splashmessage) resolve_stage4_dilemma || return 1;;
-      message|webpage|startransition) press_message_accept 2;;
+      webpage) press_footer_ok 2;;
+      message|startransition) press_message_accept 2;;
       contract) press_footer_ok 2;;
       *) press_play 2;;
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in dilemma|splashmessage) resolve_stage4_dilemma || return 1;; message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
 
 
 def harden(text: str) -> str:
@@ -109,7 +110,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_event_navigation.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied rendered-gated stock Dilemma/SplashMessage navigation: {dst}')
+    print(f'Applied rendered-gated stock Dilemma/SplashMessage plus webpage-footer navigation: {dst}')
 
 
 if __name__ == '__main__':
