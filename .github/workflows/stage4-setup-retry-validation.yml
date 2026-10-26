@@ -1,0 +1,19 @@
+name: Stage4 Setup Retry Validation
+
+on:
+  push:
+    branches: [stage4-setup-retry-hardening-20261026]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate setup retry policy
+        run: |
+          bash -n stage4_natural_season_gate.sh stage4_tools/run_stage4_natural_gate.sh
+          python3 -m unittest test_stage4_setup_retry.py -v
