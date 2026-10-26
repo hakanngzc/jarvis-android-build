@@ -95,9 +95,9 @@ class Stage4EventNavigationTests(unittest.TestCase):
         self.assertIn('dismiss_stage4_bux_overlay(){', prepared)
         self.assertIn('x=$((w * 915 / 1000))', prepared)
         self.assertIn('y=$((h * 77 / 1000))', prepared)
-        self.assertEqual(prepared.count('buxoverlay) dismiss_stage4_bux_overlay || return 1;;'), 2)
+        self.assertIn('stock ShopOverlay under Bux -> Android Back', prepared)
+        self.assertEqual(prepared.count('buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;;'), 2)
         self.assertEqual(prepared.count('shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;;'), 2)
-        self.assertNotIn('buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;;', prepared)
         self.assertIn('stock BuxOverlay visible X', prepared)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
