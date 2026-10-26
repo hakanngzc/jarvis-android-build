@@ -35,9 +35,9 @@ class Stage8NavigationGateTests(unittest.TestCase):
             'route casino-roulette 469 352 roulette',
             'route casino-slots 177 586 slots',
             'route casino-racing 469 586 racing',
-            'route racing-stable 249 837 mystable',
         ):
             self.assertIn(line,self.shell)
+        self.assertNotIn('route racing-stable 249 837 mystable',self.shell)
 
     def test_skills_and_league_child_routes_are_present(self):
         self.assertIn('route skills-skillchoice 580 283 skillchoice',self.shell)
