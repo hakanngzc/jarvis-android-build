@@ -116,6 +116,10 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
             text,
         )
 
+    def test_stage4_evidence_artifact_is_unique_per_run_attempt(self):
+        text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
+        self.assertIn('name: stage4-natural-season-evidence-${{ github.run_attempt }}', text)
+
 
 if __name__ == '__main__':
     unittest.main()
