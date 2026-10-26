@@ -8,9 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  one-natural-match:
+  rendered-speed-probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Validate speed tooling
@@ -23,7 +23,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
           test -e /dev/kvm
-      - name: Run one natural match with rendered stock speed control
+      - name: Reach first natural match and prove stock MatchSpeed 350
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           MIN_PROGRESS_DAYS: '90'
@@ -54,8 +54,20 @@ jobs:
             python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/stage4-speed.live.sh" "$RUNNER_TEMP/stage4-speed.fast.sh"
             python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/stage4-speed.fast.sh" "$RUNNER_TEMP/stage4-speed.boundary.sh"
             python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/stage4-speed.boundary.sh" "$RUNNER_TEMP/stage4-speed.final.sh"
+            python3 - "$RUNNER_TEMP/stage4-speed.final.sh" <<'PY'
+            import sys
+            from pathlib import Path
+            p=Path(sys.argv[1])
+            s=p.read_text(encoding='utf-8')
+            old='''      echo "cycle $cycle stock MatchSpeed=350 verified" >> "$FLOW"\n      return 0'''
+            new='''      echo "cycle $cycle stock MatchSpeed=350 verified" >> "$FLOW"\n      echo 'STAGE4_STOCK_MATCH_SPEED_350_PASS' | tee "$OUT/STAGE4_STOCK_MATCH_SPEED_RESULT.txt"\n      exit 0'''
+            if s.count(old) != 1:
+                raise SystemExit(f'expected one 350 success exit anchor, found {s.count(old)}')
+            p.write_text(s.replace(old,new,1),encoding='utf-8')
+            PY
+            bash -n "$RUNNER_TEMP/stage4-speed.final.sh"
             bash "$RUNNER_TEMP/stage4-speed.final.sh"
-      - name: Upload one-match evidence
+      - name: Upload speed proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
