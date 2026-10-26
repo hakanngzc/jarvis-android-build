@@ -105,6 +105,18 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_backs_out_of_relationships_and_avoids_blind_dilemma_accept(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_relationships')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run254 rendered the stock Back button at physical centre ~143,1846 on
+        # Pixel 4, which maps to logical (85,898) through the gate's logical_xy.
+        self.assertEqual(prepared.count('relationships) press_logical 85 898 2;;'), 2)
+        self.assertIn('dilemma no longer visible; outer navigation will resolve current stock screen', prepared)
+        self.assertNotIn('elif [ "$rc" -eq 1 ]; then\n      clear_log\n      press_message_accept 2', prepared)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_workflow_applies_event_navigation_before_prematch_and_live_hardening(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         event = 'stage4_tools/prepare_stage4_event_navigation.py'

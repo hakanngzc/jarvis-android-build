@@ -70,8 +70,11 @@ resolve_stage4_dilemma(){
       fi
       echo "dilemma choice still visible after attempt $attempt" >> "$FLOW"
     elif [ "$rc" -eq 1 ]; then
-      clear_log
-      press_message_accept 2
+      # Run254 proved the accepted dilemma can land on the stock Relationships/
+      # profile surface. Do not inject a blind message-accept tap after the
+      # choice bars disappear; let the outer state machine resolve the actual
+      # published stock screen deterministically.
+      echo "dilemma no longer visible; outer navigation will resolve current stock screen" >> "$FLOW"
       return 0
     else
       echo "dilemma detector failed rc=$rc attempt $attempt" >> "$FLOW"
@@ -93,12 +96,13 @@ NAV_NEW = '''    case "$state" in
       webpage) press_footer_ok 2;;
       message|startransition) press_message_accept 2;;
       contract) press_footer_ok 2;;
+      relationships) press_logical 85 898 2;;
       seasonreview|playeroftheyear) press_play 2;;
       *) press_play 2;;
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
 
 NAV_TRANSITION_OLD = '''    sleep 1
     state="$(latest_state)"
