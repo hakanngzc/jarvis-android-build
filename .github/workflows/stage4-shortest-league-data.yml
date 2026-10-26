@@ -1,4 +1,4 @@
-name: Stage4 shortest league data diagnostic
+name: Stage4 stock runtime diagnostic
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download verified NSS 4.31 and inspect league sizes
+      - name: Download verified NSS 4.31 and inspect match controls
         run: |
           set -euo pipefail
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
@@ -26,60 +26,10 @@ jobs:
           unzip -q /tmp/nss431.xapk -d /tmp/xapk
           BASE=/tmp/xapk/com.newstargames.newstarsoccer.apk
           echo "$BASE_SHA  $BASE" | sha256sum -c -
-          unzip -p "$BASE" assets/monkey/MyData/v2025/Nations.txt > /tmp/Nations.txt
-          unzip -p "$BASE" assets/monkey/MyData/v2025/Competitions.txt > /tmp/Competitions.txt
-          unzip -p "$BASE" assets/monkey/MyData/v2025/Clubs.txt > /tmp/Clubs.txt
-          python3 - <<'PY'
-          import csv
-          from collections import Counter, defaultdict
-
-          def rows(path):
-              with open(path, encoding='utf-8-sig', errors='replace', newline='') as f:
-                  return list(csv.DictReader(f, delimiter='\t'))
-          def s(v): return '' if v is None else str(v).strip()
-          def iv(v, default=0):
-              try: return int(s(v))
-              except ValueError: return default
-
-          nations=rows('/tmp/Nations.txt'); comps=rows('/tmp/Competitions.txt'); clubs=rows('/tmp/Clubs.txt')
-          nation_by_id={s(r.get('id')):r for r in nations if s(r.get('id')).isdigit()}
-          comp_by_id={s(r.get('id')):r for r in comps if s(r.get('id')).isdigit()}
-          by_nation_league=Counter()
-          for r in clubs:
-              if not s(r.get('id')).isdigit() or s(r.get('bteamof')) not in ('','0'): continue
-              nid,lid=s(r.get('nationid')),s(r.get('leagueid'))
-              if nid and lid not in ('','0'): by_nation_league[(nid,lid)] += 1
-
-          wanted=['Albania','Algeria','Andorra','Angola','Argentina','Armenia']
-          print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_BEGIN')
-          for name in wanted:
-              matches=[r for r in nations if s(r.get('shortname')).lower()==name.lower()]
-              if not matches:
-                  print(name,'NATION_NOT_FOUND'); continue
-              nid=s(matches[0].get('id'))
-              desc=[]
-              for (nn,lid),count in by_nation_league.items():
-                  if nn != nid: continue
-                  cr=comp_by_id.get(lid,{})
-                  desc.append((count,lid,s(cr.get('tla')),iv(cr.get('rounds')),iv(cr.get('duration'))))
-              print(name,'nation_id='+nid,' '.join(f'{lid}:{tla}:clubs={count}:rounds={rounds}:duration={duration}' for count,lid,tla,rounds,duration in sorted(desc)))
-          print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_END')
-
-          candidates=[]
-          for (nid,lid),count in by_nation_league.items():
-              cr=comp_by_id.get(lid,{})
-              tla=s(cr.get('tla'))
-              rounds=iv(cr.get('rounds'))
-              duration=iv(cr.get('duration'))
-              if rounds <= 0 or count < 4: continue
-              # Main domestic tier convention in stock data is the *1 code.
-              if not tla.endswith('1'): continue
-              nation=s(nation_by_id.get(nid,{}).get('shortname')) or '?'
-              implied=(count-1)*rounds
-              candidates.append((implied,duration,count,rounds,nation,nid,lid,tla))
-          print('STAGE4_SHORTEST_TOP_LEAGUES_BEGIN')
-          for row in sorted(candidates)[:30]:
-              implied,duration,count,rounds,nation,nid,lid,tla=row
-              print(f'{nation}\tnation_id={nid}\t{tla}\tleague_id={lid}\tclubs={count}\trounds={rounds}\timplied_matches={implied}\tduration={duration}')
-          print('STAGE4_SHORTEST_TOP_LEAGUES_END')
-          PY
+          unzip -p "$BASE" assets/monkey/NewGUI/Screens/match.uis > /tmp/match.uis
+          echo STAGE4_MATCH_CONTROLS_BEGIN
+          grep -nEi 'speed|fast|slow|pause|play|button|gadget|btn_' /tmp/match.uis | head -n 200 || true
+          echo STAGE4_MATCH_CONTROLS_END
+          echo STAGE4_MATCH_UI_HEAD_BEGIN
+          sed -n '1,260p' /tmp/match.uis
+          echo STAGE4_MATCH_UI_HEAD_END
