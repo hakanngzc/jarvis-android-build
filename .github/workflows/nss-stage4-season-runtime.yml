@@ -112,7 +112,29 @@ jobs:
             python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/stage4-natural-gate.boundary.sh" "$RUNNER_TEMP/stage4-natural-gate.resolution.sh"
             mv "$RUNNER_TEMP/stage4-natural-gate.resolution.sh" "$RUNNER_TEMP/stage4-natural-gate.live.sh"
             bash -n "$RUNNER_TEMP/stage4-natural-gate.live.sh"
-            bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"
+
+            # The disposable fresh-Career setup can legitimately produce zero
+            # prospective clubs even after the intended stock nation is proven
+            # (run235: nation 9, zero candidates). Retry only those setup-specific
+            # exit codes from a clean gate invocation. Never replay natural match
+            # or season-boundary failures; those remain hard failures.
+            rc=0
+            for setup_attempt in 1 2 3; do
+              echo "Stage4 natural gate setup attempt $setup_attempt/3"
+              set +e
+              bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"
+              rc=$?
+              set -e
+              [ "$rc" -eq 0 ] && break
+              case "$rc" in
+                218|219)
+                  mkdir -p "$RUNNER_TEMP/stage4-natural"
+                  echo "setup-only retry after rc=$rc attempt=$setup_attempt" >> "$RUNNER_TEMP/stage4-natural/setup-retries.log"
+                  ;;
+                *) exit "$rc";;
+              esac
+            done
+            [ "$rc" -eq 0 ] || exit "$rc"
 
       - name: Upload Stage4 natural-season evidence
         if: always()
