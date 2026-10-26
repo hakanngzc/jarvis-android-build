@@ -68,8 +68,6 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         detector = load_module('stage4_tools/find_live_ball.py', 'find_live_ball_run185_colour')
         width, height = 360, 640
         pixels = bytearray(width * height * 3)
-        # Run185 rendered the active ring around RGB (21..31, 60..100, 21..31),
-        # which is greener than the pitch but not as saturated as earlier rings.
         for y in range(300, 380):
             for x in range(120, 200):
                 if x < 136 or x >= 184 or y < 316 or y >= 364:
@@ -140,12 +138,9 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         detector = load_module('stage4_tools/find_kick_ball.py', 'find_kick_ball_run185_strip')
         width, height = 360, 640
         bright = bytearray(width * height)
-        # Run170 real compact ball band: ~74% screen height.
         for y in range(465, 485):
             for x in range(160, 180):
                 bright[y * width + x] = 1
-        # Run185 false positive sponsor/tribune text: ~81% screen height and
-        # denser/larger than the real ball, so the old 0.88 lower bound won.
         for y in range(520, 545):
             for x in range(120, 145):
                 bright[y * width + x] = 1
@@ -178,10 +173,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertIn('input touchscreen swipe "$x" "$y"', prepared)
         self.assertIn('input touchscreen tap "$x" "$y"', prepared)
         self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
-        self.assertLess(
-            prepared.index('stage4_tools/find_match_resume.py'),
-            prepared.index('stage4_tools/find_kick_ball.py'),
-        )
+        self.assertLess(prepared.index('stage4_tools/find_match_resume.py'), prepared.index('stage4_tools/find_kick_ball.py'))
         self.assertNotIn('swipe_logical 320 700 320 250 420', prepared)
         self.assertNotIn('swipe_logical 260 690 460 280 380', prepared)
         self.assertNotIn('swipe_logical 380 690 180 280 380', prepared)
@@ -231,7 +223,7 @@ class Stage4LiveBallDriverTests(unittest.TestCase):
         self.assertIn(live, text)
         self.assertLess(text.index(prematch), text.index(live))
         self.assertIn('stage4-natural-gate.live.sh', text)
-        self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
+        self.assertIn('bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
         self.assertIn('stage4_tools/find_kick_ball.py', text)
         self.assertIn('stage4_tools/find_match_resume.py', text)
         self.assertIn('stage4_tools/validate_frame_png.py', text)
