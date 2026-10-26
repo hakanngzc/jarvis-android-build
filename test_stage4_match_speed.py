@@ -70,10 +70,21 @@ class Stage4StockMatchSpeedTests(unittest.TestCase):
         self.assertIn('stage4_tools/find_match_speed.py', prepared)
         self.assertIn('[ "$speed" = 350 ]', prepared)
         self.assertIn('input touchscreen tap "$x" "$y"', prepared)
-        self.assertIn('set_fastest_stock_match_speed "$cycle" || return 1', prepared)
+        self.assertIn('if set_fastest_stock_match_speed "$cycle"; then', prepared)
         self.assertIn('stock MatchSpeed=350 verified', prepared)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
+
+    def test_hidden_stock_speed_icon_defers_without_blocking_live_chance(self):
+        live = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_speed_defer')
+        speed = load_module('stage4_tools/prepare_stage4_match_speed.py', 'prepare_stage4_match_speed_defer')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = speed.harden(live.harden(source))
+        self.assertNotIn('set_fastest_stock_match_speed "$cycle" || return 1', prepared)
+        self.assertIn('return 1  # defer: stock speed icon is not visible in this rendered phase', prepared)
+        self.assertIn('return 2  # hard detector failure', prepared)
+        self.assertIn('MatchSpeed unavailable in current live phase; deferring while live input continues', prepared)
+        self.assertIn('adb logcat -d -v brief > "$WORK/live-phase-gate.log"', prepared)
 
     def test_workflow_compiles_applies_and_runs_stock_speed_detector_tests(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')

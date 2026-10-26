@@ -15,13 +15,12 @@ HELPER = r'''set_fastest_stock_match_speed(){
 
     result="$(python3 stage4_tools/find_match_speed.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
     if [ "$rc" -eq 1 ]; then
-      echo "cycle $cycle stock MatchSpeed icon not visible attempt $attempt/6" >> "$FLOW"
-      sleep 1
-      continue
+      echo "cycle $cycle stock MatchSpeed icon not visible in current rendered phase" >> "$FLOW"
+      return 1  # defer: stock speed icon is not visible in this rendered phase
     fi
     if [ "$rc" -ne 0 ]; then
       echo "cycle $cycle stock MatchSpeed detector failed rc=$rc" >> "$FLOW"
-      return 1
+      return 2  # hard detector failure
     fi
 
     read -r speed x y <<<"$result"
@@ -53,12 +52,22 @@ STATE_ANCHOR = '''  : "${LIVE_EVENT_COUNT:=0}"
 STATE_REPLACEMENT = '''  : "${LIVE_EVENT_COUNT:=0}"
   : "${LIVE_LAST_PROBE_EPOCH:=0}"
   : "${LIVE_SPEED_CYCLE:=-1}"
+  local speed_rc
 
   # Set the fastest speed only through the visible stock TimeButton and prove
   # the red 350-state from a fresh rendered frame. Once per natural match.
+  # If a live chance is already active, that stock control is intentionally
+  # hidden; defer the speed change and keep driving the natural chance instead.
   if [ "$LIVE_SPEED_CYCLE" != "$cycle" ]; then
-    set_fastest_stock_match_speed "$cycle" || return 1
-    LIVE_SPEED_CYCLE="$cycle"
+    if set_fastest_stock_match_speed "$cycle"; then
+      LIVE_SPEED_CYCLE="$cycle"
+    else
+      speed_rc=$?
+      if [ "$speed_rc" -ne 1 ]; then
+        return "$speed_rc"
+      fi
+      echo "cycle $cycle MatchSpeed unavailable in current live phase; deferring while live input continues" >> "$FLOW"
+    fi
   fi
 
   # Each natural_match_cycle clears logcat immediately before stock Match Play,'''
