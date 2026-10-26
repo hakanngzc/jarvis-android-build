@@ -28,6 +28,24 @@ class Stage4OfflineRuntimeTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_offline_preparer_marks_stock_source_hash_mismatch_as_retryable_setup_failure(self):
+        p = Path('stage4_tools/prepare_stage4_offline_runtime.py')
+        module = load_module(str(p), 'prepare_stage4_offline_runtime_source_retry')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+
+        self.assertIn('stock XAPK checksum mismatch; retryable setup failure', prepared)
+        self.assertIn('stock base APK checksum mismatch; retryable setup failure', prepared)
+        self.assertIn('exit 219', prepared)
+        self.assertNotIn('echo "$XAPK_SHA  $WORK/nss431.xapk" | sha256sum -c -\nunzip -q', prepared)
+        self.assertNotIn('BASE="$WORK/xapk/com.newstargames.newstarsoccer.apk"; echo "$BASE_SHA  $BASE" | sha256sum -c -\nPYTHONPATH=', prepared)
+
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+        self.assertIn('218|219)', runner)
+        retry_case = runner[runner.index('case "$rc" in'):runner.index('esac', runner.index('case "$rc" in'))]
+        self.assertNotIn('220', retry_case)
+        self.assertNotIn('221', retry_case)
+
     def test_workflow_applies_offline_isolation_before_short_league(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
