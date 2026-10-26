@@ -52,7 +52,7 @@ press_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); press_physica
 press_career(){
   local size; size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
   case "$size" in
-    *1080x2280*) adb shell input touchscreen tap 795 1399 </dev/null || true; sleep "${1:-3}" ;;
+    *1080x2280*) press_physical 795 1399 "${1:-3}" ;;
     *) echo "Unsupported Stage7 MainMenu geometry: $size" >&2; return 1 ;;
   esac
 }
