@@ -116,6 +116,19 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_uses_android_back_for_skills_after_information_return(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_skills_back')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # DEX mapping proves Information.m_ButtonBack can return to Skills, and
+        # GameEngine.p_OnBackPressed dispatches skills directly to
+        # c_TScreen_Skills.m_ButtonHome. Use that stock navigation path instead
+        # of the generic Play-area tap if the OldProBoots information returns us
+        # to Skills.
+        self.assertEqual(prepared.count('skills) adb shell input keyevent 4 </dev/null || true; sleep 2;;'), 2)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_event_preparer_retains_last_verified_state_when_no_transition_is_published(self):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_state')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
