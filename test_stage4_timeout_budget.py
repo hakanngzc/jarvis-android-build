@@ -7,6 +7,10 @@ class Stage4TimeoutBudgetTests(unittest.TestCase):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         self.assertIn('timeout-minutes: 360', text)
         self.assertIn("MATCH_TIMEOUT_SECONDS: '900'", text)
+        self.assertIn("MIN_MATCH_CYCLES: '12'", text)
+        self.assertIn("MIN_WALL_SECONDS: '1200'", text)
+        self.assertNotIn("MIN_MATCH_CYCLES: '1'", text)
+        self.assertNotIn("MIN_WALL_SECONDS: '0'", text)
         # This change is harness patience only; it must never become a shortcut
         # around the natural Career/match/season path.
         for forbidden in (
