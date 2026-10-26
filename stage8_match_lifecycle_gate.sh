@@ -118,11 +118,27 @@ wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 lifecycle-loadcareer
 wait_log 'SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 lifecycle-gamemenu
 
 # Reach a real Career fixture using the stock route.
-clear_log; press_play 3
-state="$(wait_state 'leaguefixtures message gamemenu' 30 || true)"
-if [ "$state" = message ]; then press_message_accept 3; state="$(wait_state 'leaguefixtures gamemenu' 30 || true)"; fi
-if [ "$state" = gamemenu ]; then press_play 3; state="$(wait_state 'leaguefixtures message' 30 || true)"; fi
-[ "$state" = leaguefixtures ] || { echo "Did not reach LeagueFixtures: $state"; exit 302; }
+LEAGUEFIXTURES_REACHED=0
+for attempt in 1 2; do
+  clear_log
+  press_play 4
+  if wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 12 "leaguefixtures-attempt-$attempt"; then
+    LEAGUEFIXTURES_REACHED=1
+    break
+  fi
+  adb logcat -d -v brief > "$WORK/leaguefixtures-attempt-$attempt.log" 2>/dev/null || true
+  if grep -qiE 'Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' "$WORK/leaguefixtures-attempt-$attempt.log"; then
+    press_message_accept 3
+  fi
+done
+if [ "$LEAGUEFIXTURES_REACHED" -ne 1 ]; then
+  capture_log 'failed GameMenu -> LeagueFixtures'
+  shot stage8-match-leaguefixtures-failure
+  echo 'Did not reach LeagueFixtures through proven GameMenu Play route'
+  exit 302
+fi
+capture_log 'GameMenu -> LeagueFixtures direct activation proof'
+state=leaguefixtures
 
 MATCH_REACHED=0
 for step in $(seq 1 24); do
@@ -131,7 +147,7 @@ for step in $(seq 1 24); do
   state="$(wait_state 'match message leaguefixtures league gamemenu' 20 || true)"
   if [ "$state" = match ]; then MATCH_REACHED=1; break; fi
 done
-[ "$MATCH_REACHED" -eq 1 ] || { echo 'No playable Career match reached'; exit 303; }
+[ "$MATCH_REACHED" -eq 1 ] || { capture_log 'failed to reach playable Career match'; shot stage8-match-entry-failure; echo 'No playable Career match reached'; exit 303; }
 shot stage8-match-prematch
 
 # Start the untouched live match, then exercise Android background/foreground.
