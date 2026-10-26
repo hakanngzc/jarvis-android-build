@@ -111,7 +111,10 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
             'python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/stage4-natural-gate.prematch.sh" "$RUNNER_TEMP/stage4-natural-gate.live.sh"',
             text,
         )
-        self.assertIn('bash "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
+        self.assertIn(
+            'bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/stage4-natural-gate.live.sh"',
+            text,
+        )
 
 
 if __name__ == '__main__':
