@@ -13,7 +13,7 @@ STATE_OLD = '''  case "$line" in
 STATE_NEW = '''  case "$line" in
     *fake-interstitial*) echo fakeinterstitial;; *buxoverlay*) echo buxoverlay;; *skillsshopoverlay*) echo skillsshopoverlay;; *shopoverlay*) echo shopoverlay;; *purchaseanim*) echo purchaseanim;; *information*) echo information;; *casino*) echo casino;; *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
     *seasonreview*) echo seasonreview;; *playeroftheyear*) echo playeroftheyear;; *desiredtransfer*) echo desiredtransfer;;
-    *matchstats*) echo matchstats;; *matchreview*) echo matchreview;; *leaguefixtures*) echo leaguefixtures;; *gamemenu*) echo gamemenu;; *message*) echo message;; *contract*) echo contract;; *webpage*) echo webpage;; *startransition*) echo startransition;; *skills*) echo skills;; *relationships*) echo relationships;;
+    *bottommessageachievement*) echo bottommessageachievement;; *matchstats*) echo matchstats;; *matchreview*) echo matchreview;; *leaguefixtures*) echo leaguefixtures;; *gamemenu*) echo gamemenu;; *message*) echo message;; *contract*) echo contract;; *webpage*) echo webpage;; *startransition*) echo startransition;; *skills*) echo skills;; *relationships*) echo relationships;;
     *" active: match"*|*"setactive: match"*|*"screen: match"*) echo match;; *" active: league"*|*"setactive: league"*|*"screen: league"*) echo league;; *) echo unknown;;
   esac
 }
@@ -111,6 +111,7 @@ NAV_NEW = '''    case "$state" in
       desiredtransfer) press_logical 85 898 2;;
       dilemma|splashmessage) resolve_stage4_dilemma || return 1;;
       webpage) press_footer_ok 2;;
+      bottommessageachievement) press_play 2;;
       message|startransition) press_message_accept 2;;
       contract) press_footer_ok 2;;
       relationships) press_logical 85 898 2;;
@@ -119,7 +120,7 @@ NAV_NEW = '''    case "$state" in
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; skillsshopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2; state=gamemenu;; shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; desiredtransfer) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; skillsshopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2; state=gamemenu;; shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; desiredtransfer) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; bottommessageachievement) press_play 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
 
 NAV_TRANSITION_OLD = '''    sleep 1
     state="$(latest_state)"
