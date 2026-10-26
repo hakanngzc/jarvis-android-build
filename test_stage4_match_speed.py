@@ -38,8 +38,6 @@ class Stage4StockMatchSpeedTests(unittest.TestCase):
         for expected, rgb in cases:
             width, height = 360, 640
             pixels = bytearray(width * height * 3)
-            # Stock TimeButton lives in the upper-right header. Synthetic icon
-            # sits in the same normalized region without adding OCR/text noise.
             for y in range(45, 62):
                 for x in range(315, 332):
                     i = (y * width + x) * 3
@@ -63,10 +61,11 @@ class Stage4StockMatchSpeedTests(unittest.TestCase):
             write_rgb_png(p, width, height, pixels)
             self.assertIsNone(detector.find_match_speed(p))
 
-    def test_live_hardener_visually_drives_stock_time_button_to_350(self):
-        hardener = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_speed')
+    def test_composed_hardener_visually_drives_stock_time_button_to_350(self):
+        live = load_module('stage4_tools/prepare_stage4_live_input.py', 'prepare_stage4_live_input_speed_base')
+        speed = load_module('stage4_tools/prepare_stage4_match_speed.py', 'prepare_stage4_match_speed')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
-        prepared = hardener.harden(source)
+        prepared = speed.harden(live.harden(source))
         self.assertIn('set_fastest_stock_match_speed(){', prepared)
         self.assertIn('stage4_tools/find_match_speed.py', prepared)
         self.assertIn('[ "$speed" = 350 ]', prepared)
@@ -76,10 +75,14 @@ class Stage4StockMatchSpeedTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
-    def test_workflow_compiles_and_runs_stock_speed_detector_tests(self):
+    def test_workflow_compiles_applies_and_runs_stock_speed_detector_tests(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         self.assertIn('stage4_tools/find_match_speed.py', text)
+        self.assertIn('stage4_tools/prepare_stage4_match_speed.py', text)
         self.assertIn('test_stage4_match_speed.py', text)
+        self.assertIn('stage4-natural-gate.speed.sh', text)
+        self.assertLess(text.index('stage4_tools/prepare_stage4_live_input.py'), text.index('stage4_tools/prepare_stage4_match_speed.py'))
+        self.assertLess(text.index('stage4_tools/prepare_stage4_match_speed.py'), text.index('stage4_tools/prepare_stage4_boundary_scope.py'))
 
 
 if __name__ == '__main__':
