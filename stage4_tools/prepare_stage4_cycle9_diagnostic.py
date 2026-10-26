@@ -45,7 +45,6 @@ for _ in $(seq 1 30); do
   fi
   if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$WORK/diagnostic-seed-load.txt"; then
     seed_mainmenu=1
-    break
   fi
   sleep 1
 done
