@@ -62,10 +62,6 @@ resolve_stage4_dilemma(){
         cp "$after" "$OUT/dilemma-choice-accepted.png" 2>/dev/null || true
         echo "stock dilemma choice accepted" >> "$FLOW"
         state="$(latest_state)"
-        # Some dilemma outcomes leave a splash-message continuation rather than
-        # immediately activating the next Career screen. Use only the ordinary
-        # visible message/footer action, then let the outer navigation loop
-        # classify the resulting stock screen.
         if [ "$state" = splashmessage ] || [ "$state" = message ]; then
           press_message_accept 2
         fi
@@ -73,8 +69,6 @@ resolve_stage4_dilemma(){
       fi
       echo "dilemma choice still visible after attempt $attempt" >> "$FLOW"
     elif [ "$rc" -eq 1 ]; then
-      # Dilemma visual is already gone but the stock splash-message layer may
-      # still be active. Dismiss it with the normal visible message action.
       clear_log
       press_message_accept 2
       return 0
@@ -104,6 +98,41 @@ NAV_NEW = '''    case "$state" in
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
 POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
 
+NAV_TRANSITION_OLD = '''    sleep 1
+    state="$(latest_state)"
+    capture_log "navigate step $step -> $state"
+    [ "$state" = match ] && return 0
+    [ "$state" = unknown ] && { press_footer_ok 1; state="$(latest_state)"; }'''
+
+NAV_TRANSITION_NEW = '''    sleep 1
+    next_state="$(latest_state)"
+    if [ "$next_state" = unknown ]; then
+      # No new authoritative screen marker means the previous visible screen
+      # may simply have consumed an animation-dismiss tap. Retain the last
+      # verified state instead of guessing a different footer action.
+      echo "navigate step $step no published transition; retaining $state" >> "$FLOW"
+      sleep 1
+    else
+      state="$next_state"
+    fi
+    capture_log "navigate step $step -> $state"
+    [ "$state" = match ] && return 0'''
+
+POST_TRANSITION_OLD = '''    state="$(latest_state)"; capture_log "cycle $cycle postmatch -> $state"
+    [ "$state" = unknown ] && { press_footer_ok 1; state="$(latest_state)"; }'''
+
+POST_TRANSITION_NEW = '''    next_state="$(latest_state)"
+    if [ "$next_state" = unknown ]; then
+      # Run231: matchstats.dismissanim can consume the first Play-area tap
+      # without a screen transition. Keep driving the same verified stock
+      # screen; never invent a footer action from an absent SetActive marker.
+      echo "cycle $cycle postmatch no published transition; retaining $state" >> "$FLOW"
+      sleep 1
+    else
+      state="$next_state"
+    fi
+    capture_log "cycle $cycle postmatch -> $state"'''
+
 
 def harden(text: str) -> str:
     if text.count(STATE_OLD) != 1:
@@ -115,6 +144,12 @@ def harden(text: str) -> str:
     if text.count(POST_OLD) != 1:
         raise SystemExit(f'expected one postmatch case, found {text.count(POST_OLD)}')
     text = text.replace(POST_OLD, POST_NEW, 1)
+    if text.count(NAV_TRANSITION_OLD) != 1:
+        raise SystemExit(f'expected one navigate transition block, found {text.count(NAV_TRANSITION_OLD)}')
+    text = text.replace(NAV_TRANSITION_OLD, NAV_TRANSITION_NEW, 1)
+    if text.count(POST_TRANSITION_OLD) != 1:
+        raise SystemExit(f'expected one postmatch transition block, found {text.count(POST_TRANSITION_OLD)}')
+    text = text.replace(POST_TRANSITION_OLD, POST_TRANSITION_NEW, 1)
     return text
 
 
@@ -123,7 +158,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_event_navigation.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied stock Dilemma/SplashMessage/webpage/fake-interstitial navigation: {dst}')
+    print(f'Applied stock event navigation with retained verified state: {dst}')
 
 
 if __name__ == '__main__':
