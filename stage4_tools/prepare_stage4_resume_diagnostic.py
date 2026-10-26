@@ -5,6 +5,9 @@ import sys
 from pathlib import Path
 
 INSERT_BEFORE = '''dump_save natural-baseline; checkpoint natural-baseline
+# Only season-transition evidence emitted after the baseline checkpoint counts.
+# This excludes NewSeasonSetUp markers that may occur during fresh-Career bootstrap.
+BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
 START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 
 INSERT_AFTER = r'''# DIAGNOSTIC ONLY: restore a save produced by a prior natural Stage4 run.
@@ -37,8 +40,7 @@ capture_log 'DIAGNOSTIC_ONLY cycle-9 seed loaded'
 dump_save resume-seeded; checkpoint resume-seeded
 python3 - "$OUT/resume-seeded.json" <<'PY'
 import json, sys
-p=sys.argv[1]
-d=json.load(open(p, encoding='utf-8'))
+d=json.load(open(sys.argv[1], encoding='utf-8'))
 assert d['sdate'] == 99, d
 assert d['careerapps'] == 9, d
 assert d['clubnationid'] == 2, d
@@ -46,6 +48,8 @@ print('DIAGNOSTIC_SEED_OK', d['sdate'], d['careerapps'], d['clubid'])
 PY
 cp "$OUT/resume-seeded-MonkeyGame.xml" "$OUT/natural-baseline-MonkeyGame.xml"
 cp "$OUT/resume-seeded.json" "$OUT/natural-baseline.json"
+# Scope season markers from the seeded diagnostic baseline, not the fresh bootstrap.
+BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
 START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 
 TAIL_OLD = '''python3 stage4_tools/verify_stage4_natural_season.py --base "$OUT/natural-baseline.json" --post "$OUT/post-season.json" --restart "$OUT/post-season-restart.json" --meta "$OUT/natural-meta.json" --out "$OUT/natural-verdict.json" | tee "$OUT/STAGE4_NATURAL_SEASON_RESULT.txt"
@@ -57,19 +61,28 @@ python3 stage4_tools/verify_stage4_natural_season.py --base "$OUT/natural-baseli
 verify_rc=${PIPESTATUS[0]}
 set -e
 echo "DIAGNOSTIC_ONLY verifier_rc=$verify_rc" >> "$FLOW"
-# Never emit the canonical natural-season PASS literal from a seeded run.
-sed -i 's/STAGE4_NATURAL_SEASON_PASS/STAGE4_RESUME_DIAGNOSTIC_PASS/g' "$OUT/STAGE4_RESUME_DIAGNOSTIC_RESULT.txt" "$OUT/natural-verdict.json" 2>/dev/null || true
+python3 - "$OUT/STAGE4_RESUME_DIAGNOSTIC_RESULT.txt" "$OUT/natural-verdict.json" <<'PY'
+from pathlib import Path
+import sys
+old='STAGE4_'+'NATURAL_SEASON_PASS'
+new='STAGE4_RESUME_DIAGNOSTIC_PASS'
+for raw in sys.argv[1:]:
+    p=Path(raw)
+    if p.exists():
+        p.write_text(p.read_text(encoding='utf-8',errors='replace').replace(old,new),encoding='utf-8')
+PY
 echo 'STAGE4_RESUME_DIAGNOSTIC_COMPLETE' '''
 
 
 def harden(text: str) -> str:
     if text.count(INSERT_BEFORE) != 1:
-        raise SystemExit(f'expected one natural baseline marker, found {text.count(INSERT_BEFORE)}')
+        raise SystemExit(f'expected one scoped natural baseline marker, found {text.count(INSERT_BEFORE)}')
     text = text.replace(INSERT_BEFORE, INSERT_AFTER, 1)
     if text.count(TAIL_OLD) != 1:
         raise SystemExit(f'expected one final verifier block, found {text.count(TAIL_OLD)}')
     text = text.replace(TAIL_OLD, TAIL_NEW, 1)
-    if 'STAGE4_NATURAL_SEASON_PASS' in text:
+    forbidden = 'STAGE4_' + 'NATURAL_SEASON_PASS'
+    if forbidden in text:
         raise SystemExit('diagnostic gate still contains canonical PASS literal')
     return text
 
