@@ -62,7 +62,15 @@ diagnostic_load_cycle9_seed || exit 230
 dump_save natural-baseline; checkpoint natural-baseline
 echo 'STAGE4_DIAGNOSTIC_ONLY_SEEDED_FROM_RUN275_CYCLE9' >> "$FLOW"
 BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
-START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
+START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0
+
+if [ "${STAGE4_DIAGNOSTIC_NAV_ONLY:-0}" = "1" ]; then
+  navigate_until_match || { shot diagnostic-cycle10-no-match; echo 'STAGE4_DIAGNOSTIC_NAV_FAILED' >> "$FLOW"; exit 220; }
+  capture_log 'STAGE4 DIAGNOSTIC cycle10 navigation reached Match'
+  shot diagnostic-cycle10-match
+  echo 'STAGE4_DIAGNOSTIC_NAV_MATCH_REACHED' | tee "$OUT/STAGE4_DIAGNOSTIC_RESULT.txt"
+  exit 0
+fi'''
 
 FINAL_RE = re.compile(
     r'''\[ "\$SEASON_SEEN" -eq 1 \] \|\| \{ echo "Natural season boundary not observed after \$CYCLES cycles"; exit 221; \}\n\n.*?echo 'STAGE4_NATURAL_SEASON_PASS'\n?''',
