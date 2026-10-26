@@ -4,11 +4,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-INSERT_BEFORE = '''dump_save natural-baseline; checkpoint natural-baseline
-# Only season-transition evidence emitted after the baseline checkpoint counts.
-# This excludes NewSeasonSetUp markers that may occur during fresh-Career bootstrap.
-BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
-START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
+INSERT_BEFORE = 'dump_save natural-baseline; checkpoint natural-baseline'
 
 INSERT_AFTER = r'''# DIAGNOSTIC ONLY: restore a save produced by a prior natural Stage4 run.
 # This is used only to discover later stock UI blockers faster. It must never
@@ -47,10 +43,7 @@ assert d['clubnationid'] == 2, d
 print('DIAGNOSTIC_SEED_OK', d['sdate'], d['careerapps'], d['clubid'])
 PY
 cp "$OUT/resume-seeded-MonkeyGame.xml" "$OUT/natural-baseline-MonkeyGame.xml"
-cp "$OUT/resume-seeded.json" "$OUT/natural-baseline.json"
-# Scope season markers from the seeded diagnostic baseline, not the fresh bootstrap.
-BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
-START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
+cp "$OUT/resume-seeded.json" "$OUT/natural-baseline.json"'''
 
 TAIL_OLD = '''python3 stage4_tools/verify_stage4_natural_season.py --base "$OUT/natural-baseline.json" --post "$OUT/post-season.json" --restart "$OUT/post-season-restart.json" --meta "$OUT/natural-meta.json" --out "$OUT/natural-verdict.json" | tee "$OUT/STAGE4_NATURAL_SEASON_RESULT.txt"
 grep -q 'STAGE4_NATURAL_SEASON_PASS' "$OUT/STAGE4_NATURAL_SEASON_RESULT.txt"
@@ -76,7 +69,7 @@ echo 'STAGE4_RESUME_DIAGNOSTIC_COMPLETE' '''
 
 def harden(text: str) -> str:
     if text.count(INSERT_BEFORE) != 1:
-        raise SystemExit(f'expected one scoped natural baseline marker, found {text.count(INSERT_BEFORE)}')
+        raise SystemExit(f'expected one final natural baseline dump, found {text.count(INSERT_BEFORE)}')
     text = text.replace(INSERT_BEFORE, INSERT_AFTER, 1)
     if text.count(TAIL_OLD) != 1:
         raise SystemExit(f'expected one final verifier block, found {text.count(TAIL_OLD)}')
