@@ -126,17 +126,20 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         self.assertIn('input touchscreen swipe 940 1830 940 1830 220', prepared)
         self.assertIn('continue_after_argentina_stock_league || exit 218', prepared)
 
-    def test_workflow_retries_only_disposable_setup_failures(self):
-        text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
-        self.assertIn('for setup_attempt in 1 2 3', text)
-        self.assertIn('218|219)', text)
-        self.assertIn('setup-only retry after rc=$rc', text)
-        self.assertIn('*) exit "$rc";;', text)
-        # Natural match / season-boundary failures must never be replayed as if
-        # they were onboarding noise; only disposable setup may retry.
-        retry_case = text[text.index('case "$rc" in'):text.index('esac', text.index('case "$rc" in'))]
+    def test_external_runner_retries_only_disposable_setup_failures(self):
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+        self.assertIn('for setup_attempt in 1 2 3', runner)
+        self.assertIn('218|219)', runner)
+        self.assertIn('setup-only retry after rc=$rc', runner)
+        self.assertIn('*) exit "$rc";;', runner)
+        retry_case = runner[runner.index('case "$rc" in'):runner.index('esac', runner.index('case "$rc" in'))]
         self.assertNotIn('220', retry_case)
         self.assertNotIn('221', retry_case)
+
+    def test_workflow_invokes_external_setup_retry_runner_as_single_command(self):
+        text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
+        self.assertIn('bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/stage4-natural-gate.live.sh"', text)
+        self.assertNotIn('for setup_attempt in 1 2 3', text)
 
     def test_workflow_applies_short_league_before_prematch(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
