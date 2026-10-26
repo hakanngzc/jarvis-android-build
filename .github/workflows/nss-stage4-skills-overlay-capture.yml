@@ -1,0 +1,74 @@
+name: NSS Stage4 Skills Overlay Capture
+
+on:
+  push:
+    branches: [stage4-diagnostic-skills-overlay-20261026]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  stage4-skills-overlay-capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate diagnostic tooling
+        run: |
+          python3 -m py_compile stage4_tools/prepare_stage4_cycle9_diagnostic.py stage4_tools/prepare_stage4_capture_skills_overlay.py stage4_tools/prepare_stage4_event_navigation.py
+          bash -n stage4_natural_season_gate.sh stage4_tools/run_stage4_natural_gate.sh
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Capture SkillsShopOverlay from natural cycle9 continuation
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STAGE4_DIAGNOSTIC_ARTIFACT_ID: '12647883054'
+          MIN_PROGRESS_DAYS: '9999'
+          MIN_MATCH_CYCLES: '999'
+          MIN_WALL_SECONDS: '999999'
+          MAX_MATCH_CYCLES: '2'
+          MATCH_TIMEOUT_SECONDS: '900'
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-cap.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-cap.pre.sh" "$RUNNER_TEMP/stage4-cap.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-cap.start.sh" "$RUNNER_TEMP/stage4-cap.visual.sh"
+            python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/stage4-cap.visual.sh" "$RUNNER_TEMP/stage4-cap.offline.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-cap.offline.sh" "$RUNNER_TEMP/stage4-cap.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/stage4-cap.shortleague.sh" "$RUNNER_TEMP/stage4-cap.events.sh"
+            python3 stage4_tools/prepare_stage4_capture_skills_overlay.py "$RUNNER_TEMP/stage4-cap.events.sh" "$RUNNER_TEMP/stage4-cap.capture.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-cap.capture.sh" "$RUNNER_TEMP/stage4-cap.prematch.sh"
+            python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/stage4-cap.prematch.sh" "$RUNNER_TEMP/stage4-cap.live.sh"
+            python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/stage4-cap.live.sh" "$RUNNER_TEMP/stage4-cap.speed.sh"
+            python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/stage4-cap.speed.sh" "$RUNNER_TEMP/stage4-cap.boundary.sh"
+            python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/stage4-cap.boundary.sh" "$RUNNER_TEMP/stage4-cap.resolution.sh"
+            python3 stage4_tools/prepare_stage4_cycle9_diagnostic.py "$RUNNER_TEMP/stage4-cap.resolution.sh" "$RUNNER_TEMP/stage4-cap.final.sh"
+            bash -n "$RUNNER_TEMP/stage4-cap.final.sh"
+            bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/stage4-cap.final.sh"
+
+      - name: Upload overlay capture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-skills-overlay-capture-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/stage4-natural/
+          retention-days: 3
