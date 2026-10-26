@@ -14,7 +14,8 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertLess(self.workflow.index('bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
 
     def test_navigation_reinstalls_non_playmatches_probe_base(self):
-        self.assertIn('stage7-work/base-career-unsigned.apk',self.shell)
+        self.assertIn('ST7="$RUNNER_TEMP/stage7-work"',self.shell)
+        self.assertIn('"$ST7/base-career-unsigned.apk"',self.shell)
         self.assertIn('patch_stage8_age_unlock.py',self.shell)
         self.assertIn('install-multiple -r',self.shell)
         self.assertNotIn('base-stage7-saveonly.apk',self.shell)
