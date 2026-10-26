@@ -20,13 +20,14 @@ class Stage7RuntimeGateTests(unittest.TestCase):
         self.assertIn('press_physical 935 1850',m.group('body'))
         self.assertNotIn('input touchscreen tap 935 1850',m.group('body'))
 
-    def test_sign_one_initializes_tmp_after_dst(self):
+    def test_sign_one_assigns_tmp_only_after_dst_is_initialized(self):
         m=re.search(r'sign_one\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
         self.assertIsNotNone(m)
         body=m.group('body')
-        self.assertIn('local src="$1" dst="$2"',body)
-        self.assertIn('local tmp="$WORK/aligned-$(basename "$dst")"',body)
-        self.assertNotRegex(body,r'local[^\n]*dst=.*tmp=.*\$dst')
+        self.assertIn('local src="$1" dst="$2" tmp',body)
+        self.assertIn('tmp="$WORK/aligned-$(basename "$dst")"',body)
+        self.assertNotRegex(body,r'local[^\n]*tmp=.*\$dst')
+        self.assertLess(body.index('local src="$1" dst="$2" tmp'),body.index('tmp="$WORK/aligned-$(basename "$dst")"'))
 
     def test_gate_uses_exact_public_stock_431_hashes(self):
         self.assertIn("afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e",self.shell)
