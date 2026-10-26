@@ -68,6 +68,15 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_uses_stock_webpage_footer_ok_in_both_navigation_loops(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_webpage')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # webpagenews.uis owns webpage.btn_Ok in the stock footer. Treating it
+        # like a message surface misses the gadget and can strand cycle 2.
+        self.assertEqual(prepared.count('webpage) press_footer_ok 2;;'), 2)
+        self.assertNotIn('message|webpage|startransition) press_message_accept 2;;', prepared)
+
     def test_workflow_applies_event_navigation_before_prematch_and_live_hardening(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         event = 'stage4_tools/prepare_stage4_event_navigation.py'
