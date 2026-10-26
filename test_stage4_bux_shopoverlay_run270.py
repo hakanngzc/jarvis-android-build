@@ -13,7 +13,7 @@ def load_module(path_str: str, name: str):
 
 
 class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
-    def test_run270_bux_exit_tracks_underlying_shopoverlay_and_backs_out(self):
+    def test_run270_bux_exit_closes_silent_underlying_shopoverlay(self):
         module = load_module(
             'stage4_tools/prepare_stage4_event_navigation.py',
             'prepare_stage4_event_navigation_run270_shopoverlay',
@@ -21,14 +21,16 @@ class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
 
-        # Run #270: BuxOverlay X produced HitGadget: WTF, then the next blind Play
-        # produced HitGadget: shopoverlay.buy and reopened/stayed in the purchase UI.
-        # Therefore the Bux overlay must not be treated as an unconditional GameMenu
-        # transition; the underlying ShopOverlay is a real stock navigation state.
+        # Run #270 proved that tapping the visible BuxOverlay X does not publish a
+        # SetActive/Create/SETTING ACTIVE marker for the underlying ShopOverlay.
+        # The next blind Play tap hit shopoverlay.buy. Therefore the Bux handler
+        # must close the silent underlying stock overlay itself instead of waiting
+        # for latest_state() to discover a transition that is never published.
         self.assertIn('*shopoverlay*) echo shopoverlay;;', prepared)
-        self.assertEqual(
-            prepared.count('shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;;'),
-            2,
+        self.assertIn('stock ShopOverlay under Bux -> Android Back', prepared)
+        self.assertIn(
+            'adb shell input touchscreen tap "$x" "$y" </dev/null || true\n  sleep 2\n  echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"\n  adb shell input keyevent 4 </dev/null || true',
+            prepared,
         )
         self.assertNotIn(
             'buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;;',
