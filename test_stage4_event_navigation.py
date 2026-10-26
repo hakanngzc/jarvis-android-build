@@ -102,6 +102,20 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_closes_purchase_anim_then_accepts_information_from_run262(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_information')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run262 cycle 10 proved OldProBoots can publish information followed by
+        # PurchaseAnim. The existing message-accept coordinate emitted the real
+        # stock PurchaseAnim.Close hit; after that the rendered information
+        # screen exposes a large green check centred at logical ~(320,910).
+        self.assertIn('*purchaseanim*) echo purchaseanim;; *information*) echo information;;', prepared)
+        self.assertEqual(prepared.count('purchaseanim) press_message_accept 1; state=information;;'), 2)
+        self.assertEqual(prepared.count('information) press_logical 320 910 2;;'), 2)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_event_preparer_retains_last_verified_state_when_no_transition_is_published(self):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_state')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
