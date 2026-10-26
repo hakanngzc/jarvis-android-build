@@ -39,28 +39,34 @@ class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
-    def test_cycle10_skills_shop_overlay_closes_once_then_restores_gamemenu(self):
+    def test_skills_shop_overlay_uses_stock_close_not_android_back(self):
         module = load_module(
             'stage4_tools/prepare_stage4_event_navigation.py',
-            'prepare_stage4_event_navigation_cycle10_skills_shopoverlay',
+            'prepare_stage4_event_navigation_skills_shopoverlay_close',
         )
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
 
-        # Natural run 40344874221 proves SkillsShopOverlay is a silent overlay
-        # over GameMenu after OldProBoots -> PurchaseAnim -> information.btn_Back.
-        # One Android Back closes the overlay without publishing a new state;
-        # a second Back exits GameMenu to MainMenu. Track this overlay separately
-        # and restore the already-proven underlying GameMenu after exactly one Back.
+        # Natural cycle9 continuation run 40382552379 proves that Android Back on
+        # SkillsShopOverlay races through the silently exposed GameMenu and reaches
+        # MainMenu. The exact stock NSS 4.31 SkillsShopOverlay.uis instead instantiates
+        # M_ShopOverlay(..., UpsellMsg.Close); ShopOverlayMacros.uih places its green
+        # quit/X control at the same top-right overlay target already measured at
+        # ~91.5% width / 7.7% height on the API29 Pixel4 evidence.
         self.assertIn('*skillsshopoverlay*) echo skillsshopoverlay;;', prepared)
         self.assertLess(
             prepared.index('*skillsshopoverlay*) echo skillsshopoverlay;;'),
             prepared.index('*shopoverlay*) echo shopoverlay;;'),
         )
+        self.assertIn('dismiss_stage4_skills_shop_overlay(){', prepared)
+        self.assertIn('stock SkillsShopOverlay UpsellMsg.Close -> ${x},${y}', prepared)
+        self.assertIn('x=$((w * 915 / 1000))', prepared)
+        self.assertIn('y=$((h * 77 / 1000))', prepared)
         self.assertEqual(
-            prepared.count('skillsshopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2; state=gamemenu;;'),
+            prepared.count('skillsshopoverlay) dismiss_stage4_skills_shop_overlay || return 1; state=gamemenu;;'),
             2,
         )
+        self.assertNotIn('skillsshopoverlay) adb shell input keyevent 4', prepared)
         self.assertEqual(
             prepared.count('shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;;'),
             2,
