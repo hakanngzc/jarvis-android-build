@@ -75,11 +75,22 @@ def _visible_rows(path: Path):
     return components
 
 
-def find_argentina_row(path: Path):
+def find_albania_row(path: Path):
     components = _visible_rows(path)
-    # Run199 captured the initial stock page exactly: Albania, Algeria,
-    # Andorra, Angola, Argentina, Armenia. Argentina is the fifth row, so no
-    # scrolling is required. The runtime caller still verifies nation id 9.
+    # Stock initial selector order was captured at runtime as Albania, Algeria,
+    # Andorra, Angola, Argentina, Armenia. Albania is therefore the first row.
+    # Old natural-season runs 202/216 additionally proved stock nation id 2
+    # yields non-zero prospective clubs and reaches real Career matches.
+    if not components:
+        return None
+    y, x = components[0]
+    return x, y
+
+
+def find_argentina_row(path: Path):
+    # Retain the old helper for historical diagnostics; the natural gate CLI
+    # deliberately uses the already-proven first-row Albania route below.
+    components = _visible_rows(path)
     if len(components) < 5:
         return None
     y, x = components[4]
@@ -90,7 +101,7 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit('usage: find_league_picker.py SCREENSHOT.png')
     try:
-        hit = find_argentina_row(Path(sys.argv[1]))
+        hit = find_albania_row(Path(sys.argv[1]))
     except Exception as exc:
         print(f'LEAGUE_PICKER_DETECT_ERROR={exc}', file=sys.stderr)
         raise SystemExit(2)
