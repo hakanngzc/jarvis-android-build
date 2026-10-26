@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import tempfile, unittest
+import subprocess,sys,tempfile,unittest
 from pathlib import Path
 from stage8_tools.verify_stage8_lifecycle import compare_checkpoints
 
+ROOT=Path(__file__).resolve().parent
 BASE={
     'sdate':12,'clubnationid':43,'clubid':6057,'fullname':'A Player','shortname':'Player',
     'careerapps':0,'goalbonus':1,'wage':5,'lastnegotiations':0,'lasttransferdate':0,
@@ -26,5 +27,12 @@ class LifecycleVerifierTests(unittest.TestCase):
         r=compare_checkpoints(BASE,post)
         self.assertFalse(r['ok'])
         self.assertTrue(any('competitionrecordsha256' in e for e in r['errors']))
+
+    def test_direct_script_resolves_repo_local_stage3_tools(self):
+        p=subprocess.run([sys.executable,str(ROOT/'stage8_tools/verify_stage8_lifecycle.py')],text=True,capture_output=True)
+        self.assertNotEqual(p.returncode,0)
+        combined=p.stdout+p.stderr
+        self.assertIn('usage: verify_stage8_lifecycle.py',combined)
+        self.assertNotIn('ModuleNotFoundError',combined)
 
 if __name__=='__main__':unittest.main()
