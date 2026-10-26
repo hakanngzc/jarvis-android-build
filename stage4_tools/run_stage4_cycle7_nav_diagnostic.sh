@@ -8,23 +8,24 @@ fi
 
 GATE="$1"
 PKG=com.newstargames.newstarsoccer
-OUT="${RUNNER_TEMP:?}/stage4-cycle7-diagnostic"
-WORK="$RUNNER_TEMP/stage4-cycle7-diagnostic-work"
-FLOW="$OUT/STAGE4_CYCLE7_NAV_DIAGNOSTIC.log"
+DIAG_OUT="${RUNNER_TEMP:?}/stage4-cycle7-diagnostic"
+DIAG_WORK="$RUNNER_TEMP/stage4-cycle7-diagnostic-work"
+DIAG_FLOW="$DIAG_OUT/STAGE4_CYCLE7_NAV_DIAGNOSTIC.log"
 URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
 REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
 XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
 BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
 RUN270_ARTIFACT_ID=12659521436
 
+mkdir -p "$DIAG_OUT" "$DIAG_WORK"
+awk '/^# Exact stock source/{exit} {print}' "$GATE" > "$DIAG_WORK/helpers.sh"
+# shellcheck disable=SC1090
+source "$DIAG_WORK/helpers.sh"
+OUT="$DIAG_OUT"
+WORK="$DIAG_WORK"
+FLOW="$DIAG_FLOW"
 mkdir -p "$OUT" "$WORK/xapk" "$WORK/signed"
 : > "$FLOW"
-
-# Reuse exactly the composed Stage4 helper/navigation functions, but stop before
-# the normal fresh-Career main body. This diagnostic never counts as final PASS.
-awk '/^# Exact stock source/{exit} {print}' "$GATE" > "$WORK/helpers.sh"
-# shellcheck disable=SC1090
-source "$WORK/helpers.sh"
 
 exact_source=0
 for attempt in 1 2 3; do
@@ -51,7 +52,8 @@ ZIPALIGN="$BT/zipalign"
 APKSIGNER="$BT/apksigner"
 keytool -genkeypair -noprompt -keystore "$WORK/ci.keystore" -storepass android -keypass android -alias ci -dname 'CN=NSS Stage4 Diagnostic CI' -keyalg RSA -keysize 2048 -validity 3650 >/dev/null 2>&1
 sign_one(){
-  local src="$1" dst="$2" tmp="$WORK/aligned-$(basename "$dst")"
+  local src="$1" dst="$2" tmp
+  tmp="$WORK/aligned-$(basename "$dst")"
   "$ZIPALIGN" -f 4 "$src" "$tmp"
   "$APKSIGNER" sign --ks "$WORK/ci.keystore" --ks-key-alias ci --ks-pass pass:android --key-pass pass:android --out "$dst" "$tmp"
   "$APKSIGNER" verify --verbose "$dst" >/dev/null
@@ -112,6 +114,9 @@ if ! navigate_until_match; then
 fi
 capture_log 'cycle7 diagnostic reached Match'
 shot cycle8-match-reached
+
+grep -q 'stock BuxOverlay visible X' "$FLOW" || { echo 'BuxOverlay handler not exercised' | tee -a "$FLOW"; exit 1; }
+grep -q 'stock ShopOverlay under Bux -> Android Back' "$FLOW" || { echo 'ShopOverlay Back handler not exercised' | tee -a "$FLOW"; exit 1; }
 if grep -q 'HitGadget: shopoverlay.buy' "$FLOW"; then
   echo 'shopoverlay.buy re-entry detected' | tee -a "$FLOW"
   exit 1
