@@ -52,8 +52,9 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('career-lifecycle-pre',self.shell)
         self.assertIn('input keyevent 3',self.shell)
         self.assertIn('career-lifecycle-post',self.shell)
+        self.assertIn('verify_stage8_lifecycle.py',self.shell)
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
-        self.assertIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml" "$OUT/career-lifecycle-post-MonkeyGame.xml"',self.shell)
+        self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
     def test_all_adb_calls_are_bounded(self):
         m=re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}',self.shell,re.S)
