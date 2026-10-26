@@ -12,7 +12,7 @@ STATE_OLD = '''  case "$line" in
 
 STATE_NEW = '''  case "$line" in
     *fake-interstitial*) echo fakeinterstitial;; *buxoverlay*) echo buxoverlay;; *purchaseanim*) echo purchaseanim;; *information*) echo information;; *casino*) echo casino;; *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
-    *seasonreview*) echo seasonreview;; *playeroftheyear*) echo playeroftheyear;;
+    *seasonreview*) echo seasonreview;; *playeroftheyear*) echo playeroftheyear;; *desiredtransfer*) echo desiredtransfer;;
     *matchstats*) echo matchstats;; *matchreview*) echo matchreview;; *leaguefixtures*) echo leaguefixtures;; *gamemenu*) echo gamemenu;; *message*) echo message;; *contract*) echo contract;; *webpage*) echo webpage;; *startransition*) echo startransition;; *skills*) echo skills;; *relationships*) echo relationships;;
     *" active: match"*|*"setactive: match"*|*"screen: match"*) echo match;; *" active: league"*|*"setactive: league"*|*"screen: league"*) echo league;; *) echo unknown;;
   esac
@@ -35,12 +35,6 @@ capture_stage4_event_frame(){
 }
 
 dismiss_stage4_fake_interstitial(){
-  # Run229 proved the stock post-MatchReview path can activate GameMenu and
-  # immediately place NSS's own fake-interstitial screen on top when offline.
-  # This is an ordinary visible stock screen, not a hidden game-state branch.
-  # Use Android Back exactly as a player would; the outer loop then proves the
-  # next stock screen from SetActive/Create Screen logs before doing anything
-  # else. No Career, season or match state is modified here.
   echo "stock fake-interstitial -> Android Back" >> "$FLOW"
   adb shell input keyevent 4 </dev/null || true
   sleep 2
@@ -48,11 +42,6 @@ dismiss_stage4_fake_interstitial(){
 
 dismiss_stage4_bux_overlay(){
   local size w h x y
-  # Run258 cycle 8 proved BuyPack1 can return to GameMenu and immediately place
-  # the stock BuxOverlay on top. The rendered 1080x2280 evidence has the visible
-  # green X centred at ~988,175. Tap that same visible control proportionally so
-  # the helper remains resolution-safe. BuxOverlay is a modal over GameMenu;
-  # callers retain gamemenu if closing it publishes no new SetActive marker.
   size="$(adb shell wm size 2>/dev/null | tr -d '\r' | tail -1 | sed -n 's/.*: \([0-9][0-9]*\)x\([0-9][0-9]*\).*/\1 \2/p')"
   read -r w h <<<"$size"
   if [[ "${w:-}" =~ ^[0-9]+$ && "${h:-}" =~ ^[0-9]+$ ]]; then
@@ -90,10 +79,6 @@ resolve_stage4_dilemma(){
       fi
       echo "dilemma choice still visible after attempt $attempt" >> "$FLOW"
     elif [ "$rc" -eq 1 ]; then
-      # Run254 proved the accepted dilemma can land on the stock Relationships/
-      # profile surface. Do not inject a blind message-accept tap after the
-      # choice bars disappear; let the outer state machine resolve the actual
-      # published stock screen deterministically.
       echo "dilemma no longer visible; outer navigation will resolve current stock screen" >> "$FLOW"
       return 0
     else
@@ -117,6 +102,7 @@ NAV_NEW = '''    case "$state" in
       information) press_logical 320 910 2;;
       skills) adb shell input keyevent 4 </dev/null || true; sleep 2;;
       casino) press_logical 85 898 2;;
+      desiredtransfer) press_logical 85 898 2;;
       dilemma|splashmessage) resolve_stage4_dilemma || return 1;;
       webpage) press_footer_ok 2;;
       message|startransition) press_message_accept 2;;
@@ -127,7 +113,7 @@ NAV_NEW = '''    case "$state" in
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; desiredtransfer) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
 
 NAV_TRANSITION_OLD = '''    sleep 1
     state="$(latest_state)"
@@ -138,9 +124,6 @@ NAV_TRANSITION_OLD = '''    sleep 1
 NAV_TRANSITION_NEW = '''    sleep 1
     next_state="$(latest_state)"
     if [ "$next_state" = unknown ]; then
-      # No new authoritative screen marker means the previous visible screen
-      # may simply have consumed an animation-dismiss tap. Retain the last
-      # verified state instead of guessing a different footer action.
       echo "navigate step $step no published transition; retaining $state" >> "$FLOW"
       sleep 1
     else
@@ -154,9 +137,6 @@ POST_TRANSITION_OLD = '''    state="$(latest_state)"; capture_log "cycle $cycle 
 
 POST_TRANSITION_NEW = '''    next_state="$(latest_state)"
     if [ "$next_state" = unknown ]; then
-      # Run231: matchstats.dismissanim can consume the first Play-area tap
-      # without a screen transition. Keep driving the same verified stock
-      # screen; never invent a footer action from an absent SetActive marker.
       echo "cycle $cycle postmatch no published transition; retaining $state" >> "$FLOW"
       sleep 1
     else
