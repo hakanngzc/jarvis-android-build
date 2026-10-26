@@ -129,6 +129,19 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_backs_out_of_casino_from_run264(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_casino')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run264 cycle 7 proved TeamMatesCasino message.btn_Ok activates the
+        # stock casino screen. Its rendered 1080x2280 frame places the visible
+        # Back button at physical centre ~(141,1846), which maps to logical
+        # (85,898), matching the stock Back target already proven elsewhere.
+        self.assertIn('*casino*) echo casino;;', prepared)
+        self.assertEqual(prepared.count('casino) press_logical 85 898 2;;'), 2)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_event_preparer_retains_last_verified_state_when_no_transition_is_published(self):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_state')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
