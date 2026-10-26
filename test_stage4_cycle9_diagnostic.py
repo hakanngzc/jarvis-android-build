@@ -29,6 +29,12 @@ class Stage4Cycle9DiagnosticTests(unittest.TestCase):
         self.assertIn('STAGE4_DIAGNOSTIC_BASELINE=cycle9', prepared)
         self.assertEqual(prepared.count('dump_save natural-baseline; checkpoint natural-baseline'), 1)
 
+        # Proven post-season restart behavior can publish MainMenu before slot0
+        # finishes auto-loading. Do not immediately press Career/SaveSlot on the
+        # first MainMenu marker; give the bounded auto-load window a chance first.
+        self.assertIn('seed_mainmenu=1\n  fi\n  sleep 1', prepared)
+        self.assertNotIn('seed_mainmenu=1\n    break', prepared)
+
         # Diagnostic continuation may discover blockers, but must never masquerade
         # as the final from-fresh natural-season proof.
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
