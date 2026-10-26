@@ -86,6 +86,22 @@ class Stage4EventNavigationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_event_preparer_classifies_and_closes_bux_overlay_from_run258(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_bux')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run258 cycle 8 proved BuyPack1 returns to GameMenu and immediately
+        # publishes BuxOverlay. Its rendered 1080x2280 frame has the visible
+        # stock X centred at about (988,175), i.e. 91.5% width / 7.7% height.
+        self.assertIn('*buxoverlay*) echo buxoverlay;;', prepared)
+        self.assertIn('dismiss_stage4_bux_overlay(){', prepared)
+        self.assertIn('x=$((w * 915 / 1000))', prepared)
+        self.assertIn('y=$((h * 77 / 1000))', prepared)
+        self.assertEqual(prepared.count('buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;;'), 2)
+        self.assertIn('stock BuxOverlay visible X', prepared)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_event_preparer_retains_last_verified_state_when_no_transition_is_published(self):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_state')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
