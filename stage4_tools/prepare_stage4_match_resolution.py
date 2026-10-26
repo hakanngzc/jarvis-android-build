@@ -26,6 +26,49 @@ capture_log 'natural runtime full-resolution Career -> GameMenu'
 BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
 START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=0'''
 
+POST_SEASON_RESTART_OLD = '''dump_save post-season; checkpoint post-season
+adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+start_game post-season-restart; open_slot0 post-season-restart; load_existing post-season-restart
+dump_save post-season-restart; checkpoint post-season-restart'''
+POST_SEASON_RESTART_NEW = r'''dump_save post-season; checkpoint post-season
+restart_post_season_reload(){
+  local attempt evidence mainmenu_seen=0
+  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+  clear_log
+  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+
+  for attempt in $(seq 1 20); do
+    fatal_check || return 1
+    evidence="$WORK/post-season-restart-state.txt"
+    adb logcat -d -v brief > "$evidence" 2>/dev/null || true
+    if grep -q 'LoadCareer saveslot: 0' "$evidence" \
+       && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$evidence"; then
+      echo 'post-season restart auto-load reached GameMenu' >> "$FLOW"
+      capture_log 'post-season restart auto-load -> GameMenu'
+      return 0
+    fi
+    if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$evidence"; then
+      mainmenu_seen=1
+    fi
+    sleep 1
+  done
+
+  if [ "$mainmenu_seen" -eq 1 ]; then
+    echo 'post-season restart auto-load not observed; using stock SaveSlot fallback' >> "$FLOW"
+    open_slot0 post-season-restart
+    load_existing post-season-restart
+    fatal_check || return 1
+    return 0
+  fi
+
+  cp "$evidence" "$OUT/post-season-restart-state-timeout.txt" 2>/dev/null || true
+  shot "post-season-restart-state-timeout"
+  echo 'post-season restart reached neither auto-loaded GameMenu nor stable MainMenu' >> "$FLOW"
+  return 1
+}
+restart_post_season_reload
+dump_save post-season-restart; checkpoint post-season-restart'''
+
 SIZE_OLD = '''size="$(adb shell wm size 2>/dev/null | tr -d '\\r')"'''
 SIZE_NEW = '''size="$(adb shell wm size 2>/dev/null | tr -d '\\r' | tail -1)"'''
 
@@ -112,6 +155,11 @@ def harden(text: str) -> str:
     if logical_count != 1:
         raise SystemExit(f'expected one logical_xy wm-size parser, found {logical_count}')
     text = text.replace(LOGICAL_SIZE_OLD, LOGICAL_SIZE_NEW, 1)
+
+    restart_count = text.count(POST_SEASON_RESTART_OLD)
+    if restart_count != 1:
+        raise SystemExit(f'expected one final post-season restart block, found {restart_count}')
+    text = text.replace(POST_SEASON_RESTART_OLD, POST_SEASON_RESTART_NEW, 1)
 
     count = text.count(POST_BASELINE_OLD)
     if count != 1:
