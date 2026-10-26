@@ -17,55 +17,61 @@ jobs:
     steps:
       - name: Checkout runtime harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Checkout canonical NSS lab
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: hakanngzc/NSS-Reborn-Lab
-          ref: d981f12babce30961d2596d9698b1cd903e39613
-          path: lab
+      - name: Fetch byte-exact public NSS 4.31 source
+        run: |
+          mkdir -p "$RUNNER_TEMP/stage4-seasonend-static/xapk"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage4-seasonend-static/nss431.xapk"
+          echo "$XAPK_SHA  $RUNNER_TEMP/stage4-seasonend-static/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/stage4-seasonend-static/nss431.xapk" -d "$RUNNER_TEMP/stage4-seasonend-static/xapk"
+          test -f "$RUNNER_TEMP/stage4-seasonend-static/xapk/com.newstargames.newstarsoccer.apk"
       - name: Dump stock SeasonEndTransfer bytecode
         run: |
-          mkdir -p "$RUNNER_TEMP/stage4-seasonend-static"
-          PYTHONPATH="$PWD/lab/tools" python3 - <<'PY' > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt"
-          import io, tempfile, zipfile
-          from pathlib import Path
-          from dex_inspect import Dex
+          python3 -m pip install --disable-pip-version-check --quiet 'androguard==4.1.3'
+          BASE="$RUNNER_TEMP/stage4-seasonend-static/xapk/com.newstargames.newstarsoccer.apk"
+          python3 - "$BASE" <<'PY' > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt"
+          import sys
+          from androguard.misc import AnalyzeAPK
 
-          xapk=Path('lab/input/NSS-Base.xapk')
-          with zipfile.ZipFile(xapk) as xz:
-              base=xz.read('com.newstargames.newstarsoccer.apk')
-
+          apk_path=sys.argv[1]
+          _a, dexes, _dx = AnalyzeAPK(apk_path)
           targets={
               'Lcom/newstargames/newstarsoccer/bb_GSContractUtility;': {'g_GSSeasonEndTransfer'},
               'Lcom/newstargames/newstarsoccer/c_TScreen_Message;': {'m_DoCallFunction'},
           }
           found=set()
-          with zipfile.ZipFile(io.BytesIO(base)) as az:
-              for dex_name in sorted(n for n in az.namelist() if Path(n).name.startswith('classes') and n.endswith('.dex')):
-                  with tempfile.NamedTemporaryFile(suffix='.dex', delete=False) as tf:
-                      tf.write(az.read(dex_name)); p=Path(tf.name)
-                  try:
-                      d=Dex(p)
-                      for cls,names in targets.items():
-                          for kind,mid,meta,access,code in d.class_methods(cls):
-                              name=meta[1]
-                              if name not in names: continue
-                              found.add((cls,name))
-                              print(f'=== {dex_name} {cls}->{name} method_id={mid} access={hex(access)} code={hex(code)} ===')
-                              regs,ins,outs,tries,units,items=d.disasm(code)
-                              print(f'regs={regs} ins={ins} outs={outs} tries={tries} units={units}')
-                              for off,op,args,raw in items:
-                                  print(f'{off:05x}: {raw:<32} {op:<24} {args}')
-                  finally:
-                      p.unlink(missing_ok=True)
-          for cls,names in targets.items():
+          for d in dexes:
+              for cls_name,names in targets.items():
+                  cls=d.get_class(cls_name)
+                  if cls is None:
+                      continue
+                  for method in cls.get_methods():
+                      name=method.get_name()
+                      if name not in names:
+                          continue
+                      found.add((cls_name,name))
+                      print(f'=== {cls_name}->{name}{method.get_descriptor()} ===')
+                      code=method.get_code()
+                      if code is None:
+                          print('NO_CODE')
+                          continue
+                      bc=code.get_bc()
+                      for idx,ins in bc.get_instructions_idx():
+                          print(f'{idx:05x}: {ins.get_name():<28} {ins.get_output()}')
+          missing=[]
+          for cls_name,names in targets.items():
               for name in names:
-                  if (cls,name) not in found:
-                      raise SystemExit(f'MISSING {cls}->{name}')
+                  if (cls_name,name) not in found:
+                      missing.append(f'{cls_name}->{name}')
+          if missing:
+              raise SystemExit('MISSING: '+', '.join(missing))
           PY
-          grep -n -E 'SeasonEndTransfer|DesiredTransfer|NewSeason|Message|SetUpScreen|DoCallFunction' "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt" > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt" || true
+          grep -n -E 'SeasonEndTransfer|DesiredTransfer|NewSeason|Message|SetUpScreen|DoCallFunction|m_return|equals' "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt" > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt" || true
           cat "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt"
       - name: Upload season-end static proof
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: stage4-seasonend-static-proof
