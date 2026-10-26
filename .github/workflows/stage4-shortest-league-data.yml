@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download verified NSS 4.31 and inspect match time button
+      - name: Trace stock MatchSpeed references
         run: |
           set -euo pipefail
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
@@ -22,11 +22,14 @@ jobs:
           BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
           curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o /tmp/nss431.xapk
           echo "$XAPK_SHA  /tmp/nss431.xapk" | sha256sum -c -
-          mkdir -p /tmp/xapk
+          mkdir -p /tmp/xapk /tmp/base
           unzip -q /tmp/nss431.xapk -d /tmp/xapk
           BASE=/tmp/xapk/com.newstargames.newstarsoccer.apk
           echo "$BASE_SHA  $BASE" | sha256sum -c -
-          unzip -p "$BASE" assets/monkey/NewGUI/Screens/match.uis > /tmp/match.uis
-          echo STAGE4_TIME_BUTTON_CONTEXT_BEGIN
-          sed -n '1215,1285p' /tmp/match.uis
-          echo STAGE4_TIME_BUTTON_CONTEXT_END
+          unzip -q "$BASE" 'assets/monkey/*' -d /tmp/base
+          echo STAGE4_MATCHSPEED_REFS_BEGIN
+          grep -RniE 'MatchSpeed|btn_Time|FastForward' /tmp/base/assets/monkey | head -n 300 || true
+          echo STAGE4_MATCHSPEED_REFS_END
+          echo STAGE4_DEX_STRINGS_BEGIN
+          unzip -p "$BASE" classes.dex | strings | grep -Ei 'MatchSpeed|btn_Time|FastForward' | head -n 100 || true
+          echo STAGE4_DEX_STRINGS_END
