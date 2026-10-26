@@ -1,0 +1,45 @@
+name: NSS Stage4 Stock Shop UI Probe
+
+on:
+  push:
+    branches: [stage4-diagnostic-skills-overlay-20261026]
+
+permissions:
+  contents: read
+
+jobs:
+  shop-ui-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Extract stock shop UI assets
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/shop-ui-probe"
+          mkdir -p "$OUT/assets"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
+          curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o "$OUT/nss431.xapk"
+          echo "$XAPK_SHA  $OUT/nss431.xapk" | sha256sum -c -
+          unzip -q "$OUT/nss431.xapk" -d "$OUT/xapk"
+          BASE="$OUT/xapk/com.newstargames.newstarsoccer.apk"
+          echo "$BASE_SHA  $BASE" | sha256sum -c -
+          unzip -Z1 "$BASE" | grep -Ei 'shop|overlay' | tee "$OUT/shop-overlay-files.txt" || true
+          while IFS= read -r name; do
+            case "$name" in
+              *.ui|*.uih|*.uis|*.txt|*.xml)
+                safe="$(printf '%s' "$name" | tr '/' '_')"
+                unzip -p "$BASE" "$name" > "$OUT/assets/$safe" || true
+                ;;
+            esac
+          done < "$OUT/shop-overlay-files.txt"
+          grep -RniE 'close|back|button|shop|overlay' "$OUT/assets" > "$OUT/shop-ui-grep.txt" || true
+      - name: Upload stock UI evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-stock-shop-ui-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/shop-ui-probe/
+          retention-days: 3
