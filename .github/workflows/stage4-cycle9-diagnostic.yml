@@ -15,6 +15,7 @@ jobs:
     env:
       MAX_MATCH_CYCLES: '20'
       MATCH_TIMEOUT_SECONDS: '900'
+      STAGE4_DIAGNOSTIC_NAV_ONLY: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
@@ -44,6 +45,7 @@ jobs:
           python3 stage4_tools/prepare_stage4_cycle9_diagnostic.py "$RUNNER_TEMP/diag.resolution.sh" "$RUNNER_TEMP/diag.final.sh"
           bash -n "$RUNNER_TEMP/diag.final.sh"
           grep -q 'STAGE4_DIAGNOSTIC_ONLY_SEEDED_FROM_RUN275_CYCLE9' "$RUNNER_TEMP/diag.final.sh"
+          grep -q 'STAGE4_DIAGNOSTIC_NAV_MATCH_REACHED' "$RUNNER_TEMP/diag.final.sh"
           ! grep -q 'STAGE4_NATURAL_SEASON_PASS' "$RUNNER_TEMP/diag.final.sh"
 
       - name: Enable KVM access
