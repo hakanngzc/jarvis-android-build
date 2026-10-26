@@ -53,6 +53,9 @@ dismiss_stage4_bux_overlay(){
   echo "stock BuxOverlay visible X -> ${x},${y}" >> "$FLOW"
   adb shell input touchscreen tap "$x" "$y" </dev/null || true
   sleep 2
+  echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"
+  adb shell input keyevent 4 </dev/null || true
+  sleep 2
 }
 
 resolve_stage4_dilemma(){
