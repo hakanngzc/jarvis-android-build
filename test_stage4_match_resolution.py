@@ -68,6 +68,18 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         self.assertIn('w,h=map(int,sizes[-1])', prepared)
         self.assertNotIn("w,h=map(int,re.search(r'(\\d+)x(\\d+)',s).groups())", prepared)
 
+    def test_post_season_restart_accepts_stock_auto_load_before_saveslot_fallback(self):
+        prepared = self.composed_gate()
+        self.assertIn('restart_post_season_reload(){', prepared)
+        restart = prepared.index('restart_post_season_reload(){')
+        end = prepared.index('dump_save post-season-restart; checkpoint post-season-restart', restart)
+        block = prepared[restart:end]
+        self.assertIn('LoadCareer saveslot: 0', block)
+        self.assertIn('post-season restart auto-load reached GameMenu', block)
+        self.assertIn('open_slot0 post-season-restart', block)
+        self.assertIn('load_existing post-season-restart', block)
+        self.assertNotIn('start_game post-season-restart', block)
+
     def test_kick_detector_scales_large_ball_window_for_full_and_half_resolution(self):
         text = Path('stage4_tools/find_kick_ball.py').read_text(encoding='utf-8')
         self.assertIn('win = max(90, min(320, w // 4))', text)
