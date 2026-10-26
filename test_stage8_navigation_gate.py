@@ -20,6 +20,15 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('install-multiple -r',self.shell)
         self.assertNotIn('base-stage7-saveonly.apk',self.shell)
 
+    def test_dump_save_initializes_tag_before_using_it(self):
+        m=re.search(r'dump_save\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
+        self.assertIsNotNone(m)
+        body=m.group('body')
+        self.assertIn('local tag="$1"',body)
+        self.assertIn('local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"',body)
+        self.assertIn('local xml="$OUT/${tag}-MonkeyGame.xml"',body)
+        self.assertNotRegex(body,r'local[^\n]*tag="\$1"[^\n]*\$\{tag\}')
+
     def test_career_hub_major_nav_coordinates_are_locked(self):
         self.assertIn('route gamemenu-life 405 837 relationships',self.shell)
         self.assertIn('route gamemenu-skills 249 837 skills',self.shell)
