@@ -13,6 +13,14 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertNotIn('patch_stage3_fast_match_probe',self.shell)
         self.assertNotIn('patch_stage8_age_unlock',self.shell)
 
+    def test_initial_gamemenu_to_leaguefixtures_uses_direct_screen_wait(self):
+        marker='# Reach a real Career fixture using the stock route.'
+        self.assertIn(marker,self.shell)
+        block=self.shell.split(marker,1)[1].split('MATCH_REACHED=0',1)[0]
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures'",block)
+        self.assertIn("capture_log 'failed GameMenu -> LeagueFixtures'",block)
+        self.assertNotIn("wait_state 'leaguefixtures message gamemenu'",block)
+
     def test_background_foreground_keeps_same_process(self):
         self.assertIn('input keyevent 3',self.shell)
         self.assertIn('[ "$pid_before" = "$pid_bg" ]',self.shell)
