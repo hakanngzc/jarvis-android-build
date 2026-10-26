@@ -39,6 +39,35 @@ class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_cycle10_skills_shop_overlay_closes_once_then_restores_gamemenu(self):
+        module = load_module(
+            'stage4_tools/prepare_stage4_event_navigation.py',
+            'prepare_stage4_event_navigation_cycle10_skills_shopoverlay',
+        )
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+
+        # Natural run 40344874221 proves SkillsShopOverlay is a silent overlay
+        # over GameMenu after OldProBoots -> PurchaseAnim -> information.btn_Back.
+        # One Android Back closes the overlay without publishing a new state;
+        # a second Back exits GameMenu to MainMenu. Track this overlay separately
+        # and restore the already-proven underlying GameMenu after exactly one Back.
+        self.assertIn('*skillsshopoverlay*) echo skillsshopoverlay;;', prepared)
+        self.assertLess(
+            prepared.index('*skillsshopoverlay*) echo skillsshopoverlay;;'),
+            prepared.index('*shopoverlay*) echo shopoverlay;;'),
+        )
+        self.assertEqual(
+            prepared.count('skillsshopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2; state=gamemenu;;'),
+            2,
+        )
+        self.assertEqual(
+            prepared.count('shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;;'),
+            2,
+        )
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
 
 if __name__ == '__main__':
     unittest.main()
