@@ -1,0 +1,101 @@
+name: NSS Stage4 Resume Diagnostic
+
+on:
+  push:
+    branches: [stage4-resume-diagnostic-20261026]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  stage4-resume-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate diagnostic tooling
+        run: |
+          python3 -m py_compile stage4_tools/prepare_stage4_resume_diagnostic.py
+          python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/gate.pre.sh"
+          python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/gate.pre.sh" "$RUNNER_TEMP/gate.start.sh"
+          python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/gate.start.sh" "$RUNNER_TEMP/gate.visual.sh"
+          python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/gate.visual.sh" "$RUNNER_TEMP/gate.offline.sh"
+          python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/gate.offline.sh" "$RUNNER_TEMP/gate.shortleague.sh"
+          python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/gate.shortleague.sh" "$RUNNER_TEMP/gate.events.sh"
+          python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/gate.events.sh" "$RUNNER_TEMP/gate.prematch.sh"
+          python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/gate.prematch.sh" "$RUNNER_TEMP/gate.live.sh"
+          python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/gate.live.sh" "$RUNNER_TEMP/gate.speed.sh"
+          python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/gate.speed.sh" "$RUNNER_TEMP/gate.boundary.sh"
+          python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/gate.boundary.sh" "$RUNNER_TEMP/gate.resolution.sh"
+          python3 stage4_tools/prepare_stage4_resume_diagnostic.py "$RUNNER_TEMP/gate.resolution.sh" "$RUNNER_TEMP/gate.diagnostic.sh"
+          bash -n "$RUNNER_TEMP/gate.diagnostic.sh"
+          grep -q 'DIAGNOSTIC_ONLY restoring natural cycle-9 seed' "$RUNNER_TEMP/gate.diagnostic.sh"
+          grep -q 'STAGE4_RESUME_DIAGNOSTIC_COMPLETE' "$RUNNER_TEMP/gate.diagnostic.sh"
+          ! grep -q "echo 'STAGE4_NATURAL_SEASON_PASS'" "$RUNNER_TEMP/gate.diagnostic.sh"
+
+      - name: Download natural cycle-9 seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/stage4-resume-seed"
+          curl -fL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/hakanngzc/jarvis-android-build/actions/artifacts/12647883054/zip' \
+            -o "$RUNNER_TEMP/run262.zip"
+          unzip -j "$RUNNER_TEMP/run262.zip" 'cycle-9-MonkeyGame.xml' -d "$RUNNER_TEMP/stage4-resume-seed"
+          grep -q monkeystate "$RUNNER_TEMP/stage4-resume-seed/cycle-9-MonkeyGame.xml"
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and resume natural cycle-9 save
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          STAGE4_RESUME_SEED: ${{ runner.temp }}/stage4-resume-seed/cycle-9-MonkeyGame.xml
+          MIN_PROGRESS_DAYS: '0'
+          MIN_MATCH_CYCLES: '1'
+          MIN_WALL_SECONDS: '0'
+          MAX_MATCH_CYCLES: '30'
+          MATCH_TIMEOUT_SECONDS: '900'
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/gate.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/gate.pre.sh" "$RUNNER_TEMP/gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/gate.start.sh" "$RUNNER_TEMP/gate.visual.sh"
+            python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/gate.visual.sh" "$RUNNER_TEMP/gate.offline.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/gate.offline.sh" "$RUNNER_TEMP/gate.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/gate.shortleague.sh" "$RUNNER_TEMP/gate.events.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/gate.events.sh" "$RUNNER_TEMP/gate.prematch.sh"
+            python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/gate.prematch.sh" "$RUNNER_TEMP/gate.live.sh"
+            python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/gate.live.sh" "$RUNNER_TEMP/gate.speed.sh"
+            python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/gate.speed.sh" "$RUNNER_TEMP/gate.boundary.sh"
+            python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/gate.boundary.sh" "$RUNNER_TEMP/gate.resolution.sh"
+            python3 stage4_tools/prepare_stage4_resume_diagnostic.py "$RUNNER_TEMP/gate.resolution.sh" "$RUNNER_TEMP/gate.diagnostic.sh"
+            bash -n "$RUNNER_TEMP/gate.diagnostic.sh"
+            bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/gate.diagnostic.sh"
+
+      - name: Upload Stage4 resume diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-resume-diagnostic-evidence
+          path: ${{ runner.temp }}/stage4-natural/
+          retention-days: 7
