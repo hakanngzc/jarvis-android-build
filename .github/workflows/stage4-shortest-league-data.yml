@@ -31,17 +31,19 @@ jobs:
           unzip -p "$BASE" assets/monkey/MyData/v2025/Clubs.txt > /tmp/Clubs.txt
           python3 - <<'PY'
           import csv
-          from collections import Counter, defaultdict
-          from pathlib import Path
+          from collections import Counter
 
           def rows(path):
               with open(path, encoding='utf-8-sig', errors='replace', newline='') as f:
                   return list(csv.DictReader(f, delimiter='\t'))
 
+          def s(value):
+              return '' if value is None else str(value).strip()
+
           nations = rows('/tmp/Nations.txt')
           comps = rows('/tmp/Competitions.txt')
           clubs = rows('/tmp/Clubs.txt')
-          comp_by_id = {r.get('id','').strip(): r for r in comps if r.get('id','').strip().isdigit()}
+          comp_by_id = {s(r.get('id')): r for r in comps if s(r.get('id')).isdigit()}
           wanted = ['Albania','Algeria','Andorra','Angola','Argentina','Armenia']
 
           print('NATIONS_HEADER', nations[0].keys() if nations else [])
@@ -49,19 +51,23 @@ jobs:
           print('CLUBS_HEADER', clubs[0].keys() if clubs else [])
           print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_BEGIN')
           for name in wanted:
-              matches = [r for r in nations if name.lower() in ' '.join(str(v) for v in r.values()).lower()]
+              matches = [r for r in nations if name.lower() in ' '.join(s(v) for v in r.values()).lower()]
               if not matches:
                   print(name, 'NATION_NOT_FOUND')
                   continue
               nation = matches[0]
-              nid = nation.get('id','').strip()
-              nation_clubs = [r for r in clubs if r.get('nationid','').strip() == nid and r.get('id','').strip().isdigit() and r.get('bteamof','').strip() in ('','0')]
-              by_league = Counter(r.get('leagueid','').strip() for r in nation_clubs if r.get('leagueid','').strip() not in ('','0'))
+              nid = s(nation.get('id'))
+              nation_clubs = [r for r in clubs if s(r.get('nationid')) == nid and s(r.get('id')).isdigit() and s(r.get('bteamof')) in ('','0')]
+              by_league = Counter(s(r.get('leagueid')) for r in nation_clubs if s(r.get('leagueid')) not in ('','0'))
               league_desc = []
               for lid,count in sorted(by_league.items(), key=lambda kv:(kv[1],kv[0])):
                   cr=comp_by_id.get(lid,{})
-                  label = cr.get('shortname') or cr.get('name') or cr.get('tla') or '?'
-                  league_desc.append(f'{lid}:{label}:{count}')
+                  label = s(cr.get('tla')) or s(cr.get('locale')) or '?'
+                  level = s(cr.get('level')) or '?'
+                  duration = s(cr.get('duration')) or '?'
+                  rounds = s(cr.get('rounds')) or '?'
+                  groups = s(cr.get('groups')) or '?'
+                  league_desc.append(f'{lid}:{label}:clubs={count}:level={level}:duration={duration}:rounds={rounds}:groups={groups}')
               print(f'{name}\tnation_id={nid}\tclubs={len(nation_clubs)}\tleagues={"|".join(league_desc)}')
           print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_END')
           PY
