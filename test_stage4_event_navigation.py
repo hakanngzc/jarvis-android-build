@@ -77,6 +77,20 @@ class Stage4EventNavigationTests(unittest.TestCase):
         self.assertEqual(prepared.count('webpage) press_footer_ok 2;;'), 2)
         self.assertNotIn('message|webpage|startransition) press_message_accept 2;;', prepared)
 
+    def test_event_preparer_classifies_and_dismisses_stock_fake_interstitial_in_both_loops(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_interstitial')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run229 proves stock can activate GameMenu and immediately cover it
+        # with its own fake-interstitial screen after MatchReview. This is a
+        # visible stock navigation surface, not an Android AdActivity.
+        self.assertIn('*fake-interstitial*) echo fakeinterstitial;;', prepared)
+        self.assertIn('dismiss_stage4_fake_interstitial(){', prepared)
+        self.assertIn('adb shell input keyevent 4', prepared)
+        self.assertEqual(prepared.count('fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;;'), 2)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
     def test_workflow_applies_event_navigation_before_prematch_and_live_hardening(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         event = 'stage4_tools/prepare_stage4_event_navigation.py'
