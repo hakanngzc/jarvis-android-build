@@ -2,7 +2,7 @@ name: NSS Stage4 Season-End Static Proof
 
 on:
   push:
-    branches: [nss-residual-runtime-20261024]
+    branches: [stage4-seasonend-static-20261026]
     paths:
       - '.github/workflows/nss-stage4-seasonend-static.yml'
   workflow_dispatch:
@@ -13,25 +13,34 @@ permissions:
 jobs:
   seasonend-static:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout runtime harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
       - name: Fetch byte-exact public NSS 4.31 source
         run: |
-          mkdir -p "$RUNNER_TEMP/stage4-seasonend-static/xapk"
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/stage4-seasonend-static"
+          mkdir -p "$OUT/xapk"
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
           REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
           XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
-          curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/stage4-seasonend-static/nss431.xapk"
-          echo "$XAPK_SHA  $RUNNER_TEMP/stage4-seasonend-static/nss431.xapk" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/stage4-seasonend-static/nss431.xapk" -d "$RUNNER_TEMP/stage4-seasonend-static/xapk"
-          test -f "$RUNNER_TEMP/stage4-seasonend-static/xapk/com.newstargames.newstarsoccer.apk"
-      - name: Dump stock SeasonEndTransfer bytecode
+          BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
+          curl -fL --retry 3 -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o "$OUT/nss431.xapk"
+          echo "$XAPK_SHA  $OUT/nss431.xapk" | sha256sum -c - | tee "$OUT/xapk-sha.txt"
+          unzip -q "$OUT/nss431.xapk" -d "$OUT/xapk"
+          BASE="$OUT/xapk/com.newstargames.newstarsoccer.apk"
+          echo "$BASE_SHA  $BASE" | sha256sum -c - | tee "$OUT/base-sha.txt"
+          unzip -p "$BASE" assets/monkey/NewGUI/Screens/desiredtransfer.uis > "$OUT/desiredtransfer.uis"
+
+      - name: Dump stock season-end and back-navigation bytecode
         run: |
+          set -euo pipefail
           python3 -m pip install --disable-pip-version-check --quiet 'androguard==4.1.3'
-          BASE="$RUNNER_TEMP/stage4-seasonend-static/xapk/com.newstargames.newstarsoccer.apk"
-          python3 - "$BASE" <<'PY' > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt"
+          OUT="$RUNNER_TEMP/stage4-seasonend-static"
+          BASE="$OUT/xapk/com.newstargames.newstarsoccer.apk"
+          python3 - "$BASE" <<'PY' > "$OUT/seasonend-disasm.txt"
           import sys
           from androguard.misc import AnalyzeAPK
 
@@ -40,6 +49,8 @@ jobs:
           targets={
               'Lcom/newstargames/newstarsoccer/bb_GSContractUtility;': {'g_GSSeasonEndTransfer'},
               'Lcom/newstargames/newstarsoccer/c_TScreen_Message;': {'m_DoCallFunction'},
+              'Lcom/newstargames/newstarsoccer/c_TScreen_DesiredTransfer;': None,
+              'Lcom/newstargames/newstarsoccer/c_GameEngine;': {'p_OnBackPressed'},
           }
           found=set()
           for d in dexes:
@@ -49,7 +60,7 @@ jobs:
                       continue
                   for method in cls.get_methods():
                       name=method.get_name()
-                      if name not in names:
+                      if names is not None and name not in names:
                           continue
                       found.add((cls_name,name))
                       print(f'=== {cls_name}->{name}{method.get_descriptor()} ===')
@@ -57,19 +68,28 @@ jobs:
                       if code is None:
                           print('NO_CODE')
                           continue
-                      bc=code.get_bc()
-                      for idx,ins in bc.get_instructions_idx():
+                      for idx,ins in code.get_bc().get_instructions_idx():
                           print(f'{idx:05x}: {ins.get_name():<28} {ins.get_output()}')
-          missing=[]
-          for cls_name,names in targets.items():
-              for name in names:
-                  if (cls_name,name) not in found:
-                      missing.append(f'{cls_name}->{name}')
+          required=[
+              ('Lcom/newstargames/newstarsoccer/bb_GSContractUtility;','g_GSSeasonEndTransfer'),
+              ('Lcom/newstargames/newstarsoccer/c_TScreen_Message;','m_DoCallFunction'),
+              ('Lcom/newstargames/newstarsoccer/c_TScreen_DesiredTransfer;','m_ButtonBack'),
+              ('Lcom/newstargames/newstarsoccer/c_GameEngine;','p_OnBackPressed'),
+          ]
+          missing=[f'{c}->{m}' for c,m in required if (c,m) not in found]
           if missing:
               raise SystemExit('MISSING: '+', '.join(missing))
           PY
-          grep -n -E 'SeasonEndTransfer|DesiredTransfer|NewSeason|Message|SetUpScreen|DoCallFunction|m_return|equals' "$RUNNER_TEMP/stage4-seasonend-static/seasonend-disasm.txt" > "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt" || true
-          cat "$RUNNER_TEMP/stage4-seasonend-static/seasonend-hits.txt"
+
+          grep -n -C 80 -E 'SeasonEndTransfer|DesiredTransfer|NewSeasonWithSameClub|ConfirmSeasonEndTransfer|NewSeasonNoClubsInterested|p_NewSeason|m_ButtonBack|skills|desiredtransfer' \
+            "$OUT/seasonend-disasm.txt" > "$OUT/seasonend-hits.txt" || true
+          grep -n -Ei 'back|home|ok|footer|button|desiredtransfer|transfer|club|league|division' \
+            "$OUT/desiredtransfer.uis" > "$OUT/desiredtransfer-ui-controls.txt" || true
+          cat "$OUT/seasonend-hits.txt"
+          echo '--- DESIREDTRANSFER UI CONTROLS ---'
+          cat "$OUT/desiredtransfer-ui-controls.txt"
+          echo 'STAGE4_SEASONEND_STATIC_DIAGNOSTIC=PASS' | tee "$OUT/RESULT.txt"
+
       - name: Upload season-end static proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
