@@ -62,7 +62,7 @@ press_message_accept(){ press_logical 477 880 "${1:-2}"; }
 press_play(){
   local size; size="$(adb shell wm size 2>/dev/null | tr -d '\r')"
   case "$size" in
-    *1080x2280*) adb shell input touchscreen tap 935 1850 </dev/null || true; sleep "${1:-3}" ;;
+    *1080x2280*) press_physical 935 1850 "${1:-3}" ;;
     *) echo "Unsupported Stage7 Play geometry: $size" >&2; return 1 ;;
   esac
 }
