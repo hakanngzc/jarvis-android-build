@@ -12,7 +12,7 @@ permissions:
 jobs:
   stage4-cycle9-diagnostic:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
@@ -29,7 +29,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           test -e /dev/kvm
 
-      - name: Boot Android 10 and continue five matches from natural cycle9 save
+      - name: Boot Android 10 and probe one match from natural cycle9 save
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,7 +37,7 @@ jobs:
           MIN_PROGRESS_DAYS: '9999'
           MIN_MATCH_CYCLES: '999'
           MIN_WALL_SECONDS: '999999'
-          MAX_MATCH_CYCLES: '5'
+          MAX_MATCH_CYCLES: '1'
           MATCH_TIMEOUT_SECONDS: '900'
         with:
           api-level: 29
