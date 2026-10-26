@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download verified NSS 4.31 and inspect initial-page league sizes
+      - name: Download verified NSS 4.31 and inspect league sizes
         run: |
           set -euo pipefail
           URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
@@ -31,43 +31,55 @@ jobs:
           unzip -p "$BASE" assets/monkey/MyData/v2025/Clubs.txt > /tmp/Clubs.txt
           python3 - <<'PY'
           import csv
-          from collections import Counter
+          from collections import Counter, defaultdict
 
           def rows(path):
               with open(path, encoding='utf-8-sig', errors='replace', newline='') as f:
                   return list(csv.DictReader(f, delimiter='\t'))
+          def s(v): return '' if v is None else str(v).strip()
+          def iv(v, default=0):
+              try: return int(s(v))
+              except ValueError: return default
 
-          def s(value):
-              return '' if value is None else str(value).strip()
+          nations=rows('/tmp/Nations.txt'); comps=rows('/tmp/Competitions.txt'); clubs=rows('/tmp/Clubs.txt')
+          nation_by_id={s(r.get('id')):r for r in nations if s(r.get('id')).isdigit()}
+          comp_by_id={s(r.get('id')):r for r in comps if s(r.get('id')).isdigit()}
+          by_nation_league=Counter()
+          for r in clubs:
+              if not s(r.get('id')).isdigit() or s(r.get('bteamof')) not in ('','0'): continue
+              nid,lid=s(r.get('nationid')),s(r.get('leagueid'))
+              if nid and lid not in ('','0'): by_nation_league[(nid,lid)] += 1
 
-          nations = rows('/tmp/Nations.txt')
-          comps = rows('/tmp/Competitions.txt')
-          clubs = rows('/tmp/Clubs.txt')
-          comp_by_id = {s(r.get('id')): r for r in comps if s(r.get('id')).isdigit()}
-          wanted = ['Albania','Algeria','Andorra','Angola','Argentina','Armenia']
-
-          print('NATIONS_HEADER', nations[0].keys() if nations else [])
-          print('COMPETITIONS_HEADER', comps[0].keys() if comps else [])
-          print('CLUBS_HEADER', clubs[0].keys() if clubs else [])
+          wanted=['Albania','Algeria','Andorra','Angola','Argentina','Armenia']
           print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_BEGIN')
           for name in wanted:
-              matches = [r for r in nations if name.lower() in ' '.join(s(v) for v in r.values()).lower()]
+              matches=[r for r in nations if s(r.get('shortname')).lower()==name.lower()]
               if not matches:
-                  print(name, 'NATION_NOT_FOUND')
-                  continue
-              nation = matches[0]
-              nid = s(nation.get('id'))
-              nation_clubs = [r for r in clubs if s(r.get('nationid')) == nid and s(r.get('id')).isdigit() and s(r.get('bteamof')) in ('','0')]
-              by_league = Counter(s(r.get('leagueid')) for r in nation_clubs if s(r.get('leagueid')) not in ('','0'))
-              league_desc = []
-              for lid,count in sorted(by_league.items(), key=lambda kv:(kv[1],kv[0])):
+                  print(name,'NATION_NOT_FOUND'); continue
+              nid=s(matches[0].get('id'))
+              desc=[]
+              for (nn,lid),count in by_nation_league.items():
+                  if nn != nid: continue
                   cr=comp_by_id.get(lid,{})
-                  label = s(cr.get('tla')) or s(cr.get('locale')) or '?'
-                  level = s(cr.get('level')) or '?'
-                  duration = s(cr.get('duration')) or '?'
-                  rounds = s(cr.get('rounds')) or '?'
-                  groups = s(cr.get('groups')) or '?'
-                  league_desc.append(f'{lid}:{label}:clubs={count}:level={level}:duration={duration}:rounds={rounds}:groups={groups}')
-              print(f'{name}\tnation_id={nid}\tclubs={len(nation_clubs)}\tleagues={"|".join(league_desc)}')
+                  desc.append((count,lid,s(cr.get('tla')),iv(cr.get('rounds')),iv(cr.get('duration'))))
+              print(name,'nation_id='+nid,' '.join(f'{lid}:{tla}:clubs={count}:rounds={rounds}:duration={duration}' for count,lid,tla,rounds,duration in sorted(desc)))
           print('STAGE4_INITIAL_PAGE_LEAGUE_COUNTS_END')
+
+          candidates=[]
+          for (nid,lid),count in by_nation_league.items():
+              cr=comp_by_id.get(lid,{})
+              tla=s(cr.get('tla'))
+              rounds=iv(cr.get('rounds'))
+              duration=iv(cr.get('duration'))
+              if rounds <= 0 or count < 4: continue
+              # Main domestic tier convention in stock data is the *1 code.
+              if not tla.endswith('1'): continue
+              nation=s(nation_by_id.get(nid,{}).get('shortname')) or '?'
+              implied=(count-1)*rounds
+              candidates.append((implied,duration,count,rounds,nation,nid,lid,tla))
+          print('STAGE4_SHORTEST_TOP_LEAGUES_BEGIN')
+          for row in sorted(candidates)[:30]:
+              implied,duration,count,rounds,nation,nid,lid,tla=row
+              print(f'{nation}\tnation_id={nid}\t{tla}\tleague_id={lid}\tclubs={count}\trounds={rounds}\timplied_matches={implied}\tduration={duration}')
+          print('STAGE4_SHORTEST_TOP_LEAGUES_END')
           PY
