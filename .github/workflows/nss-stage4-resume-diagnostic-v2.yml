@@ -1,0 +1,175 @@
+name: NSS Stage4 Resume Diagnostic V2
+
+on:
+  push:
+    branches: [stage4-resume-diagnostic-v2-20261026]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  stage4-resume-diagnostic-v2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Download natural cycle-9 seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage4-resume-seed"
+          curl -fL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/hakanngzc/jarvis-android-build/actions/artifacts/12647883054/zip' \
+            -o "$RUNNER_TEMP/run262.zip"
+          unzip -j "$RUNNER_TEMP/run262.zip" 'cycle-9-MonkeyGame.xml' -d "$RUNNER_TEMP/stage4-resume-seed"
+          grep -q monkeystate "$RUNNER_TEMP/stage4-resume-seed/cycle-9-MonkeyGame.xml"
+
+      - name: Validate standalone diagnostic assembly
+        run: |
+          set -euo pipefail
+          python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/gate.pre.sh"
+          python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/gate.pre.sh" "$RUNNER_TEMP/gate.start.sh"
+          python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/gate.start.sh" "$RUNNER_TEMP/gate.visual.sh"
+          python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/gate.visual.sh" "$RUNNER_TEMP/gate.offline.sh"
+          python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/gate.offline.sh" "$RUNNER_TEMP/gate.shortleague.sh"
+          python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/gate.shortleague.sh" "$RUNNER_TEMP/gate.events.sh"
+          python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/gate.events.sh" "$RUNNER_TEMP/gate.prematch.sh"
+          python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/gate.prematch.sh" "$RUNNER_TEMP/gate.live.sh"
+          python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/gate.live.sh" "$RUNNER_TEMP/gate.speed.sh"
+          python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/gate.speed.sh" "$RUNNER_TEMP/gate.boundary.sh"
+          python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/gate.boundary.sh" "$RUNNER_TEMP/gate.resolution.sh"
+          awk '/^# Exact stock source/{exit} {print}' "$RUNNER_TEMP/gate.resolution.sh" > "$RUNNER_TEMP/diagnostic-functions.sh"
+          awk 'BEGIN{emit=0} /^# Exact stock source/{emit=1} /^start_game fresh/{exit} emit{print}' "$RUNNER_TEMP/gate.resolution.sh" > "$RUNNER_TEMP/diagnostic-install.sh"
+          grep -q 'natural_match_cycle(){' "$RUNNER_TEMP/diagnostic-functions.sh"
+          grep -q 'sign_one "$WORK/base-natural-unsigned.apk"' "$RUNNER_TEMP/diagnostic-install.sh"
+          bash -n "$RUNNER_TEMP/diagnostic-functions.sh"
+          bash -n "$RUNNER_TEMP/diagnostic-install.sh"
+          ! grep -q 'STAGE4_NATURAL_SEASON_PASS' "$RUNNER_TEMP/diagnostic-functions.sh"
+          ! grep -q 'STAGE4_NATURAL_SEASON_PASS' "$RUNNER_TEMP/diagnostic-install.sh"
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and continue from natural cycle-9 save
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          STAGE4_RESUME_SEED: ${{ runner.temp }}/stage4-resume-seed/cycle-9-MonkeyGame.xml
+          MATCH_TIMEOUT_SECONDS: '900'
+          MAX_MATCH_CYCLES: '35'
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/gate.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/gate.pre.sh" "$RUNNER_TEMP/gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/gate.start.sh" "$RUNNER_TEMP/gate.visual.sh"
+            python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/gate.visual.sh" "$RUNNER_TEMP/gate.offline.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/gate.offline.sh" "$RUNNER_TEMP/gate.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/gate.shortleague.sh" "$RUNNER_TEMP/gate.events.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/gate.events.sh" "$RUNNER_TEMP/gate.prematch.sh"
+            python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/gate.prematch.sh" "$RUNNER_TEMP/gate.live.sh"
+            python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/gate.live.sh" "$RUNNER_TEMP/gate.speed.sh"
+            python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/gate.speed.sh" "$RUNNER_TEMP/gate.boundary.sh"
+            python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/gate.boundary.sh" "$RUNNER_TEMP/gate.resolution.sh"
+
+            awk '/^# Exact stock source/{exit} {print}' "$RUNNER_TEMP/gate.resolution.sh" > "$RUNNER_TEMP/diagnostic-functions.sh"
+            awk 'BEGIN{emit=0} /^# Exact stock source/{emit=1} /^start_game fresh/{exit} emit{print}' "$RUNNER_TEMP/gate.resolution.sh" > "$RUNNER_TEMP/diagnostic-install.sh"
+            source "$RUNNER_TEMP/diagnostic-functions.sh"
+            source "$RUNNER_TEMP/diagnostic-install.sh"
+
+            echo 'DIAGNOSTIC_ONLY standalone cycle-9 continuation' >> "$FLOW"
+            adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+            adb root >/dev/null 2>&1 || true
+            adb wait-for-device
+            uid="$(adb shell stat -c %u "/data/data/$PKG" 2>/dev/null | tr -d '\r')"
+            test -n "$uid"
+            adb push "$STAGE4_RESUME_SEED" /data/local/tmp/stage4-cycle9-MonkeyGame.xml >/dev/null
+            adb shell mkdir -p "/data/data/$PKG/shared_prefs"
+            adb shell cp /data/local/tmp/stage4-cycle9-MonkeyGame.xml "/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+            adb shell chown "$uid:$uid" "/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+            adb shell chmod 600 "/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+            adb shell restorecon -RF "/data/data/$PKG/shared_prefs" >/dev/null 2>&1 || true
+
+            clear_log
+            adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+            if wait_log 'LoadCareer saveslot: 0' 60 resume-autoload && wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 resume-gamemenu; then
+              capture_log 'DIAGNOSTIC_ONLY seed auto-load -> GameMenu'
+            else
+              start_game resume-fallback
+              open_slot0 resume-fallback
+              load_existing resume-fallback
+            fi
+
+            dump_save resume-seeded
+            checkpoint resume-seeded
+            python3 - "$OUT/resume-seeded.json" <<'PY'
+            import json,sys
+            d=json.load(open(sys.argv[1],encoding='utf-8'))
+            assert d['sdate']==99, d
+            assert d['careerapps']==9, d
+            assert d['clubnationid']==2, d
+            print('DIAGNOSTIC_SEED_OK',d['sdate'],d['careerapps'],d['clubid'])
+            PY
+
+            BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
+            START_EPOCH="$(date +%s)"
+            SEASON_SEEN=0
+            CYCLES=9
+            for cycle in $(seq 10 "$MAX_MATCH_CYCLES"); do
+              natural_match_cycle "$cycle" || { echo "DIAGNOSTIC_ONLY natural cycle $cycle failed"; exit 240; }
+              CYCLES="$cycle"
+              adb logcat -d -v brief >> "$FLOW" 2>/dev/null || true
+              tail -c +$((BASE_FLOW_BYTES + 1)) "$FLOW" > "$WORK/post-baseline-season-flow.log" 2>/dev/null || true
+              if grep -q 'CallFunc:[[:space:]]*NewSeasonSetUp1' "$WORK/post-baseline-season-flow.log" \
+                && grep -q 'CallFunc:[[:space:]]*NewSeasonSetUp2' "$WORK/post-baseline-season-flow.log" \
+                && grep -q 'CallFunc:[[:space:]]*NewSeasonSetUp3' "$WORK/post-baseline-season-flow.log" \
+                && grep -q 'CallFunc:[[:space:]]*NewSeasonSetUp4' "$WORK/post-baseline-season-flow.log"; then
+                SEASON_SEEN=1
+                break
+              fi
+            done
+
+            END_EPOCH="$(date +%s)"
+            WALL=$((END_EPOCH-START_EPOCH))
+            echo "DIAGNOSTIC_ONLY cycles=$CYCLES wall=$WALL season_seen=$SEASON_SEEN" | tee "$OUT/STAGE4_RESUME_DIAGNOSTIC_RESULT.txt"
+            if [ "$SEASON_SEEN" -eq 1 ]; then
+              dump_save diagnostic-post-season
+              checkpoint diagnostic-post-season
+              adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+              clear_log
+              adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+              wait_log 'LoadCareer saveslot: 0' 60 diagnostic-restart-load
+              wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 diagnostic-restart-gamemenu
+              dump_save diagnostic-post-season-restart
+              checkpoint diagnostic-post-season-restart
+            fi
+            fatal_check
+            echo 'STAGE4_RESUME_DIAGNOSTIC_COMPLETE' | tee -a "$OUT/STAGE4_RESUME_DIAGNOSTIC_RESULT.txt"
+
+      - name: Upload Stage4 resume diagnostic V2 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-resume-diagnostic-v2-evidence
+          path: ${{ runner.temp }}/stage4-natural/
+          retention-days: 7
