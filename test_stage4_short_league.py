@@ -98,9 +98,6 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         start = prepared.index('select_argentina_stock_league(){')
         end = prepared.index('continue_after_argentina_stock_league(){', start)
         selector = prepared[start:end]
-        # choosenation.uis: outer origin (12,208) + league origin (6,348) +
-        # M_StandardButton (28,75,572,82), whose pressable inset is +5/-10.
-        # Logical pressable area = x 51..613, y 636..708; use its safe centre.
         self.assertIn('press_logical 332 672 1', selector)
         self.assertNotIn('press_logical 64 630 1', selector)
         self.assertNotIn('press_logical 320 640 1', selector)
@@ -128,6 +125,18 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         self.assertIn('input touchscreen tap 940 1830', prepared)
         self.assertIn('input touchscreen swipe 940 1830 940 1830 220', prepared)
         self.assertIn('continue_after_argentina_stock_league || exit 218', prepared)
+
+    def test_workflow_retries_only_disposable_setup_failures(self):
+        text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
+        self.assertIn('for setup_attempt in 1 2 3', text)
+        self.assertIn('218|219)', text)
+        self.assertIn('setup-only retry after rc=$rc', text)
+        self.assertIn('*) exit "$rc";;', text)
+        # Natural match / season-boundary failures must never be replayed as if
+        # they were onboarding noise; only disposable setup may retry.
+        retry_case = text[text.index('case "$rc" in'):text.index('esac', text.index('case "$rc" in'))]
+        self.assertNotIn('220', retry_case)
+        self.assertNotIn('221', retry_case)
 
     def test_workflow_applies_short_league_before_prematch(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
