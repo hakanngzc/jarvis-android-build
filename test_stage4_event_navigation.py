@@ -90,9 +90,6 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_bux')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # Run258 cycle 8 proved BuyPack1 returns to GameMenu and immediately
-        # publishes BuxOverlay. Its rendered 1080x2280 frame has the visible
-        # stock X centred at about (988,175), i.e. 91.5% width / 7.7% height.
         self.assertIn('*buxoverlay*) echo buxoverlay;;', prepared)
         self.assertIn('dismiss_stage4_bux_overlay(){', prepared)
         self.assertIn('x=$((w * 915 / 1000))', prepared)
@@ -106,10 +103,6 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_information')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # Run262 cycle 10 proved OldProBoots can publish information followed by
-        # PurchaseAnim. The existing message-accept coordinate emitted the real
-        # stock PurchaseAnim.Close hit; after that the rendered information
-        # screen exposes a large green check centred at logical ~(320,910).
         self.assertIn('*purchaseanim*) echo purchaseanim;; *information*) echo information;;', prepared)
         self.assertEqual(prepared.count('purchaseanim) press_message_accept 1; state=information;;'), 2)
         self.assertEqual(prepared.count('information) press_logical 320 910 2;;'), 2)
@@ -120,11 +113,6 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_skills_back')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # DEX mapping proves Information.m_ButtonBack can return to Skills, and
-        # GameEngine.p_OnBackPressed dispatches skills directly to
-        # c_TScreen_Skills.m_ButtonHome. Use that stock navigation path instead
-        # of the generic Play-area tap if the OldProBoots information returns us
-        # to Skills.
         self.assertEqual(prepared.count('skills) adb shell input keyevent 4 </dev/null || true; sleep 2;;'), 2)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
@@ -133,12 +121,23 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_casino')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # Run264 cycle 7 proved TeamMatesCasino message.btn_Ok activates the
-        # stock casino screen. Its rendered 1080x2280 frame places the visible
-        # Back button at physical centre ~(141,1846), which maps to logical
-        # (85,898), matching the stock Back target already proven elsewhere.
         self.assertIn('*casino*) echo casino;;', prepared)
         self.assertEqual(prepared.count('casino) press_logical 85 898 2;;'), 2)
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
+    def test_event_preparer_backs_out_of_stock_desired_transfer_at_season_end(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_desired_transfer')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Exact public stock NSS 4.31 (XAPK sha afa4c331..., base sha 46b5577b...)
+        # desiredtransfer.uis proves a standard BackButton using navigate_Back
+        # and Click(desiredtransfer.btn_Back). The rollover map proves that
+        # handler emits NewSeasonWithSameClub and converges on p_NewSeason.
+        # The common nav button is the same bottom-left stock Back target already
+        # measured at logical (85,898) on Casino/Relationships screens.
+        self.assertIn('*desiredtransfer*) echo desiredtransfer;;', prepared)
+        self.assertEqual(prepared.count('desiredtransfer) press_logical 85 898 2;;'), 2)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
@@ -165,8 +164,6 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_relationships')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # Run254 rendered the stock Back button at physical centre ~143,1846 on
-        # Pixel 4, which maps to logical (85,898) through the gate's logical_xy.
         self.assertEqual(prepared.count('relationships) press_logical 85 898 2;;'), 2)
         self.assertIn('dilemma no longer visible; outer navigation will resolve current stock screen', prepared)
         self.assertNotIn('elif [ "$rc" -eq 1 ]; then\n      clear_log\n      press_message_accept 2', prepared)
