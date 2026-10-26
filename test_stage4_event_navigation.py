@@ -72,8 +72,6 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_webpage')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # webpagenews.uis owns webpage.btn_Ok in the stock footer. Treating it
-        # like a message surface misses the gadget and can strand cycle 2.
         self.assertEqual(prepared.count('webpage) press_footer_ok 2;;'), 2)
         self.assertNotIn('message|webpage|startransition) press_message_accept 2;;', prepared)
 
@@ -81,15 +79,24 @@ class Stage4EventNavigationTests(unittest.TestCase):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_interstitial')
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
-        # Run229 proves stock can activate GameMenu and immediately cover it
-        # with its own fake-interstitial screen after MatchReview. This is a
-        # visible stock navigation surface, not an Android AdActivity.
         self.assertIn('*fake-interstitial*) echo fakeinterstitial;;', prepared)
         self.assertIn('dismiss_stage4_fake_interstitial(){', prepared)
         self.assertIn('adb shell input keyevent 4', prepared)
         self.assertEqual(prepared.count('fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;;'), 2)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
+
+    def test_event_preparer_retains_last_verified_state_when_no_transition_is_published(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_state')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        # Run231 proved matchstats.dismissanim can consume the first tap without
+        # changing screens. A missing new SetActive marker must not be treated as
+        # permission to press an unrelated footer control.
+        self.assertIn('navigate step $step no published transition; retaining $state', prepared)
+        self.assertIn('cycle $cycle postmatch no published transition; retaining $state', prepared)
+        self.assertNotIn('[ "$state" = unknown ] && { press_footer_ok 1; state="$(latest_state)"; }', prepared)
+        self.assertIn('next_state="$(latest_state)"', prepared)
 
     def test_workflow_applies_event_navigation_before_prematch_and_live_hardening(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
