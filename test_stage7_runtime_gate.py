@@ -8,6 +8,12 @@ class Stage7RuntimeGateTests(unittest.TestCase):
         self.shell=(ROOT/'stage7_runtime_gate.sh').read_text(encoding='utf-8')
         self.workflow=(ROOT/'.github/workflows/nss-stage7-persistence-runtime.yml').read_text(encoding='utf-8')
 
+    def test_career_press_uses_long_physical_touch(self):
+        m=re.search(r'press_career\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('press_physical 795 1399',m.group('body'))
+        self.assertNotIn('input touchscreen tap 795 1399',m.group('body'))
+
     def test_gate_uses_exact_public_stock_431_hashes(self):
         self.assertIn("afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e",self.shell)
         self.assertIn("46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4",self.shell)
