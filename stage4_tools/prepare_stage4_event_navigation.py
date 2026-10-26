@@ -11,7 +11,7 @@ STATE_OLD = '''  case "$line" in
 }'''
 
 STATE_NEW = '''  case "$line" in
-    *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
+    *fake-interstitial*) echo fakeinterstitial;; *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
     *matchstats*) echo matchstats;; *matchreview*) echo matchreview;; *leaguefixtures*) echo leaguefixtures;; *gamemenu*) echo gamemenu;; *message*) echo message;; *contract*) echo contract;; *webpage*) echo webpage;; *startransition*) echo startransition;; *skills*) echo skills;; *relationships*) echo relationships;;
     *" active: match"*|*"setactive: match"*|*"screen: match"*) echo match;; *" active: league"*|*"setactive: league"*|*"screen: league"*) echo league;; *) echo unknown;;
   esac
@@ -31,6 +31,18 @@ capture_stage4_event_frame(){
     sleep 1
   done
   return 1
+}
+
+dismiss_stage4_fake_interstitial(){
+  # Run229 proved the stock post-MatchReview path can activate GameMenu and
+  # immediately place NSS's own fake-interstitial screen on top when offline.
+  # This is an ordinary visible stock screen, not a hidden game-state branch.
+  # Use Android Back exactly as a player would; the outer loop then proves the
+  # next stock screen from SetActive/Create Screen logs before doing anything
+  # else. No Career, season or match state is modified here.
+  echo "stock fake-interstitial -> Android Back" >> "$FLOW"
+  adb shell input keyevent 4 </dev/null || true
+  sleep 2
 }
 
 resolve_stage4_dilemma(){
@@ -81,6 +93,7 @@ NAV_OLD = '''    case "$state" in
     esac'''
 
 NAV_NEW = '''    case "$state" in
+      fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;;
       dilemma|splashmessage) resolve_stage4_dilemma || return 1;;
       webpage) press_footer_ok 2;;
       message|startransition) press_message_accept 2;;
@@ -89,7 +102,7 @@ NAV_NEW = '''    case "$state" in
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
 
 
 def harden(text: str) -> str:
@@ -110,7 +123,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_event_navigation.py INPUT_GATE OUTPUT_GATE')
     src, dst = map(Path, sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')), encoding='utf-8')
-    print(f'Applied rendered-gated stock Dilemma/SplashMessage plus webpage-footer navigation: {dst}')
+    print(f'Applied stock Dilemma/SplashMessage/webpage/fake-interstitial navigation: {dst}')
 
 
 if __name__ == '__main__':
