@@ -151,6 +151,31 @@ AD_GUARD = r'''ad_activity_active(){
     | grep -q 'com.newstargames.newstarsoccer/com.google.android.gms.ads.AdActivity'
 }
 
+external_browser_active(){
+  {
+    adb shell dumpsys activity activities 2>/dev/null || true
+    adb shell dumpsys window windows 2>/dev/null || true
+  } | tr -d '\r' \
+    | grep -Ei 'mResumedActivity|topResumedActivity|mCurrentFocus|mFocusedApp' \
+    | grep -q 'org.chromium.webview_shell/.WebViewBrowserActivity'
+}
+
+dismiss_external_browser_if_present(){
+  local step="${1:-?}" attempt
+  external_browser_active || return 0
+  echo "navigate step $step foreground Facebook WebView detected; Android Back" >> "$FLOW"
+  adb shell input keyevent 4 </dev/null || true
+  for attempt in 1 2 3; do
+    sleep 1
+    if ! external_browser_active; then
+      echo "navigate step $step Facebook WebView dismissed" >> "$FLOW"
+      return 0
+    fi
+  done
+  echo "navigate step $step Facebook WebView remained foreground after bounded dismissal" >> "$FLOW"
+  return 1
+}
+
 dismiss_interstitial_if_present(){
   local step="${1:-?}" attempt size w h x y
   ad_activity_active || return 0
@@ -207,6 +232,7 @@ NAV_OLD = '''  for step in $(seq 1 50); do
 
 NAV_NEW = '''  for step in $(seq 1 50); do
     fatal_check || return 1
+    dismiss_external_browser_if_present "$step" || return 1
     dismiss_interstitial_if_present "$step" || return 1
     clear_log'''
 
@@ -227,7 +253,7 @@ def harden(text: str) -> str:
         raise SystemExit(f'expected one fixed live-input block, found {count}')
     text = text.replace(OLD, NEW, 1)
 
-    if 'dismiss_interstitial_if_present "$step"' not in text:
+    if 'dismiss_external_browser_if_present "$step"' not in text:
         nav_count = text.count(NAV_OLD)
         if nav_count != 1:
             raise SystemExit(f'expected one navigate-until-match loop, found {nav_count}')
