@@ -34,7 +34,7 @@ HELPER = r'''set_fastest_stock_match_speed(){
     # Real stock UI only: match.uis declares Click(match.btn_Time) at the
     # rendered speed icon. We tap the detected icon itself and then re-render;
     # no match clock, state field, simulation branch or season data is patched.
-    adb shell input touchscreen tap "$x" "$y" </dev/null || true
+    timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true
     sleep 1
   done
 
