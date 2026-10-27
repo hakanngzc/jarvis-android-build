@@ -74,28 +74,29 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('input keyevent 3',self.shell)
         lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
         self.assertIn('wait_resumed 20',lifecycle)
-        self.assertIn('wait_screen gamemenu 45',lifecycle)
+        self.assertIn('wait_rendered_frame 30',lifecycle)
+        self.assertNotIn('wait_screen gamemenu 45',lifecycle)
         self.assertNotIn("wait_log 'OnResume End'",lifecycle)
         self.assertIn('career-lifecycle-post',self.shell)
         self.assertIn('verify_stage8_lifecycle.py',self.shell)
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
-    def test_foreground_clears_stale_log_before_reactivation(self):
+    def test_foreground_clears_log_then_uses_activity_and_frame_readiness(self):
         lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
         clear_i=lifecycle.index('clear_log')
         start_i=lifecycle.index('adb shell am start -n "$PKG/.MonkeyGame"')
-        screen_i=lifecycle.index('wait_screen gamemenu 45')
+        resumed_i=lifecycle.index('wait_resumed 20')
+        render_i=lifecycle.index('wait_rendered_frame 30')
         self.assertLess(clear_i,start_i)
-        self.assertLess(start_i,screen_i)
+        self.assertLess(start_i,resumed_i)
+        self.assertLess(resumed_i,render_i)
 
-    def test_foreground_waits_for_active_gamemenu_and_rendered_frame_before_navigation(self):
-        self.assertIn('wait_rendered_frame(){',self.shell)
-        self.assertIn('wc -c < "$WORK/render-ready.png"',self.shell)
-        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
-        self.assertIn('wait_screen gamemenu 45',lifecycle)
-        self.assertIn('wait_rendered_frame 30',lifecycle)
-        self.assertLess(lifecycle.index('wait_screen gamemenu 45'),lifecycle.index('wait_rendered_frame 30'))
+    def test_post_lifecycle_first_route_proves_gamemenu_is_interactive(self):
+        post=self.shell.split('# Career hub -> Life / Relationships family.',1)[1]
+        first_route=re.search(r'^(?:route|route_ratio|back_route) .*$',post,re.M)
+        self.assertIsNotNone(first_route)
+        self.assertEqual(first_route.group(0),'route gamemenu-life 405 837 relationships')
 
     def test_all_adb_calls_are_bounded(self):
         m=re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}',self.shell,re.S)
