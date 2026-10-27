@@ -42,6 +42,12 @@ class Stage8NavigationGateTests(unittest.TestCase):
     def test_shop_runtime_alias_accepts_lifestyle_overlay(self):
         self.assertIn("shop) pattern='shop|LifestyleShopOverlay' ;;",self.shell)
 
+    def test_lifestyle_overlay_uses_ratio_close_not_bottom_back(self):
+        self.assertIn('press_ratio(){',self.shell)
+        self.assertIn('route_ratio(){',self.shell)
+        self.assertIn('route_ratio lifestyle-close 0.904 0.075 relationships',self.shell)
+        self.assertNotIn('back_route lifestyle-back 93 837 relationships',self.shell)
+
     def test_casino_subfamilies_are_present(self):
         for line in (
             'route casino-blackjack 177 352 blackjack',
@@ -60,7 +66,7 @@ class Stage8NavigationGateTests(unittest.TestCase):
 
     def test_ui_back_or_home_paths_are_asserted(self):
         for target in ('relationships','casino','racing','skills','league','gamemenu'):
-            self.assertRegex(self.shell,rf'(route|back_route)[^\n]*{target}')
+            self.assertRegex(self.shell,rf'(route|back_route|route_ratio)[^\n]*{target}')
 
     def test_career_lifecycle_background_foreground_is_guarded(self):
         self.assertIn('career-lifecycle-pre',self.shell)
