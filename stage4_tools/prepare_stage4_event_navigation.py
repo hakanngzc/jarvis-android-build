@@ -14,6 +14,14 @@ STATE_NEW = '''  if grep -qiE 'accepted a transfer offer.*you can reject it if y
     echo transferoffer
     return
   fi
+  if [[ "$line" == *splashmessage* ]]; then
+    local underlay
+    underlay="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/state.log" | grep -vi 'splashmessage' | tail -1 || true)"
+    underlay="${underlay,,}"
+    case "$underlay" in
+      *seasonreview*) echo seasonreview; return;;
+    esac
+  fi
   case "$line" in
     *fake-interstitial*) echo fakeinterstitial;; *buxoverlay*) echo buxoverlay;; *skillsshopoverlay*) echo skillsshopoverlay;; *shopoverlay*) echo shopoverlay;; *purchaseanim*) echo purchaseanim;; *information*) echo information;; *casino*) echo casino;; *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
     *seasonreview*) echo seasonreview;; *playeroftheyear*) echo playeroftheyear;; *desiredtransfer*) echo desiredtransfer;;
