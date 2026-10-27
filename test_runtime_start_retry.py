@@ -43,6 +43,31 @@ class RuntimeStartRetryTests(unittest.TestCase):
         self.assertNotIn('fatal_check || return 1\n      echo "start_game $tag attempt $start_attempt did not reach Monkey MainMenu', hardened)
         self.assertNotIn('fatal_check || return 1\n    echo "start_game $tag attempt $start_attempt reached MainMenu log but not a stable rendered process', hardened)
 
+    def test_double_fresh_atlas_oom_escalates_to_clean_setup_retry_only(self):
+        base = load('stage2_residual_tools/prepare_stage2_gate.py', 'prepare_stage2_gate_double_atlas_oom_test')
+        retry = load('stage2_residual_tools/prepare_runtime_start_retry.py', 'prepare_runtime_start_retry_double_atlas_oom')
+        prepared = base.prepare_text(Path('stage2_residual_gate.sh').read_text(encoding='utf-8'))
+        hardened = retry.harden(prepared)
+
+        # Run #302 proves both bounded process starts can deterministically die
+        # in BBGame.LoadData -> c_AtlasManager.m_LoadBinaryKeyFile with the
+        # stock app's 16 MB growth limit. Only this pre-Career fresh bootstrap
+        # condition is disposable; gameplay and post-season crashes remain fatal.
+        self.assertIn('if [ "$tag" = fresh ]', hardened)
+        self.assertIn('${tag}-startup-attempt-1-fatal.txt', hardened)
+        self.assertIn('${tag}-startup-attempt-2-fatal.txt', hardened)
+        self.assertIn('OutOfMemoryError', hardened)
+        self.assertIn('c_AtlasManager.m_LoadBinaryKeyFile', hardened)
+        self.assertIn('fresh startup exhausted on AtlasManager OOM; requesting clean setup retry', hardened)
+        self.assertIn('return 218', hardened)
+        self.assertLess(
+            hardened.index('if [ "$tag" = fresh ]'),
+            hardened.index('return 218'),
+        )
+
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+        self.assertIn('218|219)', runner)
+
     def test_stage4_setup_retry_cleans_disposable_workdir_before_each_attempt(self):
         runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
 
