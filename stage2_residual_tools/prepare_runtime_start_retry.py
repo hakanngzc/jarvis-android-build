@@ -8,7 +8,7 @@ from pathlib import Path
 START_RE = re.compile(r'''(?ms)^start_game\(\)\{.*?^\}\nopen_slot0\(\)\{''')
 
 NEW = r'''start_game(){
-  local tag="$1" start_attempt rendered ready_i bytes startup_crashed
+  local tag="$1" start_attempt rendered ready_i bytes startup_crashed fatal1 fatal2
 
   stash_startup_fatal(){
     local fatal="$OUT/runtime-fatal-logcat.txt"
@@ -72,6 +72,19 @@ NEW = r'''start_game(){
     fi
     sleep 3
   done
+
+  if [ "$tag" = fresh ]; then
+    fatal1="$OUT/${tag}-startup-attempt-1-fatal.txt"
+    fatal2="$OUT/${tag}-startup-attempt-2-fatal.txt"
+    if [ -s "$fatal1" ] && [ -s "$fatal2" ] \
+      && grep -q 'OutOfMemoryError' "$fatal1" \
+      && grep -q 'c_AtlasManager.m_LoadBinaryKeyFile' "$fatal1" \
+      && grep -q 'OutOfMemoryError' "$fatal2" \
+      && grep -q 'c_AtlasManager.m_LoadBinaryKeyFile' "$fatal2"; then
+      echo "fresh startup exhausted on AtlasManager OOM; requesting clean setup retry"
+      return 218
+    fi
+  fi
 
   echo "start_game $tag failed after 2 controlled attempts"
   return 1
