@@ -81,6 +81,13 @@ class Stage4TransportRuntimeTests(unittest.TestCase):
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn('rc=1', cp.stdout)
 
+    def test_transport_death_rc222_is_not_retried_as_disposable_setup_failure(self):
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+        self.assertIn('"$rc" -eq 218', runner)
+        self.assertIn('"$rc" -eq 219', runner)
+        self.assertNotIn('"$rc" -eq 222', runner)
+        self.assertNotIn('rc=222', runner)
+
 
 if __name__ == '__main__':
     unittest.main()
