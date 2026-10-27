@@ -62,7 +62,8 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('route skills-skillchoice 580 283 skillchoice',self.shell)
         self.assertIn('route skills-ratings 405 837 ratings',self.shell)
         self.assertIn('route league-clubfixtures 249 837 clubfixtures',self.shell)
-        self.assertIn('route gamemenu-leaguefixtures 553 829 leaguefixtures',self.shell)
+        self.assertIn('route gamemenu-leaguefixtures 553 900 leaguefixtures',self.shell)
+        self.assertNotIn('route gamemenu-leaguefixtures 553 829 leaguefixtures',self.shell)
 
     def test_ui_back_or_home_paths_are_asserted(self):
         for target in ('relationships','casino','racing','skills','league','gamemenu'):
