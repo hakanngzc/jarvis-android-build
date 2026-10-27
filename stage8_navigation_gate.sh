@@ -51,6 +51,19 @@ wait_resumed(){
   cp "$WORK/activity.txt" "$OUT/timeout-resumed-activity.txt" || true
   return 1
 }
+wait_rendered_frame(){
+  local timeout_s="${1:-30}" i bytes
+  for i in $(seq 0 "$timeout_s"); do
+    fatal_check || return 1
+    adb exec-out screencap -p > "$WORK/render-ready.png" 2>/dev/null || true
+    bytes="$(wc -c < "$WORK/render-ready.png")"
+    if [ "$bytes" -ge 50000 ]; then echo "Rendered frame ready after ${i}s (${bytes} bytes)"; return 0; fi
+    sleep 1
+  done
+  cp "$WORK/render-ready.png" "$OUT/timeout-render-ready.png" 2>/dev/null || true
+  echo 'Timed out waiting for rendered NSS frame'
+  return 1
+}
 capture_log(){ local label="$1"; { echo; echo "===== $label ====="; adb logcat -d -v brief 2>/dev/null || true; } >> "$FLOW"; }
 logical_xy(){
 python3 - "$1" "$2" <<'PY'
@@ -130,6 +143,7 @@ pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
 wait_log 'OnResume End' 20 career-onresume
+wait_rendered_frame 30
 pid_fg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_fg" ]
 fatal_check; capture_log 'Career lifecycle background -> foreground'; shot stage8-career-foreground
