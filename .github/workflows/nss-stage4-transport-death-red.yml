@@ -1,0 +1,17 @@
+name: NSS Stage4 Transport Death RED
+
+on:
+  push:
+    branches: [stage4-transport-death-red-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  transport-death-red:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Prove dead emulator transport is not yet classified separately
+        run: python3 -m unittest test_stage4_transport_death_policy.py -v
