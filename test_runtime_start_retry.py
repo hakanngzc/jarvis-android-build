@@ -81,6 +81,23 @@ class RuntimeStartRetryTests(unittest.TestCase):
         self.assertLess(runner.index(cleanup), runner.index('bash "$GATE"'))
         self.assertNotIn('rm -rf "${RUNNER_TEMP:?}/stage4-natural"\n', runner)
 
+    def test_stage4_setup_retry_uninstalls_failed_randomly_signed_apk_before_next_attempt(self):
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+
+        # Run #300 proves setup attempt 2 can rebuild with a new disposable CI
+        # signing key while attempt 1's package is still installed. Android then
+        # rejects install-multiple with INSTALL_FAILED_UPDATE_INCOMPATIBLE. Only
+        # retry attempts are disposable, so remove the failed setup package before
+        # rebuilding/reinstalling; do not touch the first attempt or a successful run.
+        guard = 'if [ "$setup_attempt" -gt 1 ]; then'
+        uninstall = 'adb uninstall com.newstargames.newstarsoccer >/dev/null 2>&1 || true'
+        self.assertIn(guard, runner)
+        self.assertIn(uninstall, runner)
+        self.assertLess(runner.index(guard), runner.index(uninstall))
+        self.assertLess(runner.index(uninstall), runner.index('bash "$GATE"'))
+        self.assertEqual(runner.count(uninstall), 1)
+        self.assertNotIn('adb shell pm clear com.newstargames.newstarsoccer', runner)
+
 
 if __name__ == '__main__':
     unittest.main()
