@@ -14,8 +14,11 @@ FINAL_RE = re.compile(
 )
 
 BOOT_NEW = r'''SEED_XML="${STAGE4_DIAGNOSTIC_SEED_XML:?missing STAGE4_DIAGNOSTIC_SEED_XML}"
+DIAG_START_CYCLE="${STAGE4_DIAGNOSTIC_START_CYCLE:-20}"
 test -s "$SEED_XML"
-echo 'DIAGNOSTIC ONLY: restoring natural Run290 cycle20 save; not valid for final Stage4 PASS' >> "$FLOW"
+[[ "$DIAG_START_CYCLE" =~ ^[0-9]+$ ]] || { echo 'invalid diagnostic start cycle' >> "$FLOW"; exit 229; }
+[ "$DIAG_START_CYCLE" -lt "$MAX_MATCH_CYCLES" ] || { echo 'diagnostic start cycle must be before MAX_MATCH_CYCLES' >> "$FLOW"; exit 229; }
+echo "DIAGNOSTIC ONLY: restoring verified natural cycle ${DIAG_START_CYCLE} save; not valid for final Stage4 PASS" >> "$FLOW"
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 adb root >/dev/null 2>&1 || true
 adb wait-for-device
@@ -73,7 +76,7 @@ done
   exit 232
 }
 
-capture_log 'diagnostic Run290 cycle20 seed -> GameMenu'
+capture_log "diagnostic verified natural cycle ${DIAG_START_CYCLE} seed -> GameMenu"
 dump_save natural-baseline
 checkpoint natural-baseline
 fatal_check
@@ -82,7 +85,7 @@ timeout 8s adb exec-out screencap -p > "$WORK/natural-fullres-ready.png" 2>/dev/
 python3 stage4_tools/validate_frame_png.py "$WORK/natural-fullres-ready.png" >> "$FLOW" 2>&1 || exit 233
 cp "$WORK/natural-fullres-ready.png" "$OUT/natural-fullres-ready.png"
 BASE_FLOW_BYTES="$(wc -c < "$FLOW")"
-START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES=20'''
+START_EPOCH="$(date +%s)"; SEASON_SEEN=0; CYCLES="$DIAG_START_CYCLE"'''
 
 FINAL_NEW = r'''for setup_n in 1 2 3 4; do
   grep -q "NewSeasonSetUp${setup_n}" "$FLOW" || {
@@ -90,10 +93,11 @@ FINAL_NEW = r'''for setup_n in 1 2 3 4; do
     exit 234
   }
 done
-python3 - "$OUT/post-season.json" "$OUT/post-season-restart.json" "$OUT/seasonend-diagnostic.json" <<'PY'
+python3 - "$OUT/post-season.json" "$OUT/post-season-restart.json" "$OUT/seasonend-diagnostic.json" "$DIAG_START_CYCLE" <<'PY'
 import json,sys
 from pathlib import Path
-post_path,restart_path,out_path=map(Path,sys.argv[1:])
+post_path,restart_path,out_path=map(Path,sys.argv[1:4])
+seed_cycle=int(sys.argv[4])
 post=json.loads(post_path.read_text(encoding='utf-8'))
 restart=json.loads(restart_path.read_text(encoding='utf-8'))
 fields=[
@@ -103,7 +107,7 @@ fields=[
     'additionalclubrecordsha256',
 ]
 mismatches={k:{'post':post.get(k),'restart':restart.get(k)} for k in fields if post.get(k)!=restart.get(k)}
-result={'diagnostic_only':True,'seed':'run290-cycle20','stable_fields':fields,'mismatches':mismatches,'restart_equal':not mismatches}
+result={'diagnostic_only':True,'seed':f'verified-natural-cycle-{seed_cycle}','stable_fields':fields,'mismatches':mismatches,'restart_equal':not mismatches}
 out_path.write_text(json.dumps(result,indent=2,sort_keys=True)+'\n',encoding='utf-8')
 if mismatches:
     print('STAGE4_SEASONEND_DIAGNOSTIC_RESTART_MISMATCH')
@@ -120,7 +124,7 @@ def harden(text: str) -> str:
     text=BOOT_RE.sub(BOOT_NEW,text,count=1)
     if text.count(LOOP_OLD)!=1:
         raise SystemExit(f'expected one natural cycle loop, found {text.count(LOOP_OLD)}')
-    text=text.replace(LOOP_OLD,'for cycle in $(seq 21 "$MAX_MATCH_CYCLES"); do',1)
+    text=text.replace(LOOP_OLD,'for cycle in $(seq $((DIAG_START_CYCLE + 1)) "$MAX_MATCH_CYCLES"); do',1)
     final_matches=list(FINAL_RE.finditer(text))
     if len(final_matches)!=1:
         raise SystemExit(f'expected one final Stage4 verifier block, found {len(final_matches)}')
@@ -135,7 +139,7 @@ def main() -> None:
         raise SystemExit('usage: prepare_stage4_seed_continuation.py INPUT_GATE OUTPUT_GATE')
     src,dst=map(Path,sys.argv[1:])
     dst.write_text(harden(src.read_text(encoding='utf-8')),encoding='utf-8')
-    print(f'Applied diagnostic-only Run290 cycle20 continuation: {dst}')
+    print(f'Applied diagnostic-only verified natural seed continuation: {dst}')
 
 
 if __name__=='__main__':
