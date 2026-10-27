@@ -27,6 +27,29 @@ class Stage4BoundaryScopeTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
 
+    def test_completed_rollover_short_circuits_navigation_before_post_rollover_play(self):
+        module = load_module('stage4_tools/prepare_stage4_boundary_scope.py', 'stage4_boundary_stop')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+
+        self.assertIn('stage4_live_boundary_seen(){', prepared)
+        self.assertIn('STAGE4_BOUNDARY_REACHED=1', prepared)
+        self.assertIn('natural season boundary complete; stop before post-rollover Play', prepared)
+        self.assertIn('[ "${STAGE4_BOUNDARY_REACHED:-0}" -eq 1 ] && return 0', prepared)
+
+        nav_capture = prepared.index('capture_log "navigate step $step -> $state"')
+        boundary_probe = prepared.index('if stage4_live_boundary_seen; then', nav_capture)
+        ordinary_match_return = prepared.index('[ "$state" = match ] && return 0', nav_capture)
+        self.assertLess(boundary_probe, ordinary_match_return)
+
+        cycle_nav = prepared.index('navigate_until_match || { shot "cycle-$cycle-no-match"; return 1; }')
+        cycle_boundary_return = prepared.index('[ "${STAGE4_BOUNDARY_REACHED:-0}" -eq 1 ] && return 0', cycle_nav)
+        cycle_match_shot = prepared.index('shot "cycle-$cycle-match"', cycle_nav)
+        self.assertLess(cycle_boundary_return, cycle_match_shot)
+
+        for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
+            self.assertNotIn(forbidden, prepared)
+
 
 if __name__ == '__main__':
     unittest.main()
