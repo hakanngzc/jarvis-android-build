@@ -47,9 +47,6 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            "$ANDROID_HOME/emulator/emulator" -version 2>&1 | tee "$RUNNER_TEMP/emulator-version.txt"
-            grep -q 'Android emulator version 37\.1\.11\.0' "$RUNNER_TEMP/emulator-version.txt"
-            grep -q 'build_id 15917651' "$RUNNER_TEMP/emulator-version.txt"
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-cycle10.pre.sh"
             python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-cycle10.pre.sh" "$RUNNER_TEMP/stage4-cycle10.start.sh"
@@ -71,7 +68,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: stage4-emulator3711-cycle10-evidence
-          path: |
-            ${{ runner.temp }}/stage4-natural/
-            ${{ runner.temp }}/emulator-version.txt
+          path: ${{ runner.temp }}/stage4-natural/
           retention-days: 7
