@@ -6,8 +6,10 @@ OUT="$RUNNER_TEMP/stage8-match-lifecycle"
 WORK="$RUNNER_TEMP/stage8-match-work"
 ST7="$RUNNER_TEMP/stage7-work"
 FLOW="$OUT/STAGE8_MATCH_LIFECYCLE_FLOW.log"
+ENTRY_TRACE="$OUT/STAGE8_MATCH_ENTRY_TRACE.txt"
 mkdir -p "$OUT" "$WORK"
 : > "$FLOW"
+: > "$ENTRY_TRACE"
 
 ADB_BIN="$(command -v adb)"
 adb(){
@@ -156,6 +158,7 @@ state=leaguefixtures
 
 MATCH_REACHED=0
 for step in $(seq 1 24); do
+  echo "step=$step before=$state" >> "$ENTRY_TRACE"
   clear_log
   case "$state" in
     leaguefixtures) press_fixture_play 3;;
@@ -164,6 +167,9 @@ for step in $(seq 1 24); do
     *) sleep 2;;
   esac
   state="$(wait_state 'match message leaguefixtures league gamemenu' 20 || true)"
+  adb logcat -d -v brief > "$WORK/entry-step-$step.log" 2>/dev/null || true
+  last_event="$(grep -Ei 'HitGadget:|SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/entry-step-$step.log" | tail -1 || true)"
+  echo "step=$step after=$state last=${last_event:-NONE}" >> "$ENTRY_TRACE"
   if [ "$state" = match ]; then MATCH_REACHED=1; break; fi
 done
 [ "$MATCH_REACHED" -eq 1 ] || { capture_log 'failed to reach playable Career match'; shot stage8-match-entry-failure; echo 'No playable Career match reached'; exit 303; }
