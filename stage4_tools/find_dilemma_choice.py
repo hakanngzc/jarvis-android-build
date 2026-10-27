@@ -62,7 +62,10 @@ def find_dilemma_choice(path: Path):
             if (
                 int(w * 0.25) <= bw <= int(w * 0.65)
                 and int(h * 0.015) <= bh <= int(h * 0.060)
-                and count >= int(w * h * 0.010)
+                # Run #298's two valid stock bars contain ~0.88% of the full
+                # frame as thresholded gold pixels. Keep the strict stock bar
+                # geometry above while accepting that naturally sparse fill.
+                and count >= int(w * h * 0.008)
             ):
                 candidates.append((sy / count, sx / count, count))
 
