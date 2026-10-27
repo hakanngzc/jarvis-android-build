@@ -13,6 +13,9 @@ rc=0
 for setup_attempt in 1 2 3; do
   echo "Stage4 natural gate setup attempt $setup_attempt/3"
   rm -rf "${RUNNER_TEMP:?}/stage4-natural-work"
+  if [ "$setup_attempt" -gt 1 ]; then
+    adb uninstall com.newstargames.newstarsoccer >/dev/null 2>&1 || true
+  fi
   set +e
   bash "$GATE"
   rc=$?
