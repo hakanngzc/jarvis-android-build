@@ -12,6 +12,7 @@ GATE="$1"
 rc=0
 for setup_attempt in 1 2 3; do
   echo "Stage4 natural gate setup attempt $setup_attempt/3"
+  rm -rf "${RUNNER_TEMP:?}/stage4-natural-work"
   set +e
   bash "$GATE"
   rc=$?
