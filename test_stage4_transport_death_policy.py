@@ -24,11 +24,14 @@ class Stage4TransportDeathPolicyTests(unittest.TestCase):
         prepared = live.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
         prepared = transport.harden(prepared)
 
+        self.assertIn('set -euo pipefail', prepared)
         self.assertIn('EMULATOR_TRANSPORT_DEAD', prepared)
         self.assertIn('adb get-state', prepared)
         self.assertIn('emulator-transport-dead', prepared)
         self.assertIn('return 4', prepared)
         self.assertIn('transport_state" != device', prepared)
+        self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
+        self.assertNotIn('drive_live_chance "$cycle" "$elapsed" || true', prepared)
 
     def test_live_frame_failure_with_healthy_device_remains_retryable(self):
         transport = load_module(
