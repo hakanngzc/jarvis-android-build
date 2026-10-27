@@ -40,7 +40,7 @@ drive_live_chance(){
   # classification; otherwise a bounded periodic probe still catches Half Time,
   # Full Time and visible stock Tutorial callouts that publish no new chance
   # marker.
-  adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true
+  timeout 8s adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true
   event_count="$(grep -cE 'SETTING ACTIVE:[[:space:]]*(matchminigame|tapball)' "$WORK/live-phase-gate.log" 2>/dev/null || true)"
   [[ "$event_count" =~ ^[0-9]+$ ]] || event_count=0
   [ "$event_count" -le "$LIVE_EVENT_COUNT" ] || new_event=1
@@ -94,11 +94,11 @@ drive_live_chance(){
   case "$kind" in
     tutorial)
       echo "cycle $cycle stock tutorial overlay ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true
       ;;
     resume)
       echo "cycle $cycle match resume Play ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true
       ;;
     live)
       : "${LIVE_INPUT_SEQ:=0}"
@@ -114,7 +114,7 @@ drive_live_chance(){
       [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
       [ "$target_y" -le "$max_y" ] || target_y="$max_y"
       echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
+      timeout 8s adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
       ;;
     kick)
       : "${LIVE_INPUT_SEQ:=0}"
@@ -133,7 +133,7 @@ drive_live_chance(){
       min_y=$((frame_h * 10 / 100))
       [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
       echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
-      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
+      timeout 8s adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
       ;;
     *)
       echo "cycle $cycle unknown live-frame class '$kind' @${elapsed}s" >> "$FLOW"
@@ -242,9 +242,16 @@ NAV_NEW = '''  for step in $(seq 1 50); do
     dismiss_interstitial_if_present "$step" || return 1
     clear_log'''
 
+SHOT_OLD = 'shot(){ adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
+SHOT_NEW = 'shot(){ timeout 8s adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
+FATAL_LOG_OLD = '  adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true\n'
+FATAL_LOG_NEW = '  timeout 8s adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true\n'
+MATCH_LOG_OLD = '    adb logcat -d -v brief > "$WORK/match-live.log" 2>/dev/null || true\n'
+MATCH_LOG_NEW = '    timeout 8s adb logcat -d -v brief > "$WORK/match-live.log" 2>/dev/null || true\n'
+
 
 def harden(text: str) -> str:
-    anchor = 'shot(){ adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
+    anchor = SHOT_OLD
     if 'drive_live_chance(){' not in text:
         if text.count(anchor) != 1:
             raise SystemExit(f'expected one shot helper anchor for live driver, found {text.count(anchor)}')
@@ -264,6 +271,22 @@ def harden(text: str) -> str:
         if nav_count != 1:
             raise SystemExit(f'expected one navigate-until-match loop, found {nav_count}')
         text = text.replace(NAV_OLD, NAV_NEW, 1)
+
+    if FATAL_LOG_NEW not in text:
+        count = text.count(FATAL_LOG_OLD)
+        if count != 1:
+            raise SystemExit(f'expected one fatal-check adb logcat for watchdog, found {count}')
+        text = text.replace(FATAL_LOG_OLD, FATAL_LOG_NEW, 1)
+    if MATCH_LOG_NEW not in text:
+        count = text.count(MATCH_LOG_OLD)
+        if count != 1:
+            raise SystemExit(f'expected one live-match adb logcat for watchdog, found {count}')
+        text = text.replace(MATCH_LOG_OLD, MATCH_LOG_NEW, 1)
+    if SHOT_NEW not in text:
+        count = text.count(SHOT_OLD)
+        if count != 1:
+            raise SystemExit(f'expected one global screenshot helper for watchdog, found {count}')
+        text = text.replace(SHOT_OLD, SHOT_NEW, 1)
     return text
 
 
