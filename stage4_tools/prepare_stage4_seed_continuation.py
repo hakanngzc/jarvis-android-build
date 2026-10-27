@@ -128,7 +128,7 @@ def harden(text: str) -> str:
     final_matches=list(FINAL_RE.finditer(text))
     if len(final_matches)!=1:
         raise SystemExit(f'expected one final Stage4 verifier block, found {len(final_matches)}')
-    text=FINAL_RE.sub(FINAL_NEW,text,count=1)
+    text=FINAL_RE.sub(lambda _: FINAL_NEW,text,count=1)
     if 'STAGE4_NATURAL_SEASON_PASS' in FINAL_NEW:
         raise SystemExit('diagnostic must never emit final natural PASS marker')
     return text
