@@ -71,18 +71,22 @@ class Stage8NavigationGateTests(unittest.TestCase):
     def test_career_lifecycle_background_foreground_is_guarded(self):
         self.assertIn('career-lifecycle-pre',self.shell)
         self.assertIn('input keyevent 3',self.shell)
-        self.assertIn("wait_log 'OnResume End' 20 career-onresume",self.shell)
+        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        self.assertIn('wait_resumed 20',lifecycle)
+        self.assertIn('wait_screen gamemenu 45',lifecycle)
+        self.assertNotIn("wait_log 'OnResume End'",lifecycle)
         self.assertIn('career-lifecycle-post',self.shell)
         self.assertIn('verify_stage8_lifecycle.py',self.shell)
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
-    def test_foreground_waits_for_rendered_frame_before_navigation(self):
+    def test_foreground_waits_for_active_gamemenu_and_rendered_frame_before_navigation(self):
         self.assertIn('wait_rendered_frame(){',self.shell)
         self.assertIn('wc -c < "$WORK/render-ready.png"',self.shell)
         lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        self.assertIn('wait_screen gamemenu 45',lifecycle)
         self.assertIn('wait_rendered_frame 30',lifecycle)
-        self.assertLess(lifecycle.index("wait_log 'OnResume End' 20 career-onresume"),lifecycle.index('wait_rendered_frame 30'))
+        self.assertLess(lifecycle.index('wait_screen gamemenu 45'),lifecycle.index('wait_rendered_frame 30'))
 
     def test_all_adb_calls_are_bounded(self):
         m=re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}',self.shell,re.S)
