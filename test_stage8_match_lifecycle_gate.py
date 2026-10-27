@@ -22,6 +22,11 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn("capture_log 'failed GameMenu -> LeagueFixtures'",block)
         self.assertNotIn("wait_state 'leaguefixtures message gamemenu'",block)
 
+    def test_current_state_ignores_create_screen_preallocation(self):
+        block=self.shell.split('current_state(){',1)[1].split('wait_state(){',1)[0]
+        self.assertIn("grep -Ei 'SETTING ACTIVE:|SetActive:'",block)
+        self.assertNotIn('Create Screen:',block)
+
     def test_leaguefixtures_advance_uses_fixture_button_center_not_gamemenu_play(self):
         self.assertIn('press_fixture_play(){ press_logical 553 900',self.shell)
         loop=self.shell.split('MATCH_REACHED=0',1)[1].split('[ "$MATCH_REACHED" -eq 1 ]',1)[0]
