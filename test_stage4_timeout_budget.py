@@ -62,6 +62,40 @@ class Stage4TimeoutBudgetTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, prepared)
 
+    def test_proven_midseason_transfer_offer_uses_stock_reject_without_affecting_other_contracts(self):
+        hardener = load_module(
+            'stage4_tools/prepare_stage4_event_navigation.py',
+            'prepare_stage4_event_navigation_transfer_reject',
+        )
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = hardener.harden(source)
+
+        # Natural run #290 proves the exact midseason transfer message, and the
+        # exact public stock 4.31 contract.uis proves DeclineButton at logical
+        # origin (12,744), with Click(contract.btn_Reject). Its 146x170 nav
+        # surface has centre (85,829). Only this proven transfer context should
+        # select Reject; all unrelated contract screens keep the old OK path.
+        self.assertIn('accepted a transfer offer', prepared)
+        self.assertIn('you can reject it if you wish to stay', prepared)
+        self.assertIn('handle_stage4_contract(){', prepared)
+        self.assertIn('stock transfer contract -> Reject 85,829', prepared)
+        self.assertIn('press_logical 85 829 2', prepared)
+        self.assertIn('press_footer_ok 2', prepared)
+        self.assertEqual(
+            prepared.count('transferoffer) STAGE4_REJECT_TRANSFER_CONTRACT=1; press_message_accept 2;;'),
+            2,
+        )
+        self.assertEqual(prepared.count('contract) handle_stage4_contract;;'), 2)
+
+        for forbidden in (
+            'm_sdate = 365',
+            'm_sdate=365',
+            'p_NewSeason(',
+            'm_skipMatches',
+            'm_Simulate',
+        ):
+            self.assertNotIn(forbidden, prepared)
+
 
 if __name__ == '__main__':
     unittest.main()
