@@ -1,0 +1,47 @@
+name: Stage4 Contract UI Diagnostic
+
+on:
+  push:
+    branches: [stage4-contract-ui-diagnostic-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  extract-contract-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Extract exact stock NSS 4.31 contract UI
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/contract-ui/xapk" "$RUNNER_TEMP/contract-ui/out"
+          URL='https://d.apkpure.net/b/XAPK/com.newstargames.newstarsoccer?versionCode=137'
+          REFERER='https://apkpure.net/new-star-soccer/com.newstargames.newstarsoccer/download/4.31'
+          XAPK_SHA='afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e'
+          BASE_SHA='46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'
+          curl -fL --retry 5 --retry-all-errors -A 'Mozilla/5.0' -e "$REFERER" "$URL" -o "$RUNNER_TEMP/contract-ui/nss431.xapk"
+          echo "$XAPK_SHA  $RUNNER_TEMP/contract-ui/nss431.xapk" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/contract-ui/nss431.xapk" -d "$RUNNER_TEMP/contract-ui/xapk"
+          BASE="$RUNNER_TEMP/contract-ui/xapk/com.newstargames.newstarsoccer.apk"
+          echo "$BASE_SHA  $BASE" | sha256sum -c -
+          unzip -l "$BASE" | grep -Ei 'NewGUI/Screens/(contract|.*contract.*)\.(uis|uih)' | tee "$RUNNER_TEMP/contract-ui/out/list.txt"
+          for p in \
+            assets/monkey/NewGUI/Screens/contract.uis \
+            assets/monkey/NewGUI/Screens/contract.uih \
+            assets/monkey/NewGUI/Screens/onboardingcontract.uih; do
+            if unzip -l "$BASE" "$p" | grep -q "$p"; then
+              unzip -p "$BASE" "$p" > "$RUNNER_TEMP/contract-ui/out/$(basename "$p")"
+            fi
+          done
+          grep -RniE 'Reject|Accept|Back|Button|btn_' "$RUNNER_TEMP/contract-ui/out" | tee "$RUNNER_TEMP/contract-ui/out/button-lines.txt" || true
+
+      - name: Upload contract UI evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-contract-ui-evidence
+          path: ${{ runner.temp }}/contract-ui/out/
+          retention-days: 7
