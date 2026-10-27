@@ -8,25 +8,45 @@ from pathlib import Path
 START_RE = re.compile(r'''(?ms)^start_game\(\)\{.*?^\}\nopen_slot0\(\)\{''')
 
 NEW = r'''start_game(){
-  local tag="$1" start_attempt rendered ready_i bytes
+  local tag="$1" start_attempt rendered ready_i bytes startup_crashed
+
+  stash_startup_fatal(){
+    local fatal="$OUT/runtime-fatal-logcat.txt"
+    if [ -s "$fatal" ]; then
+      cp "$fatal" "$OUT/${tag}-startup-attempt-${start_attempt}-fatal.txt" 2>/dev/null || true
+      rm -f "$fatal"
+    fi
+  }
+
   for start_attempt in 1 2; do
     echo "start_game $tag attempt $start_attempt/2"
+    startup_crashed=0
     adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
     clear_log
+    rm -f "$OUT/runtime-fatal-logcat.txt"
     adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 
     if ! wait_log 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' 60 "${tag}-mainmenu-attempt-${start_attempt}"; then
       adb logcat -d -v threadtime > "$OUT/${tag}-mainmenu-attempt-${start_attempt}-timeout.txt" 2>/dev/null || true
       shot "${tag}-mainmenu-attempt-${start_attempt}-timeout"
-      fatal_check || return 1
-      echo "start_game $tag attempt $start_attempt did not reach Monkey MainMenu; controlled process restart"
+      if [ -s "$OUT/runtime-fatal-logcat.txt" ]; then
+        startup_crashed=1
+        stash_startup_fatal
+        echo "start_game $tag attempt $start_attempt crashed before stable MainMenu; controlled process restart"
+      else
+        echo "start_game $tag attempt $start_attempt did not reach Monkey MainMenu; controlled process restart"
+      fi
       sleep 3
       continue
     fi
 
     rendered=0
     for ready_i in $(seq 1 45); do
-      fatal_check || return 1
+      if ! fatal_check; then
+        startup_crashed=1
+        stash_startup_fatal
+        break
+      fi
       adb exec-out screencap -p > "$WORK/render-probe.png" 2>/dev/null || true
       bytes="$(wc -c < "$WORK/render-probe.png" 2>/dev/null || echo 0)"
       if [ "${bytes:-0}" -gt 30000 ]; then
@@ -45,8 +65,11 @@ NEW = r'''start_game(){
 
     cp "$WORK/render-probe.png" "$OUT/${tag}-render-attempt-${start_attempt}-timeout.png" 2>/dev/null || true
     adb logcat -d -v threadtime > "$OUT/${tag}-render-attempt-${start_attempt}-timeout.txt" 2>/dev/null || true
-    fatal_check || return 1
-    echo "start_game $tag attempt $start_attempt reached MainMenu log but not a stable rendered process; controlled retry"
+    if [ "$startup_crashed" -eq 1 ]; then
+      echo "start_game $tag attempt $start_attempt crashed before stable MainMenu; controlled process restart"
+    else
+      echo "start_game $tag attempt $start_attempt reached MainMenu log but not a stable rendered process; controlled retry"
+    fi
     sleep 3
   done
 
