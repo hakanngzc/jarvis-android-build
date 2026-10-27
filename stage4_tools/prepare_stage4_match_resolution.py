@@ -32,38 +32,61 @@ start_game post-season-restart; open_slot0 post-season-restart; load_existing po
 dump_save post-season-restart; checkpoint post-season-restart'''
 POST_SEASON_RESTART_NEW = r'''dump_save post-season; checkpoint post-season
 restart_post_season_reload(){
-  local attempt evidence mainmenu_seen=0
-  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  clear_log
-  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+  local restart_attempt attempt evidence mainmenu_seen startup_crashed
 
-  for attempt in $(seq 1 20); do
-    fatal_check || return 1
-    evidence="$WORK/post-season-restart-state.txt"
-    adb logcat -d -v brief > "$evidence" 2>/dev/null || true
-    if grep -q 'LoadCareer saveslot: 0' "$evidence" \
-       && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$evidence"; then
-      echo 'post-season restart auto-load reached GameMenu' >> "$FLOW"
-      capture_log 'post-season restart auto-load -> GameMenu'
+  for restart_attempt in 1 2; do
+    mainmenu_seen=0
+    startup_crashed=0
+    adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+    clear_log
+    rm -f "$OUT/runtime-fatal-logcat.txt"
+    adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+
+    for attempt in $(seq 1 20); do
+      if ! fatal_check; then
+        startup_crashed=1
+        if [ -s "$OUT/runtime-fatal-logcat.txt" ]; then
+          cp "$OUT/runtime-fatal-logcat.txt" "$OUT/post-season-restart-attempt-${restart_attempt}-fatal.txt" 2>/dev/null || true
+          rm -f "$OUT/runtime-fatal-logcat.txt"
+        fi
+        echo "post-season restart attempt $restart_attempt crashed; controlled process restart" >> "$FLOW"
+        break
+      fi
+
+      evidence="$WORK/post-season-restart-state.txt"
+      adb logcat -d -v brief > "$evidence" 2>/dev/null || true
+      if grep -q 'LoadCareer saveslot: 0' "$evidence" \
+         && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$evidence"; then
+        echo 'post-season restart auto-load reached GameMenu' >> "$FLOW"
+        capture_log 'post-season restart auto-load -> GameMenu'
+        return 0
+      fi
+      if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$evidence"; then
+        mainmenu_seen=1
+      fi
+      sleep 1
+    done
+
+    if [ "$startup_crashed" -eq 1 ]; then
+      sleep 3
+      continue
+    fi
+
+    if [ "$mainmenu_seen" -eq 1 ]; then
+      echo 'post-season restart auto-load not observed; using stock SaveSlot fallback' >> "$FLOW"
+      open_slot0 post-season-restart
+      load_existing post-season-restart
+      fatal_check || return 1
       return 0
     fi
-    if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$evidence"; then
-      mainmenu_seen=1
-    fi
-    sleep 1
+
+    cp "$evidence" "$OUT/post-season-restart-attempt-${restart_attempt}-state-timeout.txt" 2>/dev/null || true
+    shot "post-season-restart-attempt-${restart_attempt}-state-timeout"
+    echo "post-season restart attempt $restart_attempt reached neither auto-loaded GameMenu nor stable MainMenu; controlled process restart" >> "$FLOW"
+    sleep 3
   done
 
-  if [ "$mainmenu_seen" -eq 1 ]; then
-    echo 'post-season restart auto-load not observed; using stock SaveSlot fallback' >> "$FLOW"
-    open_slot0 post-season-restart
-    load_existing post-season-restart
-    fatal_check || return 1
-    return 0
-  fi
-
-  cp "$evidence" "$OUT/post-season-restart-state-timeout.txt" 2>/dev/null || true
-  shot "post-season-restart-state-timeout"
-  echo 'post-season restart reached neither auto-loaded GameMenu nor stable MainMenu' >> "$FLOW"
+  echo 'post-season restart failed after 2 controlled attempts' >> "$FLOW"
   return 1
 }
 restart_post_season_reload
