@@ -37,8 +37,9 @@ drive_live_chance(){
   # Stock runtime publishes player-chance phases through these real screen-state
   # markers. Polling logcat is cheap compared with decoding a 1080x2280 PNG.
   # A new matchminigame/tapball marker triggers an immediate rendered-frame
-  # classification; otherwise a bounded periodic probe still catches Half Time
-  # / Full Time resume controls that do not publish those chance markers.
+  # classification; otherwise a bounded periodic probe still catches Half Time,
+  # Full Time and visible stock Tutorial callouts that publish no new chance
+  # marker.
   adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true
   event_count="$(grep -cE 'SETTING ACTIVE:[[:space:]]*(matchminigame|tapball)' "$WORK/live-phase-gate.log" 2>/dev/null || true)"
   [[ "$event_count" =~ ^[0-9]+$ ]] || event_count=0
@@ -60,15 +61,13 @@ drive_live_chance(){
     return 0
   fi
 
-  # Single-decode classifier preserves the previously verified priority:
-  # stage4_tools/find_match_resume.py
-  # stage4_tools/find_live_ball.py
-  # stage4_tools/find_kick_ball.py
-  # The CLI also returns the decoded frame dimensions, so every swipe remains
+  # Single-decode classifier preserves the verified priority:
+  # visible Tutorial callout -> resume -> live marker -> kick ball.
+  # The CLI also returns the decoded frame dimensions, so every input remains
   # inside the active rendered surface.
   class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
   if [ "$rc" -eq 1 ]; then
-    echo "cycle $cycle passive live phase @${elapsed}s: no resume control/active marker/kick ball" >> "$FLOW"
+    echo "cycle $cycle passive live phase @${elapsed}s: no tutorial/resume control/active marker/kick ball" >> "$FLOW"
     # If a fresh stock chance marker arrived before its graphics fully settled,
     # keep the event cursor unconsumed so the next loop retries that same phase.
     if [ "$new_event" -eq 1 ]; then
@@ -90,6 +89,10 @@ drive_live_chance(){
     return 1
   }
   case "$kind" in
+    tutorial)
+      echo "cycle $cycle stock tutorial overlay ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      ;;
     resume)
       echo "cycle $cycle match resume Play ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
       adb shell input touchscreen tap "$x" "$y" </dev/null || true
@@ -222,8 +225,8 @@ OLD = '''    # Real live-match interaction only: ordinary touchscreen swipes/tap
 
 NEW = '''    # Real live-match interaction only. Stock matchminigame/tapball log events
     # gate expensive rendered-frame decoding; an 8-second periodic probe still
-    # catches Half Time / Full Time resume controls. No match engine,
-    # simulate/debug branch or season state is patched.
+    # catches Half Time / Full Time resume controls and visible Tutorial callouts.
+    # No match engine, simulate/debug branch or season state is patched.
     drive_live_chance "$cycle" "$elapsed"'''
 
 NAV_OLD = '''  for step in $(seq 1 50); do

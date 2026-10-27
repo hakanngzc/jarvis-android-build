@@ -9,6 +9,28 @@ from find_live_ball import decode_png_rgb
 from find_kick_ball import _find_compact_field_ball
 
 
+def _find_tutorial_panel(w: int, h: int, channels: int, rows):
+    # Run 310 reached Full Time but the stock Tutorial callout was still
+    # covering the Match surface. It is a large neutral-grey central panel.
+    # Detect the rendered panel itself rather than relying on stale log state or
+    # OCR. The threshold is deliberately far above the neutral density of the
+    # ordinary stock Match surface measured from the same run.
+    x0, x1 = int(w * 0.08), int(w * 0.76)
+    y0, y1 = int(h * 0.23), int(h * 0.66)
+    neutral = 0
+    total = max(1, (x1 - x0) * (y1 - y0))
+    for y in range(y0, y1):
+        row = rows[y]
+        for x in range(x0, x1):
+            i = x * channels
+            r, g, b = row[i], row[i + 1], row[i + 2]
+            if 45 <= r <= 150 and max(r, g, b) - min(r, g, b) <= 20:
+                neutral += 1
+    if neutral >= int(total * 0.40):
+        return w // 2, h // 2
+    return None
+
+
 def _find_live_component(w: int, h: int, mask: bytearray):
     y0, y1 = int(h * 0.25), int(h * 0.88)
     best = None
@@ -112,7 +134,15 @@ def classify_live_frame(path: Path, include_size: bool = False):
             return kind, x, y, w, h
         return kind, x, y
 
-    # Resume is highest-priority and cheap to test once the PNG is decoded.
+    # A stock Tutorial callout can cover Full Time while the underlying Match
+    # has already completed. Resolve that visible modal before interpreting any
+    # dimmed controls behind it.
+    tutorial = _find_tutorial_panel(w, h, channels, rows)
+    if tutorial is not None:
+        return result('tutorial', tutorial[0], tutorial[1])
+
+    # Resume is highest-priority among ordinary live-match controls and cheap to
+    # test once the PNG is decoded.
     rx0, rx1 = int(w * 0.72), w
     ry0, ry1 = int(h * 0.72), int(h * 0.88)
     neutral = green = 0
