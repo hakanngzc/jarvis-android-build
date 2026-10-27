@@ -61,10 +61,13 @@ drive_live_chance(){
     return 0
   fi
 
-  # Single-decode classifier preserves the verified priority:
-  # visible Tutorial callout -> resume -> live marker -> kick ball.
-  # The CLI also returns the decoded frame dimensions, so every input remains
-  # inside the active rendered surface.
+  # Single-decode classifier preserves the verified detector order. These
+  # references are the durable contract used by the regression suite even
+  # though classify_live_frame.py now performs the actual single PNG decode:
+  # stage4_tools/find_match_resume.py
+  # stage4_tools/find_live_ball.py
+  # stage4_tools/find_kick_ball.py
+  # Visible Tutorial callout is checked before those dimmed match controls.
   class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
   if [ "$rc" -eq 1 ]; then
     echo "cycle $cycle passive live phase @${elapsed}s: no tutorial/resume control/active marker/kick ball" >> "$FLOW"
