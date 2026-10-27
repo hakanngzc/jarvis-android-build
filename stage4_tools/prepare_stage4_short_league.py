@@ -79,7 +79,7 @@ select_albania_stock_league(){
 }
 
 continue_after_albania_stock_league(){
-  local attempt evidence size
+  local attempt evidence size fallback_wait
   size="$(adb shell wm size 2>/dev/null | tr -d '\r' | tail -1)"
   for attempt in 1 2 3; do
     clear_log
@@ -104,10 +104,31 @@ continue_after_albania_stock_league(){
       echo "short-league Albania wrong stock nation selected" >> "$FLOW"
       return 1
     fi
-    if grep -qE 'List of prospective clubs size:[[:space:]]*0([^0-9]|$)' "$evidence"; then
-      echo "short-league Albania produced zero prospective clubs" >> "$FLOW"
+
+    if grep -qE 'GetProspectiveClubs for nation Id:[[:space:]]*2([^0-9]|$)' "$evidence" \
+       && grep -qE 'List of prospective clubs size:[[:space:]]*0([^0-9]|$)' "$evidence"; then
+      # Stock m_GetProspectiveClubs(0,nation,1,3) logs the randomized list
+      # count before enforcing its minimum-count fallback. Run 317 captured
+      # exactly this size:0 line followed by TrialDone/message. Once the stock
+      # call has registered, never press Next again; observe the fallback-driven
+      # transition without injecting any additional input.
+      echo "short-league Albania pre-fallback zero observed; waiting for stock fallback transition" >> "$FLOW"
+      for fallback_wait in 0 1 2 3 4 5 6 7 8 9 10; do
+        if grep -qiE 'LoadDataAndStartTrial|TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
+          echo "short-league Albania stock minimum-count fallback reached Career transition" >> "$FLOW"
+          echo "short-league Albania profile Next stock transition accepted" >> "$FLOW"
+          return 0
+        fi
+        [ "$fallback_wait" -lt 10 ] || break
+        fatal_check || return 1
+        sleep 1
+        adb logcat -d -v brief > "$evidence" 2>/dev/null || true
+        cp "$evidence" "$OUT/short-league-next-${attempt}-fallback.txt" 2>/dev/null || true
+      done
+      echo "short-league Albania stock fallback transition timed out" >> "$FLOW"
       return 1
     fi
+
     if grep -qE 'GetProspectiveClubs for nation Id:[[:space:]]*2([^0-9]|$)' "$evidence" \
        && grep -qE 'List of prospective clubs size:[[:space:]]*[1-9][0-9]*' "$evidence" \
        && grep -qiE 'LoadDataAndStartTrial|TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
