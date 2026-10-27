@@ -86,15 +86,15 @@ natural_input_burst(){
 }
 current_state(){
   adb logcat -d -v brief > "$WORK/state.log" 2>/dev/null || true
-  local line; line="$(grep -Ei 'SETTING ACTIVE:|SetActive:|Create Screen:' "$WORK/state.log" | tail -1 || true)"
+  local line; line="$(grep -Ei 'SETTING ACTIVE:|SetActive:' "$WORK/state.log" | tail -1 || true)"
   case "${line,,}" in
     *matchstats*) echo matchstats;;
     *matchreview*) echo matchreview;;
     *leaguefixtures*) echo leaguefixtures;;
     *gamemenu*) echo gamemenu;;
     *message*) echo message;;
-    *" active: match"*|*"setactive: match"*|*"screen: match"*) echo match;;
-    *" active: league"*|*"setactive: league"*|*"screen: league"*) echo league;;
+    *" active: match"*|*"setactive: match"*) echo match;;
+    *" active: league"*|*"setactive: league"*) echo league;;
     *) echo unknown;;
   esac
 }
