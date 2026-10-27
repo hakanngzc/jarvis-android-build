@@ -87,8 +87,11 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         module = load_module(str(p), 'prepare_stage4_live_input_run324_adb_watchdog')
         prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
         self.assertIn('timeout 8s adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true', prepared)
+        self.assertIn('timeout 8s adb logcat -d -v brief > "$WORK/match-live.log" 2>/dev/null || true', prepared)
         self.assertIn('timeout 8s adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true', prepared)
+        self.assertIn('shot(){ timeout 8s adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }', prepared)
         self.assertIn('timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true', prepared)
+        self.assertIn('timeout 8s adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true', prepared)
 
     def test_natural_workflow_applies_full_hardening_chain(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
