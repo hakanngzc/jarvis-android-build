@@ -57,9 +57,14 @@ dismiss_stage4_bux_overlay(){
   echo "stock BuxOverlay visible X -> ${x},${y}" >> "$FLOW"
   adb shell input touchscreen tap "$x" "$y" </dev/null || true
   sleep 2
-  echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"
-  adb shell input keyevent 4 </dev/null || true
-  sleep 2
+  adb logcat -d -v brief > "$WORK/bux-after-close.log" 2>/dev/null || true
+  if grep -q 'HitGadget: UpsellMsg.Close' "$WORK/bux-after-close.log"; then
+    echo "stock BuxOverlay UpsellMsg.Close -> GameMenu; no Android Back" >> "$FLOW"
+  else
+    echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"
+    adb shell input keyevent 4 </dev/null || true
+    sleep 2
+  fi
 }
 
 dismiss_stage4_skills_shop_overlay(){
