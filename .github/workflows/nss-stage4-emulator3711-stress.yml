@@ -47,7 +47,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            emulator -version 2>&1 | tee "$RUNNER_TEMP/emulator-version.txt"
+            "$ANDROID_HOME/emulator/emulator" -version 2>&1 | tee "$RUNNER_TEMP/emulator-version.txt"
             grep -q 'Android emulator version 37\.1\.11\.0' "$RUNNER_TEMP/emulator-version.txt"
             grep -q 'build_id 15917651' "$RUNNER_TEMP/emulator-version.txt"
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
