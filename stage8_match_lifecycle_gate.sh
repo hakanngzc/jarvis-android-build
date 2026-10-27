@@ -138,7 +138,7 @@ LEAGUEFIXTURES_REACHED=0
 for attempt in 1 2; do
   clear_log
   press_play 4
-  if wait_log 'Create Screen:[[:space:]]*leaguefixtures|SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 12 "leaguefixtures-attempt-$attempt"; then
+  if wait_log 'SETTING ACTIVE:[[:space:]]*leaguefixtures|SetActive:[[:space:]]*leaguefixtures' 12 "leaguefixtures-attempt-$attempt"; then
     LEAGUEFIXTURES_REACHED=1
     break
   fi
