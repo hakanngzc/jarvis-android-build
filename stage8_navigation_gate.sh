@@ -206,7 +206,7 @@ back_route clubfixtures-league 249 837 league
 back_route league-home 93 837 gamemenu
 
 # Normal GameMenu Play route -> LeagueFixtures, then UI Back to the hub.
-route gamemenu-leaguefixtures 553 829 leaguefixtures
+route gamemenu-leaguefixtures 553 900 leaguefixtures
 back_route leaguefixtures-back 93 837 gamemenu
 
 fatal_check
