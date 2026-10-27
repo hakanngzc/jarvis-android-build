@@ -182,7 +182,7 @@ class Stage4ShortLeagueTests(unittest.TestCase):
             result = subprocess.run(['bash', '-c', script], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertGreaterEqual(int(count_file.read_text(encoding='utf-8')), 2)
-            fallback_evidence = work / 'short-league-next-1-fallback.txt'
+            fallback_evidence = out / 'short-league-next-1-fallback.txt'
             self.assertTrue(fallback_evidence.exists())
             self.assertIn('TrialDone', fallback_evidence.read_text(encoding='utf-8'))
 
