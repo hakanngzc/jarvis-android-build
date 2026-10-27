@@ -143,10 +143,6 @@ class Stage4ShortLeagueTests(unittest.TestCase):
         end = prepared.index('\n\nselect_albania_stock_league || exit 219', start)
         function_text = prepared[start:end]
 
-        # Run 317 proves stock m_GetProspectiveClubs can print size: 0 before
-        # its own minimum-count fallback, then continue through TrialDone and a
-        # real Message surface. The printed random-list count is therefore not
-        # the returned-list final count and must not be treated as setup failure.
         fixture = '''I/[Monkey]: HitGadget: choosenation.btn_Ok, param:\nI/[Monkey]: CallFunc: LoadDataAndStartTrial\nI/[Monkey]: player.clubnationid: 2\nI/[Monkey]: GetProspectiveClubs for nation Id: 2\nI/[Monkey]: List of prospective clubs size: 0\nI/[Monkey]: CallFunc: TrialDone\nI/[Monkey]: SETTING ACTIVE: messagedefault\nI/[Monkey]: SetActive: message\n'''
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -159,14 +155,36 @@ class Stage4ShortLeagueTests(unittest.TestCase):
             evidence.write_text(fixture, encoding='utf-8')
             script = f'''set -u\nWORK="$WORK_DIR"\nOUT="$OUT_DIR"\nFLOW="$FLOW_FILE"\nclear_log(){{ :; }}\nfatal_check(){{ return 0; }}\nshot(){{ :; }}\nsleep(){{ :; }}\nadb(){{\n  if [ "$1" = shell ] && [ "${{2:-}}" = wm ] && [ "${{3:-}}" = size ]; then echo "Physical size: 1080x2280"; return 0; fi\n  if [ "$1" = logcat ]; then cat "$FIXTURE"; return 0; fi\n  return 0\n}}\n{function_text}\ncontinue_after_albania_stock_league\n'''
             env = os.environ.copy()
-            env.update({
-                'WORK_DIR': str(work),
-                'OUT_DIR': str(out),
-                'FLOW_FILE': str(flow),
-                'FIXTURE': str(evidence),
-            })
+            env.update({'WORK_DIR': str(work), 'OUT_DIR': str(out), 'FLOW_FILE': str(flow), 'FIXTURE': str(evidence)})
             result = subprocess.run(['bash', '-c', script], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr + (flow.read_text(encoding='utf-8') if flow.exists() else ''))
+
+    def test_zero_pre_fallback_count_waits_until_trialdone_or_message_is_observed(self):
+        module = load_module('stage4_tools/prepare_stage4_short_league.py', 'prepare_stage4_short_league_wait')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        start = prepared.index('continue_after_albania_stock_league(){')
+        end = prepared.index('\n\nselect_albania_stock_league || exit 219', start)
+        function_text = prepared[start:end]
+        initial = '''I/[Monkey]: CallFunc: LoadDataAndStartTrial\nI/[Monkey]: player.clubnationid: 2\nI/[Monkey]: GetProspectiveClubs for nation Id: 2\nI/[Monkey]: List of prospective clubs size: 0\n'''
+        completed = initial + '''I/[Monkey]: CallFunc: TrialDone\nI/[Monkey]: SETTING ACTIVE: messagedefault\nI/[Monkey]: SetActive: message\n'''
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            work, out = root / 'work', root / 'out'
+            work.mkdir(); out.mkdir()
+            first, second = root / 'initial.log', root / 'completed.log'
+            count_file, flow = root / 'count.txt', root / 'flow.log'
+            first.write_text(initial, encoding='utf-8')
+            second.write_text(completed, encoding='utf-8')
+            count_file.write_text('0', encoding='utf-8')
+            script = f'''set -u\nWORK="$WORK_DIR"\nOUT="$OUT_DIR"\nFLOW="$FLOW_FILE"\nclear_log(){{ :; }}\nfatal_check(){{ return 0; }}\nshot(){{ :; }}\nsleep(){{ :; }}\nadb(){{\n  if [ "$1" = shell ] && [ "${{2:-}}" = wm ] && [ "${{3:-}}" = size ]; then echo "Physical size: 1080x2280"; return 0; fi\n  if [ "$1" = logcat ]; then\n    n=$(cat "$COUNT_FILE"); n=$((n+1)); echo "$n" > "$COUNT_FILE"\n    if [ "$n" -eq 1 ]; then cat "$INITIAL"; else cat "$COMPLETED"; fi\n    return 0\n  fi\n  return 0\n}}\n{function_text}\ncontinue_after_albania_stock_league\n'''
+            env = os.environ.copy()
+            env.update({'WORK_DIR': str(work), 'OUT_DIR': str(out), 'FLOW_FILE': str(flow), 'INITIAL': str(first), 'COMPLETED': str(second), 'COUNT_FILE': str(count_file)})
+            result = subprocess.run(['bash', '-c', script], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertGreaterEqual(int(count_file.read_text(encoding='utf-8')), 2)
+            fallback_evidence = work / 'short-league-next-1-fallback.txt'
+            self.assertTrue(fallback_evidence.exists())
+            self.assertIn('TrialDone', fallback_evidence.read_text(encoding='utf-8'))
 
     def test_external_runner_retries_only_disposable_setup_failures(self):
         runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
