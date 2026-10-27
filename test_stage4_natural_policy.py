@@ -73,6 +73,14 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertNotIn('m_skipMatches', prepared)
         self.assertNotIn('m_Simulate', prepared)
 
+    def test_run318_postmatch_ratings_is_classified_and_backed_out(self):
+        p = Path('stage4_tools/prepare_stage4_event_navigation.py')
+        self.assertTrue(p.exists(), 'Stage4 event-navigation hardener must exist')
+        module = load_module(str(p), 'prepare_stage4_event_navigation_run318_ratings')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        self.assertIn('*ratings*) echo ratings;;', prepared)
+        self.assertEqual(prepared.count('ratings) press_logical 85 898 2;;'), 2)
+
     def test_natural_workflow_applies_full_hardening_chain(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
