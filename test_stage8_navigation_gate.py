@@ -71,6 +71,13 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
+    def test_foreground_waits_for_rendered_frame_before_navigation(self):
+        self.assertIn('wait_rendered_frame(){',self.shell)
+        self.assertIn('wc -c < "$WORK/render-ready.png"',self.shell)
+        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        self.assertIn('wait_rendered_frame 30',lifecycle)
+        self.assertLess(lifecycle.index("wait_log 'OnResume End' 20 career-onresume"),lifecycle.index('wait_rendered_frame 30'))
+
     def test_all_adb_calls_are_bounded(self):
         m=re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}',self.shell,re.S)
         self.assertIsNotNone(m)
