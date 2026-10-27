@@ -20,12 +20,9 @@ select_albania_stock_league(){
   local attempt detect_attempt select_attempt modal_open frame="$WORK/short-league-picker.png" tmp="$WORK/short-league-picker.tmp.png" post="$WORK/short-league-post.png" xy rc x y
   for attempt in 1 2 3; do
     echo "short-league Albania picker open attempt $attempt/3" >> "$FLOW"
-    # choosenation.uis source-defined pressable area is logical x=51..613,
-    # y=636..708. Use the safe centre rather than a rendered edge coordinate.
     press_logical 332 672 1
     modal_open=0
 
-    # Never re-press the selector while the modal may still be rendering.
     for detect_attempt in 1 2 3 4; do
       rm -f "$tmp" "$frame"
       timeout 8s adb exec-out screencap -p > "$tmp" 2>/dev/null || true
@@ -114,7 +111,7 @@ continue_after_albania_stock_league(){
       # transition without injecting any additional input.
       echo "short-league Albania pre-fallback zero observed; waiting for stock fallback transition" >> "$FLOW"
       for fallback_wait in 0 1 2 3 4 5 6 7 8 9 10; do
-        if grep -qiE 'LoadDataAndStartTrial|TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
+        if grep -qiE 'TrialDone|Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*messagedefault|SetActive:[[:space:]]*message|CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$evidence"; then
           echo "short-league Albania stock minimum-count fallback reached Career transition" >> "$FLOW"
           echo "short-league Albania profile Next stock transition accepted" >> "$FLOW"
           return 0
