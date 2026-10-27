@@ -27,6 +27,10 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn("grep -Ei 'SETTING ACTIVE:|SetActive:'",block)
         self.assertNotIn('Create Screen:',block)
 
+    def test_gamemenu_and_match_play_use_proven_bottom_right_coordinate(self):
+        self.assertIn('press_play(){ press_logical 553 900',self.shell)
+        self.assertNotIn('press_play(){ press_logical 553 829',self.shell)
+
     def test_leaguefixtures_advance_uses_fixture_button_center_not_gamemenu_play(self):
         self.assertIn('press_fixture_play(){ press_logical 553 900',self.shell)
         loop=self.shell.split('MATCH_REACHED=0',1)[1].split('[ "$MATCH_REACHED" -eq 1 ]',1)[0]
