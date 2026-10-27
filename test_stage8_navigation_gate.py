@@ -39,6 +39,9 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('route relationships-lifestyle 249 837 shop',self.shell)
         self.assertIn('route relationships-casino 405 837 casino',self.shell)
 
+    def test_shop_runtime_alias_accepts_lifestyle_overlay(self):
+        self.assertIn("shop) pattern='shop|LifestyleShopOverlay' ;;",self.shell)
+
     def test_casino_subfamilies_are_present(self):
         for line in (
             'route casino-blackjack 177 352 blackjack',
