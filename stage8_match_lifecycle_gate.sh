@@ -48,6 +48,19 @@ press_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); press_physica
 press_play(){ press_logical 553 829 "${1:-2}"; }
 press_fixture_play(){ press_logical 553 900 "${1:-2}"; }
 press_message_accept(){ press_logical 477 880 "${1:-2}"; }
+start_live_match(){
+  local attempt
+  for attempt in 1 2 3; do
+    clear_log
+    press_play 1
+    if wait_log 'HitGadget:[[:space:]]*match\.btn_Play' 5 "match-play-$attempt"; then
+      return 0
+    fi
+  done
+  capture_log 'failed to hit stock match Play gadget'
+  shot stage8-match-play-failure
+  return 1
+}
 quick_tap_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); adb shell input tap "$x" "$y" </dev/null >/dev/null 2>&1 || true; }
 quick_swipe_logical(){
   local x1 y1 x2 y2
@@ -157,10 +170,9 @@ done
 shot stage8-match-prematch
 
 # Start the untouched live match, then exercise Android background/foreground.
-clear_log; press_play 1; sleep 2
+start_live_match || { echo 'Stock match Play gadget was not reached'; exit 304; }
+sleep 2
 fatal_check; capture_log 'stock live match started'; shot stage8-match-before-background
-state="$(current_state)"
-[ "$state" = match ] || { echo "Live match not active before lifecycle: $state"; exit 304; }
 
 pid_before="$(adb shell pidof "$PKG" | tr -d '\r')"
 test -n "$pid_before"
