@@ -129,6 +129,7 @@ pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_bg" ]
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
+wait_log 'OnResume End' 20 career-onresume
 pid_fg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_fg" ]
 fatal_check; capture_log 'Career lifecycle background -> foreground'; shot stage8-career-foreground
