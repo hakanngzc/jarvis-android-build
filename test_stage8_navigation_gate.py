@@ -82,6 +82,15 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
+    def test_render_readiness_requires_three_consecutive_nonblack_frames(self):
+        m=re.search(r'wait_rendered_frame\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
+        self.assertIsNotNone(m)
+        body=m.group('body')
+        self.assertIn('stable=0',body)
+        self.assertIn('stable=$((stable+1))',body)
+        self.assertIn('[ "$stable" -ge 3 ]',body)
+        self.assertRegex(body,r'else\s+stable=0')
+
     def test_foreground_clears_log_then_uses_activity_and_frame_readiness(self):
         lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
         clear_i=lifecycle.index('clear_log')
