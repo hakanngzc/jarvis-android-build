@@ -81,6 +81,15 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertIn('*ratings*) echo ratings;;', prepared)
         self.assertEqual(prepared.count('ratings) press_logical 85 898 2;;'), 2)
 
+    def test_run324_live_loop_bounds_adb_after_transport_close(self):
+        p = Path('stage4_tools/prepare_stage4_live_input.py')
+        self.assertTrue(p.exists(), 'Stage4 live-input hardener must exist')
+        module = load_module(str(p), 'prepare_stage4_live_input_run324_adb_watchdog')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        self.assertIn('timeout 8s adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true', prepared)
+        self.assertIn('timeout 8s adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true', prepared)
+        self.assertIn('timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true', prepared)
+
     def test_natural_workflow_applies_full_hardening_chain(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
