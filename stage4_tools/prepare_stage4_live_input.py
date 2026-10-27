@@ -4,7 +4,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-DRIVER = r'''capture_valid_live_frame(){
+DRIVER = r'''transport_health_check(){
+  local state
+  state="$(timeout 8s adb get-state 2>/dev/null || true)"
+  [ "$state" = "device" ]
+}
+
+capture_valid_live_frame(){
   local final="$1" tmp attempt
   tmp="${final}.tmp"
   rm -f "$tmp" "$final"
@@ -56,7 +62,17 @@ drive_live_chance(){
   LIVE_LAST_PROBE_EPOCH="$now"
 
   if ! capture_valid_live_frame "$frame"; then
-    echo "cycle $cycle valid live frame unavailable @${elapsed}s; retrying on next match loop" >> "$FLOW"
+    if ! transport_health_check; then
+      {
+        echo 'STAGE4_EMULATOR_TRANSPORT_DEAD'
+        echo "cycle=$cycle elapsed_seconds=$elapsed"
+        echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        timeout 8s adb devices -l 2>&1 || true
+      } > "$OUT/runtime-transport-dead.txt"
+      echo "STAGE4_EMULATOR_TRANSPORT_DEAD cycle=$cycle elapsed=${elapsed}s" >> "$FLOW"
+      return 1
+    fi
+    echo "cycle $cycle valid live frame unavailable @${elapsed}s; transport healthy, retrying on next match loop" >> "$FLOW"
     sleep 1
     return 0
   fi
@@ -230,7 +246,7 @@ NEW = '''    # Real live-match interaction only. Stock matchminigame/tapball log
     # gate expensive rendered-frame decoding; an 8-second periodic probe still
     # catches Half Time / Full Time resume controls and visible Tutorial callouts.
     # No match engine, simulate/debug branch or season state is patched.
-    drive_live_chance "$cycle" "$elapsed"'''
+    drive_live_chance "$cycle" "$elapsed" || return 1'''
 
 NAV_OLD = '''  for step in $(seq 1 50); do
     fatal_check || return 1
@@ -241,6 +257,16 @@ NAV_NEW = '''  for step in $(seq 1 50); do
     dismiss_external_browser_if_present "$step" || return 1
     dismiss_interstitial_if_present "$step" || return 1
     clear_log'''
+
+CYCLE_FAIL_OLD = '''  natural_match_cycle "$cycle" || { echo "natural cycle $cycle failed"; exit 220; }'''
+CYCLE_FAIL_NEW = '''  natural_match_cycle "$cycle" || {
+    if [ -s "$OUT/runtime-transport-dead.txt" ]; then
+      echo 'STAGE4_EMULATOR_TRANSPORT_DEAD'
+      exit 222
+    fi
+    echo "natural cycle $cycle failed"
+    exit 220
+  }'''
 
 SHOT_OLD = 'shot(){ adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
 SHOT_NEW = 'shot(){ timeout 8s adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }\n'
@@ -265,6 +291,11 @@ def harden(text: str) -> str:
     if count != 1:
         raise SystemExit(f'expected one fixed live-input block, found {count}')
     text = text.replace(OLD, NEW, 1)
+
+    cycle_fail_count = text.count(CYCLE_FAIL_OLD)
+    if cycle_fail_count != 1:
+        raise SystemExit(f'expected one natural-cycle failure mapping, found {cycle_fail_count}')
+    text = text.replace(CYCLE_FAIL_OLD, CYCLE_FAIL_NEW, 1)
 
     if 'dismiss_external_browser_if_present "$step"' not in text:
         nav_count = text.count(NAV_OLD)

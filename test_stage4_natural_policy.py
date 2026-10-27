@@ -93,6 +93,16 @@ class Stage4NaturalSeasonPolicyTests(unittest.TestCase):
         self.assertIn('timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true', prepared)
         self.assertIn('timeout 8s adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true', prepared)
 
+    def test_run328_transport_death_is_distinguished_from_gameplay_timeout(self):
+        p = Path('stage4_tools/prepare_stage4_live_input.py')
+        self.assertTrue(p.exists(), 'Stage4 live-input hardener must exist')
+        module = load_module(str(p), 'prepare_stage4_live_input_run328_transport_death')
+        prepared = module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        self.assertIn('timeout 8s adb get-state', prepared)
+        self.assertIn('runtime-transport-dead.txt', prepared)
+        self.assertIn('STAGE4_EMULATOR_TRANSPORT_DEAD', prepared)
+        self.assertIn('exit 222', prepared)
+
     def test_natural_workflow_applies_full_hardening_chain(self):
         text = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
         offline = 'stage4_tools/prepare_stage4_offline_runtime.py'
