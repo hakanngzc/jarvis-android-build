@@ -1,0 +1,80 @@
+name: NSS Stage4 First-Cycle Diagnostic
+
+on:
+  push:
+    branches: [stage4-firstcycle-diagnostic-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  stage4-firstcycle-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate current Stage4 tutorial tooling
+        run: |
+          python3 -m py_compile stage4_tools/classify_live_frame.py stage4_tools/prepare_stage4_live_input.py
+          python3 -m unittest test_stage4_single_decode_classifier.py test_stage4_live_ball_driver.py test_stage4_live_input_speed.py -v
+          bash -n stage4_natural_season_gate.sh stage4_tools/run_stage4_natural_gate.sh
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and prove one fresh natural match
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          MIN_PROGRESS_DAYS: '90'
+          MIN_MATCH_CYCLES: '12'
+          MIN_WALL_SECONDS: '1200'
+          MAX_MATCH_CYCLES: '1'
+          MATCH_TIMEOUT_SECONDS: '900'
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-natural-gate.start.sh" "$RUNNER_TEMP/stage4-natural-gate.visual.sh"
+            python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/stage4-natural-gate.visual.sh" "$RUNNER_TEMP/stage4-natural-gate.offline.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-natural-gate.offline.sh" "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/stage4-natural-gate.shortleague.sh" "$RUNNER_TEMP/stage4-natural-gate.events.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-natural-gate.events.sh" "$RUNNER_TEMP/stage4-natural-gate.prematch.sh"
+            python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/stage4-natural-gate.prematch.sh" "$RUNNER_TEMP/stage4-natural-gate.live.pre.sh"
+            python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/stage4-natural-gate.live.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.speed.sh"
+            python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/stage4-natural-gate.speed.sh" "$RUNNER_TEMP/stage4-natural-gate.boundary.sh"
+            python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/stage4-natural-gate.boundary.sh" "$RUNNER_TEMP/stage4-natural-gate.live.sh"
+            bash -n "$RUNNER_TEMP/stage4-natural-gate.live.sh"
+            set +e
+            bash stage4_tools/run_stage4_natural_gate.sh "$RUNNER_TEMP/stage4-natural-gate.live.sh"
+            rc=$?
+            set -e
+            [ "$rc" -eq 221 ] || { echo "unexpected diagnostic gate rc=$rc"; exit 241; }
+            test -s "$RUNNER_TEMP/stage4-natural/cycle-1-MonkeyGame.xml"
+            test -s "$RUNNER_TEMP/stage4-natural/cycle-1.json"
+            grep -q 'cycle 1 stock tutorial overlay' "$RUNNER_TEMP/stage4-natural/STAGE4_NATURAL_RUNTIME_FLOW.log"
+            grep -q 'cycle 1 natural Match -> MatchStats' "$RUNNER_TEMP/stage4-natural/STAGE4_NATURAL_RUNTIME_FLOW.log"
+            ! grep -q 'STAGE4_NATURAL_SEASON_PASS' "$RUNNER_TEMP/stage4-natural/STAGE4_NATURAL_RUNTIME_FLOW.log"
+            echo 'STAGE4_FIRST_CYCLE_DIAGNOSTIC_PASS'
+
+      - name: Upload first-cycle diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-firstcycle-diagnostic-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/stage4-natural/
+          retention-days: 7
