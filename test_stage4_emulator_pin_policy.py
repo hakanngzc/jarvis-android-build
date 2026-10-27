@@ -7,9 +7,7 @@ class Stage4EmulatorPinPolicyTests(unittest.TestCase):
         workflow = Path('.github/workflows/nss-stage4-season-runtime.yml').read_text(encoding='utf-8')
 
         self.assertIn('emulator-build: 15917651', workflow)
-        self.assertIn('"$ANDROID_HOME/emulator/emulator" -version', workflow)
-        self.assertIn('Android emulator version 37\\.1\\.11\\.0', workflow)
-        self.assertIn('build_id 15917651', workflow)
+        self.assertNotIn('emulator/emulator" -version', workflow)
         self.assertIn('prepare_stage4_transport_death.py', workflow)
         self.assertIn('test_stage4_transport_death_policy.py', workflow)
         self.assertIn('test_stage4_emulator_pin_policy.py', workflow)
