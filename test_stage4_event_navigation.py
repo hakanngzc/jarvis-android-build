@@ -1,5 +1,6 @@
 import importlib.util
 import struct
+import subprocess
 import tempfile
 import unittest
 import zlib
@@ -152,6 +153,37 @@ class Stage4EventNavigationTests(unittest.TestCase):
         self.assertIn('cycle $cycle postmatch no published transition; retaining $state', prepared)
         self.assertNotIn('[ "$state" = unknown ] && { press_footer_ok 1; state="$(latest_state)"; }', prepared)
         self.assertIn('next_state="$(latest_state)"', prepared)
+
+    def test_event_preparer_recovers_seasonreview_under_transient_splash(self):
+        module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_seasonreview_splash')
+        source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
+        prepared = module.harden(source)
+        start = prepared.index('latest_state(){')
+        end = prepared.index('\n}\n\nnavigate_until_match(){', start) + 3
+        latest_state_fn = prepared[start:end]
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            fixture = work / 'fixture.log'
+            fixture.write_text(
+                'I/[Monkey]: Create Screen:seasonreview\n'
+                'I/[Monkey]: SETTING ACTIVE: seasonreview\n'
+                'I/[Monkey]: SetActive: seasonreview\n'
+                'I/[Monkey]: SETTING ACTIVE: splashmessage\n',
+                encoding='utf-8',
+            )
+            probe = work / 'probe.sh'
+            probe.write_text(
+                '#!/usr/bin/env bash\nset -euo pipefail\n'
+                f'WORK={work!s}\n'
+                f'FIXTURE={fixture!s}\n'
+                'adb(){ cat "$FIXTURE"; }\n'
+                + latest_state_fn
+                + '\nlatest_state\n',
+                encoding='utf-8',
+            )
+            result = subprocess.run(['bash', str(probe)], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'seasonreview')
 
     def test_event_preparer_classifies_stock_season_review_and_player_of_year_as_play_surfaces(self):
         module = load_module('stage4_tools/prepare_stage4_event_navigation.py', 'prepare_stage4_event_navigation_season_end')
