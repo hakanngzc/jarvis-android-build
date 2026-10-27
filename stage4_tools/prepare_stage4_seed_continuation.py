@@ -29,30 +29,44 @@ adb shell chown "$seed_owner" "/data/data/$PKG/shared_prefs/MonkeyGame.xml"
 adb shell chmod 660 "/data/data/$PKG/shared_prefs/MonkeyGame.xml"
 adb shell restorecon -F "/data/data/$PKG/shared_prefs/MonkeyGame.xml" >/dev/null 2>&1 || true
 
-clear_log
-adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 diag_loaded=0
-diag_mainmenu=0
-for diag_attempt in $(seq 1 30); do
-  fatal_check || exit 231
-  adb logcat -d -v brief > "$WORK/diagnostic-seed-load.txt" 2>/dev/null || true
-  if grep -q 'LoadCareer saveslot: 0' "$WORK/diagnostic-seed-load.txt" \
-     && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/diagnostic-seed-load.txt"; then
+for diag_start in 1 2; do
+  diag_mainmenu=0
+  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+  clear_log
+  rm -f "$OUT/runtime-fatal-logcat.txt"
+  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+  for diag_attempt in $(seq 1 30); do
+    if ! fatal_check; then
+      if [ -s "$OUT/runtime-fatal-logcat.txt" ]; then
+        cp "$OUT/runtime-fatal-logcat.txt" "$OUT/diagnostic-seed-start-${diag_start}-fatal.txt" 2>/dev/null || true
+        rm -f "$OUT/runtime-fatal-logcat.txt"
+      fi
+      echo "diagnostic seed start $diag_start crashed; controlled process restart" >> "$FLOW"
+      break
+    fi
+    adb logcat -d -v brief > "$WORK/diagnostic-seed-load.txt" 2>/dev/null || true
+    if grep -q 'LoadCareer saveslot: 0' "$WORK/diagnostic-seed-load.txt" \
+       && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/diagnostic-seed-load.txt"; then
+      diag_loaded=1
+      echo "diagnostic seed auto-load reached GameMenu on start $diag_start" >> "$FLOW"
+      break
+    fi
+    if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$WORK/diagnostic-seed-load.txt"; then
+      diag_mainmenu=1
+    fi
+    sleep 1
+  done
+  [ "$diag_loaded" -eq 1 ] && break
+  if [ "$diag_mainmenu" -eq 1 ]; then
+    echo 'diagnostic seed auto-load not observed; using stock SaveSlot fallback' >> "$FLOW"
+    open_slot0 diagnostic-seed
+    load_existing diagnostic-seed
     diag_loaded=1
-    echo 'diagnostic seed auto-load reached GameMenu' >> "$FLOW"
     break
   fi
-  if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$WORK/diagnostic-seed-load.txt"; then
-    diag_mainmenu=1
-  fi
-  sleep 1
+  sleep 3
 done
-if [ "$diag_loaded" -ne 1 ] && [ "$diag_mainmenu" -eq 1 ]; then
-  echo 'diagnostic seed auto-load not observed; using stock SaveSlot fallback' >> "$FLOW"
-  open_slot0 diagnostic-seed
-  load_existing diagnostic-seed
-  diag_loaded=1
-fi
 [ "$diag_loaded" -eq 1 ] || {
   cp "$WORK/diagnostic-seed-load.txt" "$OUT/diagnostic-seed-load-timeout.txt" 2>/dev/null || true
   shot diagnostic-seed-load-timeout
