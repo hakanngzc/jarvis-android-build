@@ -35,8 +35,11 @@ wait_log(){
   echo "Timed out waiting for $label"; return 1
 }
 wait_screen(){
-  local screen="$1" timeout_s="${2:-30}"
-  wait_log "SETTING ACTIVE:[[:space:]]*$screen([[:space:]]|$)|SetActive:[[:space:]]*$screen([[:space:]]|$)" "$timeout_s" "screen-$screen"
+  local screen="$1" timeout_s="${2:-30}" pattern="$1"
+  case "$screen" in
+    shop) pattern='shop|LifestyleShopOverlay' ;;
+  esac
+  wait_log "SETTING ACTIVE:[[:space:]]*($pattern)([[:space:]]|$)|SetActive:[[:space:]]*($pattern)([[:space:]]|$)" "$timeout_s" "screen-$screen"
 }
 wait_resumed(){
   local timeout_s="${1:-20}" i
