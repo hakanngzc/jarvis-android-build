@@ -73,8 +73,21 @@ w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups());scale=w/640.0;top=(h-960*scale
 print(round(x*scale),round(top+y*scale))
 PY
 }
+ratio_xy(){
+python3 - "$1" "$2" <<'PY'
+import re,subprocess,sys
+rx,ry=map(float,sys.argv[1:]);s=subprocess.check_output(['adb','shell','wm','size'],text=True,timeout=15)
+w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups())
+print(round(w*rx),round(h*ry))
+PY
+}
 press_logical(){
   local x y; read -r x y < <(logical_xy "$1" "$2")
+  adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
+  sleep "${3:-2}"
+}
+press_ratio(){
+  local x y; read -r x y < <(ratio_xy "$1" "$2")
   adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
   sleep "${3:-2}"
 }
@@ -90,6 +103,13 @@ dump_save(){
 route(){
   local label="$1" lx="$2" ly="$3" target="$4"
   clear_log; press_logical "$lx" "$ly" 2
+  wait_screen "$target" 35
+  fatal_check; capture_log "$label -> $target"; shot "$label-$target"
+  echo "PASS route $label -> $target" | tee -a "$GATE"
+}
+route_ratio(){
+  local label="$1" rx="$2" ry="$3" target="$4"
+  clear_log; press_ratio "$rx" "$ry" 2
   wait_screen "$target" 35
   fatal_check; capture_log "$label -> $target"; shot "$label-$target"
   echo "PASS route $label -> $target" | tee -a "$GATE"
@@ -157,7 +177,7 @@ route gamemenu-life 405 837 relationships
 route relationships-achievements 561 837 achievements
 back_route achievements-back 93 837 relationships
 route relationships-lifestyle 249 837 shop
-back_route lifestyle-back 93 837 relationships
+route_ratio lifestyle-close 0.904 0.075 relationships
 route relationships-casino 405 837 casino
 route casino-blackjack 177 352 blackjack
 back_route blackjack-back 93 837 casino
