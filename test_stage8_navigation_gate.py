@@ -80,6 +80,14 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
 
+    def test_foreground_clears_stale_log_before_reactivation(self):
+        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        clear_i=lifecycle.index('clear_log')
+        start_i=lifecycle.index('adb shell am start -n "$PKG/.MonkeyGame"')
+        screen_i=lifecycle.index('wait_screen gamemenu 45')
+        self.assertLess(clear_i,start_i)
+        self.assertLess(start_i,screen_i)
+
     def test_foreground_waits_for_active_gamemenu_and_rendered_frame_before_navigation(self):
         self.assertIn('wait_rendered_frame(){',self.shell)
         self.assertIn('wc -c < "$WORK/render-ready.png"',self.shell)
