@@ -65,6 +65,7 @@ class Stage8NavigationGateTests(unittest.TestCase):
     def test_career_lifecycle_background_foreground_is_guarded(self):
         self.assertIn('career-lifecycle-pre',self.shell)
         self.assertIn('input keyevent 3',self.shell)
+        self.assertIn("wait_log 'OnResume End' 20 career-onresume",self.shell)
         self.assertIn('career-lifecycle-post',self.shell)
         self.assertIn('verify_stage8_lifecycle.py',self.shell)
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
