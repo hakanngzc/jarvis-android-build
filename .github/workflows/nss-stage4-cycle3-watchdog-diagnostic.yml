@@ -1,0 +1,70 @@
+name: NSS Stage4 Cycle3 Watchdog Diagnostic
+
+on:
+  push:
+    branches: [stage4-cycle3-watchdog-diagnostic-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  stage4-cycle3-watchdog-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate cycle3 watchdog diagnostic tooling
+        run: |
+          python3 -m py_compile stage2_residual_tools/prepare_stage2_gate.py stage2_residual_tools/prepare_runtime_start_retry.py stage2_residual_tools/prepare_chooseclub_visual.py stage4_tools/prepare_stage4_offline_runtime.py stage4_tools/prepare_stage4_short_league.py stage4_tools/prepare_stage4_event_navigation.py stage4_tools/prepare_stage4_prematch.py stage4_tools/prepare_stage4_live_input.py stage4_tools/prepare_stage4_match_speed.py stage4_tools/prepare_stage4_boundary_scope.py stage4_tools/prepare_stage4_match_resolution.py
+          python3 -m unittest test_stage4_natural_policy.py test_stage4_event_navigation.py test_stage4_single_decode_classifier.py test_stage4_boundary_scope.py test_stage4_match_speed.py -v
+          bash -n stage4_natural_season_gate.sh stage4_tools/run_stage4_natural_gate.sh stage4_tools/run_stage4_cycle3_diagnostic.sh
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Run three natural matches with bounded adb watchdogs
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          MIN_PROGRESS_DAYS: '0'
+          MIN_MATCH_CYCLES: '3'
+          MIN_WALL_SECONDS: '0'
+          MAX_MATCH_CYCLES: '3'
+          MATCH_TIMEOUT_SECONDS: '900'
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-cycle3.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-cycle3.pre.sh" "$RUNNER_TEMP/stage4-cycle3.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py "$RUNNER_TEMP/stage4-cycle3.start.sh" "$RUNNER_TEMP/stage4-cycle3.visual.sh"
+            python3 stage4_tools/prepare_stage4_offline_runtime.py "$RUNNER_TEMP/stage4-cycle3.visual.sh" "$RUNNER_TEMP/stage4-cycle3.offline.sh"
+            python3 stage4_tools/prepare_stage4_short_league.py "$RUNNER_TEMP/stage4-cycle3.offline.sh" "$RUNNER_TEMP/stage4-cycle3.shortleague.sh"
+            python3 stage4_tools/prepare_stage4_event_navigation.py "$RUNNER_TEMP/stage4-cycle3.shortleague.sh" "$RUNNER_TEMP/stage4-cycle3.events.sh"
+            python3 stage4_tools/prepare_stage4_prematch.py "$RUNNER_TEMP/stage4-cycle3.events.sh" "$RUNNER_TEMP/stage4-cycle3.prematch.sh"
+            python3 stage4_tools/prepare_stage4_live_input.py "$RUNNER_TEMP/stage4-cycle3.prematch.sh" "$RUNNER_TEMP/stage4-cycle3.live.sh"
+            python3 stage4_tools/prepare_stage4_match_speed.py "$RUNNER_TEMP/stage4-cycle3.live.sh" "$RUNNER_TEMP/stage4-cycle3.speed.sh"
+            python3 stage4_tools/prepare_stage4_boundary_scope.py "$RUNNER_TEMP/stage4-cycle3.speed.sh" "$RUNNER_TEMP/stage4-cycle3.boundary.sh"
+            python3 stage4_tools/prepare_stage4_match_resolution.py "$RUNNER_TEMP/stage4-cycle3.boundary.sh" "$RUNNER_TEMP/stage4-cycle3.final.sh"
+            bash -n "$RUNNER_TEMP/stage4-cycle3.final.sh"
+            bash stage4_tools/run_stage4_cycle3_diagnostic.sh "$RUNNER_TEMP/stage4-cycle3.final.sh"
+
+      - name: Upload cycle3 watchdog diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage4-cycle3-watchdog-diagnostic-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/stage4-natural/
+          retention-days: 7
