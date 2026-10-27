@@ -22,6 +22,11 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn("capture_log 'failed GameMenu -> LeagueFixtures'",block)
         self.assertNotIn("wait_state 'leaguefixtures message gamemenu'",block)
 
+    def test_message_fallback_requires_real_active_message(self):
+        block=self.shell.split('# Reach a real Career fixture using the stock route.',1)[1].split('MATCH_REACHED=0',1)[0]
+        self.assertIn("grep -qiE 'SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message'",block)
+        self.assertNotIn("grep -qiE 'Create Screen:[[:space:]]*message",block)
+
     def test_current_state_ignores_create_screen_preallocation(self):
         block=self.shell.split('current_state(){',1)[1].split('wait_state(){',1)[0]
         self.assertIn("grep -Ei 'SETTING ACTIVE:|SetActive:'",block)
