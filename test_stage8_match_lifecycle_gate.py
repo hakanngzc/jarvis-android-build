@@ -27,6 +27,11 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn('leaguefixtures) press_fixture_play 3',loop)
         self.assertNotIn('leaguefixtures|gamemenu|league) press_play 3',loop)
 
+    def test_live_match_start_dismisses_tutorial_until_real_play_gadget_hits(self):
+        self.assertIn('start_live_match(){',self.shell)
+        self.assertIn("HitGadget:[[:space:]]*match\\.btn_Play",self.shell)
+        self.assertIn('start_live_match',self.shell.split('# Start the untouched live match',1)[1].split('# Prove the resumed live match',1)[0])
+
     def test_background_foreground_keeps_same_process(self):
         self.assertIn('input keyevent 3',self.shell)
         self.assertIn('[ "$pid_before" = "$pid_bg" ]',self.shell)
