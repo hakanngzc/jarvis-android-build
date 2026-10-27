@@ -80,6 +80,26 @@ class Stage4MatchResolutionTests(unittest.TestCase):
         self.assertIn('load_existing post-season-restart', block)
         self.assertNotIn('start_game post-season-restart', block)
 
+    def test_post_season_restart_retries_disposable_process_start_crash(self):
+        prepared = self.composed_gate()
+        restart = prepared.index('restart_post_season_reload(){')
+        end = prepared.index('dump_save post-season-restart; checkpoint post-season-restart', restart)
+        block = prepared[restart:end]
+
+        # Run #294 proves stock NSS can hit a disposable AtlasManager OOM while
+        # starting .MonkeyGame. The mandatory post-season restart uses the same
+        # process startup path, so it must get the same bounded second chance
+        # without weakening crash detection during the natural season itself.
+        self.assertIn('for restart_attempt in 1 2; do', block)
+        self.assertIn('post-season-restart-attempt-${restart_attempt}-fatal.txt', block)
+        self.assertIn('post-season restart attempt $restart_attempt crashed; controlled process restart', block)
+        self.assertIn('rm -f "$OUT/runtime-fatal-logcat.txt"', block)
+        self.assertIn('if ! fatal_check; then', block)
+        self.assertIn('continue', block)
+        self.assertIn('post-season restart failed after 2 controlled attempts', block)
+        self.assertNotIn('m_sdate = 365', block)
+        self.assertNotIn('p_NewSeason(', block)
+
     def test_kick_detector_scales_large_ball_window_for_full_and_half_resolution(self):
         text = Path('stage4_tools/find_kick_ball.py').read_text(encoding='utf-8')
         self.assertIn('win = max(90, min(320, w // 4))', text)
