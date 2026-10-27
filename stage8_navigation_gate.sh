@@ -52,16 +52,24 @@ wait_resumed(){
   return 1
 }
 wait_rendered_frame(){
-  local timeout_s="${1:-30}" i bytes
+  local timeout_s="${1:-30}" i bytes stable=0
   for i in $(seq 0 "$timeout_s"); do
     fatal_check || return 1
     adb exec-out screencap -p > "$WORK/render-ready.png" 2>/dev/null || true
     bytes="$(wc -c < "$WORK/render-ready.png")"
-    if [ "$bytes" -ge 50000 ]; then echo "Rendered frame ready after ${i}s (${bytes} bytes)"; return 0; fi
+    if [ "$bytes" -ge 50000 ]; then
+      stable=$((stable+1))
+      if [ "$stable" -ge 3 ]; then
+        echo "Stable rendered frame ready after ${i}s (${bytes} bytes)"
+        return 0
+      fi
+    else
+      stable=0
+    fi
     sleep 1
   done
   cp "$WORK/render-ready.png" "$OUT/timeout-render-ready.png" 2>/dev/null || true
-  echo 'Timed out waiting for rendered NSS frame'
+  echo 'Timed out waiting for stable rendered NSS frame'
   return 1
 }
 capture_log(){ local label="$1"; { echo; echo "===== $label ====="; adb logcat -d -v brief 2>/dev/null || true; } >> "$FLOW"; }
