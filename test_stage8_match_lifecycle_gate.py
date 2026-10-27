@@ -27,6 +27,14 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn('leaguefixtures) press_fixture_play 3',loop)
         self.assertNotIn('leaguefixtures|gamemenu|league) press_play 3',loop)
 
+    def test_match_entry_trace_records_each_step_and_runtime_event(self):
+        self.assertIn('ENTRY_TRACE="$OUT/STAGE8_MATCH_ENTRY_TRACE.txt"',self.shell)
+        self.assertIn(': > "$ENTRY_TRACE"',self.shell)
+        loop=self.shell.split('MATCH_REACHED=0',1)[1].split('[ "$MATCH_REACHED" -eq 1 ]',1)[0]
+        self.assertIn('echo "step=$step before=$state" >> "$ENTRY_TRACE"',loop)
+        self.assertIn("grep -Ei 'HitGadget:|SETTING ACTIVE:|SetActive:|Create Screen:'",loop)
+        self.assertIn('echo "step=$step after=$state last=${last_event:-NONE}" >> "$ENTRY_TRACE"',loop)
+
     def test_live_match_start_dismisses_tutorial_until_real_play_gadget_hits(self):
         self.assertIn('start_live_match(){',self.shell)
         self.assertIn("HitGadget:[[:space:]]*match\\.btn_Play",self.shell)
