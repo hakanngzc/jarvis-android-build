@@ -43,6 +43,19 @@ class RuntimeStartRetryTests(unittest.TestCase):
         self.assertNotIn('fatal_check || return 1\n      echo "start_game $tag attempt $start_attempt did not reach Monkey MainMenu', hardened)
         self.assertNotIn('fatal_check || return 1\n    echo "start_game $tag attempt $start_attempt reached MainMenu log but not a stable rendered process', hardened)
 
+    def test_stage4_setup_retry_cleans_disposable_workdir_before_each_attempt(self):
+        runner = Path('stage4_tools/run_stage4_natural_gate.sh').read_text(encoding='utf-8')
+
+        # Run #286 attempt 2 reused the previous xapk extraction directory and
+        # blocked for hours on unzip's interactive "replace ...?" prompt. Every
+        # setup attempt must begin with a fresh disposable work directory while
+        # retaining the evidence output directory from earlier failed attempts.
+        cleanup = 'rm -rf "${RUNNER_TEMP:?}/stage4-natural-work"'
+        self.assertIn(cleanup, runner)
+        self.assertIn('for setup_attempt in 1 2 3', runner)
+        self.assertLess(runner.index(cleanup), runner.index('bash "$GATE"'))
+        self.assertNotIn('rm -rf "${RUNNER_TEMP:?}/stage4-natural"\n', runner)
+
 
 if __name__ == '__main__':
     unittest.main()
