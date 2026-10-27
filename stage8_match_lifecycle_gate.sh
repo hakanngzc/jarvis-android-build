@@ -16,6 +16,7 @@ adb(){
   { printf '%q ' "$ADB_BIN" "$@"; printf '\n'; } > "$OUT/last-adb-command.txt"
   command timeout --signal=TERM --kill-after=5s 45s "$ADB_BIN" "$@"
 }
+WM_SIZE="$(adb shell wm size | tr -d '\r')"
 clear_log(){ adb logcat -c >/dev/null 2>&1 || true; }
 fatal_check(){
   adb logcat -d -v threadtime > "$WORK/live-logcat.txt" 2>/dev/null || true
@@ -36,10 +37,10 @@ wait_log(){
   return 1
 }
 logical_xy(){
-python3 - "$1" "$2" <<'PY'
-import re,subprocess,sys
-x,y=map(float,sys.argv[1:])
-s=subprocess.check_output(['adb','shell','wm','size'],text=True,timeout=15)
+python3 - "$1" "$2" "$WM_SIZE" <<'PY'
+import re,sys
+x,y=map(float,sys.argv[1:3])
+s=sys.argv[3]
 w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups())
 scale=w/640.0; top=(h-960*scale)/2.0
 print(round(x*scale),round(top+y*scale))
