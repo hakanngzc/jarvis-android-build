@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Extract exact stock NSS 4.31 contract UI
+      - name: Extract exact stock NSS 4.31 contract and season-end UI
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/contract-ui/xapk" "$RUNNER_TEMP/contract-ui/out"
@@ -27,16 +27,18 @@ jobs:
           unzip -q "$RUNNER_TEMP/contract-ui/nss431.xapk" -d "$RUNNER_TEMP/contract-ui/xapk"
           BASE="$RUNNER_TEMP/contract-ui/xapk/com.newstargames.newstarsoccer.apk"
           echo "$BASE_SHA  $BASE" | sha256sum -c -
-          unzip -l "$BASE" | grep -Ei 'NewGUI/Screens/(contract|.*contract.*)\.(uis|uih)' | tee "$RUNNER_TEMP/contract-ui/out/list.txt"
-          for p in \
-            assets/monkey/NewGUI/Screens/contract.uis \
-            assets/monkey/NewGUI/Screens/contract.uih \
-            assets/monkey/NewGUI/Screens/onboardingcontract.uih; do
-            if unzip -l "$BASE" "$p" | grep -q "$p"; then
-              unzip -p "$BASE" "$p" > "$RUNNER_TEMP/contract-ui/out/$(basename "$p")"
-            fi
-          done
-          grep -RniE 'Reject|Accept|Back|Button|btn_' "$RUNNER_TEMP/contract-ui/out" | tee "$RUNNER_TEMP/contract-ui/out/button-lines.txt" || true
+
+          unzip -Z1 "$BASE" \
+            | grep -Ei 'assets/monkey/NewGUI/Screens/(contract|onboardingcontract|seasonreview|playeroftheyear|desiredtransfer)\.(uis|uih)$' \
+            | tee "$RUNNER_TEMP/contract-ui/out/list.txt"
+
+          while IFS= read -r p; do
+            [ -n "$p" ] || continue
+            unzip -p "$BASE" "$p" > "$RUNNER_TEMP/contract-ui/out/$(basename "$p")"
+          done < "$RUNNER_TEMP/contract-ui/out/list.txt"
+
+          grep -RniE 'Reject|Accept|Back|Play|Continue|Next|Button|btn_|Click\(' "$RUNNER_TEMP/contract-ui/out" \
+            | tee "$RUNNER_TEMP/contract-ui/out/button-lines.txt" || true
 
       - name: Upload contract UI evidence
         if: always()
