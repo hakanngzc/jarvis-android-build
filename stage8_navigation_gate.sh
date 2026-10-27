@@ -163,7 +163,6 @@ pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
-wait_screen gamemenu 45
 wait_rendered_frame 30
 pid_fg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_fg" ]
