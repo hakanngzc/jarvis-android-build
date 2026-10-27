@@ -1,4 +1,7 @@
 import importlib.util
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,6 +15,19 @@ def load_module(path_str: str, name: str):
     return module
 
 
+def composed_gate() -> str:
+    live = load_module(
+        'stage4_tools/prepare_stage4_live_input.py',
+        'prepare_stage4_live_input_transport_death',
+    )
+    transport = load_module(
+        'stage4_tools/prepare_stage4_transport_death.py',
+        'prepare_stage4_transport_death_policy',
+    )
+    prepared = live.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+    return transport.harden(prepared)
+
+
 class Stage4TransportDeathPolicyTests(unittest.TestCase):
     def test_dead_emulator_transport_is_not_reported_as_gameplay_timeout(self):
         live_path = Path('stage4_tools/prepare_stage4_live_input.py')
@@ -19,11 +35,7 @@ class Stage4TransportDeathPolicyTests(unittest.TestCase):
         self.assertTrue(live_path.exists(), 'Stage4 live-input hardener must exist')
         self.assertTrue(transport_path.exists(), 'Stage4 transport-death hardener must exist')
 
-        live = load_module(str(live_path), 'prepare_stage4_live_input_transport_death')
-        transport = load_module(str(transport_path), 'prepare_stage4_transport_death_policy')
-        prepared = live.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
-        prepared = transport.harden(prepared)
-
+        prepared = composed_gate()
         self.assertIn('set -euo pipefail', prepared)
         self.assertIn('EMULATOR_TRANSPORT_DEAD', prepared)
         self.assertIn('adb get-state', prepared)
@@ -32,6 +44,66 @@ class Stage4TransportDeathPolicyTests(unittest.TestCase):
         self.assertIn('transport_state" != device', prepared)
         self.assertIn('drive_live_chance "$cycle" "$elapsed"', prepared)
         self.assertNotIn('drive_live_chance "$cycle" "$elapsed" || true', prepared)
+
+    def test_dead_transport_exits_live_driver_with_rc4_in_shell(self):
+        prepared = composed_gate()
+        start = prepared.index('capture_valid_live_frame(){')
+        end = prepared.index('\n\nstart_game(){', start)
+        live_functions = prepared[start:end]
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fake_bin = root / 'bin'
+            fake_bin.mkdir()
+            fake_adb = fake_bin / 'adb'
+            fake_adb.write_text(
+                '#!/bin/sh\n'
+                '# Dead transport: screenshots/logcat/get-state all fail immediately.\n'
+                'exit 1\n',
+                encoding='utf-8',
+            )
+            fake_adb.chmod(0o755)
+
+            work = root / 'work'
+            out = root / 'out'
+            work.mkdir()
+            out.mkdir()
+            flow = out / 'flow.log'
+            shell = root / 'probe.sh'
+            shell.write_text(
+                '#!/usr/bin/env bash\n'
+                'set -euo pipefail\n'
+                f'WORK={work!s}\n'
+                f'OUT={out!s}\n'
+                f'FLOW={flow!s}\n'
+                ': > "$FLOW"\n'
+                + live_functions
+                + '\n'
+                'drive_live_chance 1 0\n'
+                'echo SHOULD_NOT_REACH\n',
+                encoding='utf-8',
+            )
+            shell.chmod(0o755)
+            env = os.environ.copy()
+            env['PATH'] = f'{fake_bin}:{env["PATH"]}'
+            cp = subprocess.run(
+                ['bash', str(shell)],
+                cwd=Path.cwd(),
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+
+            self.assertEqual(cp.returncode, 4, cp.stdout + cp.stderr)
+            self.assertNotIn('SHOULD_NOT_REACH', cp.stdout + cp.stderr)
+            marker = out / 'emulator-transport-dead.txt'
+            cycle_marker = out / 'cycle-1-emulator-transport-dead.txt'
+            self.assertTrue(marker.exists(), cp.stdout + cp.stderr)
+            self.assertTrue(cycle_marker.exists(), cp.stdout + cp.stderr)
+            self.assertIn('EMULATOR_TRANSPORT_DEAD', marker.read_text(encoding='utf-8'))
+            self.assertIn('EMULATOR_TRANSPORT_DEAD', flow.read_text(encoding='utf-8'))
 
     def test_live_frame_failure_with_healthy_device_remains_retryable(self):
         transport = load_module(
