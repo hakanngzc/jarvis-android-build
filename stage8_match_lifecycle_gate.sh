@@ -47,7 +47,7 @@ PY
 }
 press_physical(){ adb shell input touchscreen swipe "$1" "$2" "$1" "$2" 220 </dev/null || true; sleep "${3:-2}"; }
 press_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); press_physical "$x" "$y" "${3:-2}"; }
-press_play(){ press_logical 553 829 "${1:-2}"; }
+press_play(){ press_logical 553 900 "${1:-2}"; }
 press_fixture_play(){ press_logical 553 900 "${1:-2}"; }
 press_message_accept(){ press_logical 477 880 "${1:-2}"; }
 start_live_match(){
