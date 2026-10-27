@@ -10,7 +10,11 @@ STATE_OLD = '''  case "$line" in
   esac
 }'''
 
-STATE_NEW = '''  case "$line" in
+STATE_NEW = '''  if grep -qiE 'accepted a transfer offer.*you can reject it if you wish to stay' "$WORK/state.log"; then
+    echo transferoffer
+    return
+  fi
+  case "$line" in
     *fake-interstitial*) echo fakeinterstitial;; *buxoverlay*) echo buxoverlay;; *skillsshopoverlay*) echo skillsshopoverlay;; *shopoverlay*) echo shopoverlay;; *purchaseanim*) echo purchaseanim;; *information*) echo information;; *casino*) echo casino;; *dilemma*) echo dilemma;; *splashmessage*) echo splashmessage;;
     *seasonreview*) echo seasonreview;; *playeroftheyear*) echo playeroftheyear;; *desiredtransfer*) echo desiredtransfer;;
     *bottommessageachievement*) echo bottommessageachievement;; *matchstats*) echo matchstats;; *matchreview*) echo matchreview;; *leaguefixtures*) echo leaguefixtures;; *gamemenu*) echo gamemenu;; *message*) echo message;; *contract*) echo contract;; *webpage*) echo webpage;; *startransition*) echo startransition;; *skills*) echo skills;; *relationships*) echo relationships;;
@@ -73,6 +77,16 @@ dismiss_stage4_skills_shop_overlay(){
   sleep 2
 }
 
+handle_stage4_contract(){
+  if [ "${STAGE4_REJECT_TRANSFER_CONTRACT:-0}" -eq 1 ]; then
+    STAGE4_REJECT_TRANSFER_CONTRACT=0
+    echo "stock transfer contract -> Reject 85,829" >> "$FLOW"
+    press_logical 85 829 2
+  else
+    press_footer_ok 2
+  fi
+}
+
 resolve_stage4_dilemma(){
   local attempt frame="$WORK/dilemma-event.png" after="$WORK/dilemma-event-after.png" xy rc x y state
   for attempt in 1 2 3 4; do
@@ -127,15 +141,16 @@ NAV_NEW = '''    case "$state" in
       dilemma|splashmessage) resolve_stage4_dilemma || return 1;;
       webpage) press_footer_ok 2;;
       bottommessageachievement) press_play 2;;
+      transferoffer) STAGE4_REJECT_TRANSFER_CONTRACT=1; press_message_accept 2;;
       message|startransition) press_message_accept 2;;
-      contract) press_footer_ok 2;;
+      contract) handle_stage4_contract;;
       relationships) press_logical 85 898 2;;
       seasonreview|playeroftheyear) press_play 2;;
       *) press_play 2;;
     esac'''
 
 POST_OLD = '''    case "$state" in message|webpage|startransition) press_message_accept 2;; contract) press_footer_ok 2;; *) press_play 2;; esac'''
-POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; skillsshopoverlay) dismiss_stage4_skills_shop_overlay || return 1; state=gamemenu;; shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; desiredtransfer) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; bottommessageachievement) press_play 2;; message|startransition) press_message_accept 2;; contract) press_footer_ok 2;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
+POST_NEW = '''    case "$state" in fakeinterstitial) dismiss_stage4_fake_interstitial || return 1;; buxoverlay) dismiss_stage4_bux_overlay || return 1; state=gamemenu;; skillsshopoverlay) dismiss_stage4_skills_shop_overlay || return 1; state=gamemenu;; shopoverlay) adb shell input keyevent 4 </dev/null || true; sleep 2;; purchaseanim) press_message_accept 1; state=information;; information) press_logical 320 910 2;; skills) adb shell input keyevent 4 </dev/null || true; sleep 2;; casino) press_logical 85 898 2;; desiredtransfer) press_logical 85 898 2;; dilemma|splashmessage) resolve_stage4_dilemma || return 1;; webpage) press_footer_ok 2;; bottommessageachievement) press_play 2;; transferoffer) STAGE4_REJECT_TRANSFER_CONTRACT=1; press_message_accept 2;; message|startransition) press_message_accept 2;; contract) handle_stage4_contract;; relationships) press_logical 85 898 2;; seasonreview|playeroftheyear) press_play 2;; *) press_play 2;; esac'''
 
 NAV_TRANSITION_OLD = '''    sleep 1
     state="$(latest_state)"
