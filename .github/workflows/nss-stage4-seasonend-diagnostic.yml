@@ -26,7 +26,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/run290-seed"
-          gh run download 40385894678 --repo "$GITHUB_REPOSITORY" --name stage4-natural-season-evidence --dir "$RUNNER_TEMP/run290-seed"
+          gh run download 40385894678 --repo "$GITHUB_REPOSITORY" --name stage4-natural-season-evidence-1 --dir "$RUNNER_TEMP/run290-seed"
           test -s "$RUNNER_TEMP/run290-seed/cycle-20-MonkeyGame.xml"
           echo '61daaee9c895db0f03db349be2b910de2ca77add38096bdcebbcb5868d9a1f7b  '"$RUNNER_TEMP/run290-seed/cycle-20-MonkeyGame.xml" | sha256sum -c -
 
