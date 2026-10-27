@@ -23,7 +23,25 @@ class RuntimeStartRetryTests(unittest.TestCase):
         self.assertIn('${tag}-mainmenu-attempt-${start_attempt}-timeout.txt', hardened)
         self.assertIn('controlled process restart', hardened)
         self.assertIn('failed after 2 controlled attempts', hardened)
-        self.assertIn('fatal_check || return 1', hardened)
+
+    def test_startup_crash_is_stashed_and_retried_instead_of_aborting_first_attempt(self):
+        base = load('stage2_residual_tools/prepare_stage2_gate.py', 'prepare_stage2_gate_start_crash_test')
+        retry = load('stage2_residual_tools/prepare_runtime_start_retry.py', 'prepare_runtime_start_retry_crash')
+        prepared = base.prepare_text(Path('stage2_residual_gate.sh').read_text(encoding='utf-8'))
+        hardened = retry.harden(prepared)
+
+        # Run #294 proves the stock app can hit a disposable 16 MB AtlasManager
+        # OOM before MainMenu on one emulator start. The helper advertises two
+        # bounded starts, so a first-attempt startup crash must be preserved as
+        # setup evidence and retried, not abort the whole natural-season run.
+        self.assertIn('stash_startup_fatal(){', hardened)
+        self.assertIn('${tag}-startup-attempt-${start_attempt}-fatal.txt', hardened)
+        self.assertIn('start_game $tag attempt $start_attempt crashed before stable MainMenu; controlled process restart', hardened)
+        self.assertIn('startup_crashed=1', hardened)
+        self.assertIn('if ! fatal_check; then', hardened)
+        self.assertIn('continue', hardened)
+        self.assertNotIn('fatal_check || return 1\n      echo "start_game $tag attempt $start_attempt did not reach Monkey MainMenu', hardened)
+        self.assertNotIn('fatal_check || return 1\n    echo "start_game $tag attempt $start_attempt reached MainMenu log but not a stable rendered process', hardened)
 
 
 if __name__ == '__main__':
