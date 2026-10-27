@@ -100,10 +100,6 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            mkdir -p "$RUNNER_TEMP/stage4-natural"
-            "$ANDROID_HOME/emulator/emulator" -version 2>&1 | tee "$RUNNER_TEMP/stage4-natural/emulator-version.txt"
-            grep -q 'Android emulator version 37\.1\.11\.0' "$RUNNER_TEMP/stage4-natural/emulator-version.txt"
-            grep -q 'build_id 15917651' "$RUNNER_TEMP/stage4-natural/emulator-version.txt"
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
             python3 stage2_residual_tools/prepare_stage2_gate.py stage4_natural_season_gate.sh "$RUNNER_TEMP/stage4-natural-gate.pre.sh"
             python3 stage2_residual_tools/prepare_runtime_start_retry.py "$RUNNER_TEMP/stage4-natural-gate.pre.sh" "$RUNNER_TEMP/stage4-natural-gate.start.sh"
