@@ -55,9 +55,9 @@ class Stage4SingleDecodeClassifierTests(unittest.TestCase):
         classifier = load_classifier()
         w, h = 360, 640
         pixels = bytearray(w * h * 3)
-        # Run 310 timed out at Full Time with the stock grey Tutorial callout
-        # still covering the match surface. Model the large neutral central
-        # panel rather than text/OCR so the detector remains resolution-safe.
+        # Run 310 artifact timed out at Full Time with the stock grey Tutorial
+        # callout still covering the match surface. Model the large neutral
+        # central panel rather than text/OCR so detection stays resolution-safe.
         for y in range(165, 405):
             for x in range(35, 275):
                 i = (y * w + x) * 3
