@@ -1,6 +1,9 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
+
+from test_stage4_event_navigation import write_rgb_png
 
 
 def load_module(path_str: str, name: str):
@@ -99,6 +102,32 @@ class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
         )
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
             self.assertNotIn(forbidden, prepared)
+
+    def test_run298_dilemma_detector_accepts_sparse_stock_gold_bars(self):
+        detector = load_module(
+            'stage4_tools/find_dilemma_choice.py',
+            'find_dilemma_choice_run298_sparse_gold',
+        )
+        width, height = 360, 640
+        pixels = bytearray(width * height * 3)
+
+        # Run #298 rendered two valid wide choice bars whose detected gold pixels
+        # occupy ~0.88% of the full frame, just below the old 1.0% component floor.
+        # Reproduce that sparse-but-wide stock shape without relaxing width/height.
+        for y0 in (260, 430):
+            for y in range(y0, y0 + 18):
+                for x in range(75, 195):
+                    i = (y * width + x) * 3
+                    pixels[i:i + 3] = bytes((245, 190, 20))
+
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'run298-dilemma.png'
+            write_rgb_png(p, width, height, pixels)
+            hit = detector.find_dilemma_choice(p)
+            self.assertIsNotNone(hit)
+            x, y = hit
+            self.assertLessEqual(abs(x - 134), 3)
+            self.assertLessEqual(abs(y - 268), 3)
 
 
 if __name__ == '__main__':
