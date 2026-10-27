@@ -21,6 +21,12 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn("capture_log 'failed GameMenu -> LeagueFixtures'",block)
         self.assertNotIn("wait_state 'leaguefixtures message gamemenu'",block)
 
+    def test_leaguefixtures_advance_uses_fixture_button_center_not_gamemenu_play(self):
+        self.assertIn('press_fixture_play(){ press_logical 553 900',self.shell)
+        loop=self.shell.split('MATCH_REACHED=0',1)[1].split('[ "$MATCH_REACHED" -eq 1 ]',1)[0]
+        self.assertIn('leaguefixtures) press_fixture_play 3',loop)
+        self.assertNotIn('leaguefixtures|gamemenu|league) press_play 3',loop)
+
     def test_background_foreground_keeps_same_process(self):
         self.assertIn('input keyevent 3',self.shell)
         self.assertIn('[ "$pid_before" = "$pid_bg" ]',self.shell)
