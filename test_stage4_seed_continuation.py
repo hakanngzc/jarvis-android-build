@@ -43,6 +43,22 @@ class Stage4SeedContinuationTests(unittest.TestCase):
         for forbidden in ('m_sdate = 365','m_sdate=365','p_NewSeason(','m_skipMatches','m_Simulate'):
             self.assertNotIn(forbidden,prepared)
 
+    def test_generated_final_diagnostic_python_is_syntax_valid(self):
+        module=load_module(
+            'stage4_tools/prepare_stage4_seed_continuation.py',
+            'prepare_stage4_seed_continuation_generated_python',
+        )
+        prepared=module.harden(Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8'))
+        marker='STAGE4_SEASONEND_DIAGNOSTIC_RESTART_MISMATCH'
+        marker_pos=prepared.index(marker)
+        heredoc_marker="<<'PY'\n"
+        heredoc_start=prepared.rfind(heredoc_marker,0,marker_pos)
+        self.assertGreaterEqual(heredoc_start,0)
+        code_start=heredoc_start+len(heredoc_marker)
+        code_end=prepared.index('\nPY\n',marker_pos)
+        code=prepared[code_start:code_end]
+        compile(code,'<generated-stage4-diagnostic>','exec')
+
 
 if __name__=='__main__':
     unittest.main()
