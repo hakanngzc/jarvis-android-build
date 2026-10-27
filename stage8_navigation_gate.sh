@@ -160,6 +160,7 @@ adb shell input keyevent 3 >/dev/null
 sleep 2
 pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_bg" ]
+clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
 wait_screen gamemenu 45
