@@ -46,6 +46,7 @@ PY
 press_physical(){ adb shell input touchscreen swipe "$1" "$2" "$1" "$2" 220 </dev/null || true; sleep "${3:-2}"; }
 press_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); press_physical "$x" "$y" "${3:-2}"; }
 press_play(){ press_logical 553 829 "${1:-2}"; }
+press_fixture_play(){ press_logical 553 900 "${1:-2}"; }
 press_message_accept(){ press_logical 477 880 "${1:-2}"; }
 quick_tap_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); adb shell input tap "$x" "$y" </dev/null >/dev/null 2>&1 || true; }
 quick_swipe_logical(){
@@ -143,7 +144,12 @@ state=leaguefixtures
 MATCH_REACHED=0
 for step in $(seq 1 24); do
   clear_log
-  case "$state" in leaguefixtures|gamemenu|league) press_play 3;; message) press_message_accept 3;; *) sleep 2;; esac
+  case "$state" in
+    leaguefixtures) press_fixture_play 3;;
+    gamemenu|league) press_play 3;;
+    message) press_message_accept 3;;
+    *) sleep 2;;
+  esac
   state="$(wait_state 'match message leaguefixtures league gamemenu' 20 || true)"
   if [ "$state" = match ]; then MATCH_REACHED=1; break; fi
 done
