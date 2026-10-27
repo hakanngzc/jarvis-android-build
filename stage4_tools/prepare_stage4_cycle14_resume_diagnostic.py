@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BOOT_RE = re.compile(
-    r'''(?ms)^start_game\(\).*?^START_EPOCH="\$\(date \+%s\)"; SEASON_SEEN=0; CYCLES=0$'''
+    r'''(?ms)^start_game fresh;.*?^START_EPOCH="\$\(date \+%s\)"; SEASON_SEEN=0; CYCLES=0$'''
 )
 
 SEED_BLOCK = r'''# DIAGNOSTIC ONLY: resume from run #290's real natural cycle-14 save.
