@@ -42,6 +42,12 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn('leaguefixtures) press_fixture_play 3',loop)
         self.assertNotIn('leaguefixtures|gamemenu|league) press_play 3',loop)
 
+    def test_screen_geometry_is_cached_once_for_natural_input_loop(self):
+        self.assertIn('WM_SIZE="$(adb shell wm size',self.shell)
+        logical=self.shell.split('logical_xy(){',1)[1].split('press_physical(){',1)[0]
+        self.assertIn('sys.argv[3]',logical)
+        self.assertNotIn("subprocess.check_output(['adb','shell','wm','size']",logical)
+
     def test_match_entry_trace_records_each_step_and_runtime_event(self):
         self.assertIn('ENTRY_TRACE="$OUT/STAGE8_MATCH_ENTRY_TRACE.txt"',self.shell)
         self.assertIn(': > "$ENTRY_TRACE"',self.shell)
