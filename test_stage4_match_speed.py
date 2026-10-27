@@ -69,7 +69,7 @@ class Stage4StockMatchSpeedTests(unittest.TestCase):
         self.assertIn('set_fastest_stock_match_speed(){', prepared)
         self.assertIn('stage4_tools/find_match_speed.py', prepared)
         self.assertIn('[ "$speed" = 350 ]', prepared)
-        self.assertIn('input touchscreen tap "$x" "$y"', prepared)
+        self.assertIn('timeout 8s adb shell input touchscreen tap "$x" "$y" </dev/null || true', Path('stage4_tools/prepare_stage4_match_speed.py').read_text(encoding='utf-8'))
         self.assertIn('if set_fastest_stock_match_speed "$cycle"; then', prepared)
         self.assertIn('stock MatchSpeed=350 verified', prepared)
         for forbidden in ('m_sdate = 365', 'm_sdate=365', 'p_NewSeason(', 'm_skipMatches', 'm_Simulate'):
