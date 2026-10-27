@@ -16,22 +16,31 @@ def load_module(path_str: str, name: str):
 
 
 class Stage4Run270BuxShopOverlayRegression(unittest.TestCase):
-    def test_run270_bux_exit_closes_both_overlays_then_restores_verified_gamemenu(self):
+    def test_bux_close_distinguishes_run270_wtf_from_run292_real_close(self):
         module = load_module(
             'stage4_tools/prepare_stage4_event_navigation.py',
-            'prepare_stage4_event_navigation_run270_shopoverlay',
+            'prepare_stage4_event_navigation_bux_close_variants',
         )
         source = Path('stage4_natural_season_gate.sh').read_text(encoding='utf-8')
         prepared = module.harden(source)
 
-        # Run #270 proves the actual stack: GameMenu is active immediately before
-        # BuxOverlay, closing Bux publishes no ShopOverlay active marker, and the
-        # next blind Play hits shopoverlay.buy. Therefore the deterministic stock
-        # escape is X (Bux) -> Android Back (silent ShopOverlay) -> GameMenu state.
+        # Two natural runs prove two stock Bux close variants at the same visible
+        # top-right target. Run #270 logs HitGadget: WTF and leaves a silent
+        # ShopOverlay that needs exactly one Android Back. Run #292 logs the real
+        # HitGadget: UpsellMsg.Close; that close already exposes GameMenu, so the
+        # old unconditional Back exits GameMenu to MainMenu. Inspect the stock
+        # gadget result after X and only Back out of the proven Run270 variant.
         self.assertIn('*shopoverlay*) echo shopoverlay;;', prepared)
+        self.assertIn('bux-after-close.log', prepared)
+        self.assertIn("HitGadget: UpsellMsg.Close", prepared)
+        self.assertIn('stock BuxOverlay UpsellMsg.Close -> GameMenu; no Android Back', prepared)
         self.assertIn('stock ShopOverlay under Bux -> Android Back', prepared)
         self.assertIn(
-            'adb shell input touchscreen tap "$x" "$y" </dev/null || true\n  sleep 2\n  echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"\n  adb shell input keyevent 4 </dev/null || true',
+            'if grep -q \'HitGadget: UpsellMsg.Close\' "$WORK/bux-after-close.log"; then',
+            prepared,
+        )
+        self.assertIn(
+            'else\n    echo "stock ShopOverlay under Bux -> Android Back" >> "$FLOW"\n    adb shell input keyevent 4 </dev/null || true',
             prepared,
         )
         self.assertEqual(
