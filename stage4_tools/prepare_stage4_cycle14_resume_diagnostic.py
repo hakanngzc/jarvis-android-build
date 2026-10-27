@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BOOT_RE = re.compile(
-    r'''(?ms)^start_game fresh;.*?^START_EPOCH="\$\(date \+%s\)"; SEASON_SEEN=0; CYCLES=0$'''
+    r'''(?ms)^start_game\(\).*?^START_EPOCH="\$\(date \+%s\)"; SEASON_SEEN=0; CYCLES=0$'''
 )
 
 SEED_BLOCK = r'''# DIAGNOSTIC ONLY: resume from run #290's real natural cycle-14 save.
@@ -32,17 +32,27 @@ for seed_attempt in $(seq 1 30); do
     break
   fi
   if grep -qiE 'Create Screen:[[:space:]]*mainmenu|SETTING ACTIVE:[[:space:]]*mainmenu|SetActive:[[:space:]]*mainmenu' "$WORK/diagnostic-seed-state.txt"; then
+    # Run 40454717751 proves MainMenu can be only a transient surface before
+    # stock slot0 auto-load publishes GameMenu. Record it as a fallback option
+    # but do not break early and blindly press Career over a later GameMenu.
     mainmenu_seen=1
-    break
   fi
   sleep 1
 done
 if [ "$autoload" -eq 1 ]; then
   echo 'diagnostic cycle14 seed auto-load reached GameMenu' >> "$FLOW"
 elif [ "$mainmenu_seen" -eq 1 ]; then
-  echo 'diagnostic cycle14 seed reached MainMenu; using stock SaveSlot load' >> "$FLOW"
-  open_slot0 diagnostic-cycle14
-  load_existing diagnostic-cycle14
+  # Re-read the current surface before using the stock SaveSlot fallback. If
+  # GameMenu appeared after the last poll, the auto-load already succeeded.
+  adb logcat -d -v brief > "$WORK/diagnostic-seed-final-state.txt" 2>/dev/null || true
+  if grep -q 'LoadCareer saveslot: 0' "$WORK/diagnostic-seed-final-state.txt" \
+     && grep -qiE 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/diagnostic-seed-final-state.txt"; then
+    echo 'diagnostic cycle14 seed late auto-load reached GameMenu' >> "$FLOW"
+  else
+    echo 'diagnostic cycle14 seed stable MainMenu; using stock SaveSlot load' >> "$FLOW"
+    open_slot0 diagnostic-cycle14
+    load_existing diagnostic-cycle14
+  fi
 else
   cp "$WORK/diagnostic-seed-state.txt" "$OUT/diagnostic-seed-load-timeout.txt" 2>/dev/null || true
   shot diagnostic-seed-load-timeout
