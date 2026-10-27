@@ -143,7 +143,7 @@ for attempt in 1 2; do
     break
   fi
   adb logcat -d -v brief > "$WORK/leaguefixtures-attempt-$attempt.log" 2>/dev/null || true
-  if grep -qiE 'Create Screen:[[:space:]]*message|SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' "$WORK/leaguefixtures-attempt-$attempt.log"; then
+  if grep -qiE 'SETTING ACTIVE:[[:space:]]*message|SetActive:[[:space:]]*message' "$WORK/leaguefixtures-attempt-$attempt.log"; then
     press_message_accept 3
   fi
 done
