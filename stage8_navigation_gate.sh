@@ -160,8 +160,19 @@ wait_rendered_frame 30
 clear_log
 press_career 2
 wait_screen saveslot 20
-clear_log
-press_slot0 3
+slot_hit=0
+for slot_attempt in 1 2 3; do
+  clear_log
+  press_slot0 3
+  adb logcat -d -v brief > "$WORK/stage8-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
+  if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/stage8-slot0-attempt-$slot_attempt.txt"; then
+    slot_hit=1
+    break
+  fi
+  fatal_check
+  sleep 1
+done
+[ "$slot_hit" -eq 1 ] || { capture_log 'Stage8 Slot0 gadget did not register'; shot stage8-slot0-failure; echo 'Slot0 did not register after age-probe update'; exit 311; }
 wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer
 wait_screen gamemenu 40
 fatal_check; capture_log 'Stage8 starting GameMenu through stock SaveSlot reload'; shot stage8-start-gamemenu
