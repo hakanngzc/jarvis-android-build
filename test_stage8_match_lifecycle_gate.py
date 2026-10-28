@@ -75,8 +75,17 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertLess(lifecycle.index('wait_resumed 20'),lifecycle.index('wait_rendered_frame 30'))
         self.assertLess(lifecycle.index('wait_rendered_frame 30'),lifecycle.index('capture_log \'live match background -> foreground\''))
 
+    def test_natural_match_loop_uses_event_gated_live_driver(self):
+        self.assertIn('drive_live_chance(){',self.shell)
+        self.assertIn("SETTING ACTIVE:[[:space:]]*(matchminigame|tapball)",self.shell)
+        self.assertIn('stage4_tools/classify_live_frame.py',self.shell)
+        loop=self.shell.split('# Prove the resumed live match remains functional',1)[1].split('[ "$MATCHSTATS_REACHED" -eq 1 ]',1)[0]
+        self.assertIn('drive_live_chance "$cycle"',loop)
+        self.assertNotIn('natural_input_burst',loop)
+        self.assertNotIn('match|unknown) press_play',loop)
+
     def test_resumed_match_must_continue_naturally_to_matchstats(self):
-        self.assertIn('natural_input_burst',self.shell)
+        self.assertIn('drive_live_chance',self.shell)
         self.assertIn('MATCHSTATS_REACHED',self.shell)
         self.assertIn('STAGE8_MATCH_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('m_StartMatch',self.shell.split('# Start the untouched live match',1)[1].split('# Prove the resumed live match',1)[0])
