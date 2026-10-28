@@ -55,17 +55,18 @@ class Stage7RuntimeGateTests(unittest.TestCase):
         self.assertIn('[ "$bootstrap_gamemenu" -eq 1 ]',block)
         self.assertNotIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 40 fresh-gamemenu || true",self.shell)
 
-    def test_setup_only_restarts_and_proves_slot0_load_before_ready(self):
+    def test_setup_only_restarts_and_proves_slot0_load_through_stock_ui_before_ready(self):
         marker='if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then'
         self.assertIn(marker,self.shell)
         block=self.shell.split(marker,1)[1].split('\nfi',1)[0]
-        self.assertIn('adb shell am force-stop "$PKG"',block)
-        self.assertIn('adb shell am start -n "$PKG/.MonkeyGame"',block)
-        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 setup-only-loadcareer",block)
-        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 setup-only-gamemenu",block)
+        self.assertIn('start_game setup-only',block)
+        self.assertIn('open_slot0 setup-only',block)
+        self.assertIn('load_existing setup-only',block)
+        self.assertNotIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 setup-only-loadcareer",block)
         self.assertIn("echo 'STAGE7_RUNTIME_BASE_READY'",block)
-        self.assertLess(block.index('setup-only-loadcareer'),block.index("echo 'STAGE7_RUNTIME_BASE_READY'"))
-        self.assertLess(block.index('setup-only-gamemenu'),block.index("echo 'STAGE7_RUNTIME_BASE_READY'"))
+        self.assertLess(block.index('start_game setup-only'),block.index('open_slot0 setup-only'))
+        self.assertLess(block.index('open_slot0 setup-only'),block.index('load_existing setup-only'))
+        self.assertLess(block.index('load_existing setup-only'),block.index("echo 'STAGE7_RUNTIME_BASE_READY'"))
 
     def test_update_is_verified_before_process_death_reload(self):
         marker='# Same-signature save-only update must not touch the durable save.'
