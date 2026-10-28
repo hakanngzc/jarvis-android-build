@@ -168,6 +168,14 @@ capture_log 'fresh Career saved'; shot fresh-after-save; sleep 2
 dump_save pre
 
 if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then
+  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+  clear_log
+  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
+  wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 setup-only-loadcareer
+  wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 setup-only-gamemenu
+  fatal_check
+  capture_log 'setup-only verified restart/load'
+  shot setup-only-gamemenu
   echo 'STAGE7_RUNTIME_BASE_READY'
   exit 0
 fi
