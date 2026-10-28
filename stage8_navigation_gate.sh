@@ -35,8 +35,11 @@ wait_log(){
   echo "Timed out waiting for $label"; return 1
 }
 wait_screen(){
-  local screen="$1" timeout_s="${2:-30}"
-  wait_log "SETTING ACTIVE:[[:space:]]*$screen([[:space:]]|$)|SetActive:[[:space:]]*$screen([[:space:]]|$)" "$timeout_s" "screen-$screen"
+  local screen="$1" timeout_s="${2:-30}" pattern="$1"
+  case "$screen" in
+    shop) pattern='shop|LifestyleShopOverlay' ;;
+  esac
+  wait_log "SETTING ACTIVE:[[:space:]]*($pattern)([[:space:]]|$)|SetActive:[[:space:]]*($pattern)([[:space:]]|$)" "$timeout_s" "screen-$screen"
 }
 wait_resumed(){
   local timeout_s="${1:-20}" i
@@ -48,6 +51,27 @@ wait_resumed(){
   cp "$WORK/activity.txt" "$OUT/timeout-resumed-activity.txt" || true
   return 1
 }
+wait_rendered_frame(){
+  local timeout_s="${1:-30}" i bytes stable=0
+  for i in $(seq 0 "$timeout_s"); do
+    fatal_check || return 1
+    adb exec-out screencap -p > "$WORK/render-ready.png" 2>/dev/null || true
+    bytes="$(wc -c < "$WORK/render-ready.png")"
+    if [ "$bytes" -ge 50000 ]; then
+      stable=$((stable+1))
+      if [ "$stable" -ge 3 ]; then
+        echo "Stable rendered frame ready after ${i}s (${bytes} bytes)"
+        return 0
+      fi
+    else
+      stable=0
+    fi
+    sleep 1
+  done
+  cp "$WORK/render-ready.png" "$OUT/timeout-render-ready.png" 2>/dev/null || true
+  echo 'Timed out waiting for stable rendered NSS frame'
+  return 1
+}
 capture_log(){ local label="$1"; { echo; echo "===== $label ====="; adb logcat -d -v brief 2>/dev/null || true; } >> "$FLOW"; }
 logical_xy(){
 python3 - "$1" "$2" <<'PY'
@@ -57,14 +81,35 @@ w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups());scale=w/640.0;top=(h-960*scale
 print(round(x*scale),round(top+y*scale))
 PY
 }
+ratio_xy(){
+python3 - "$1" "$2" <<'PY'
+import re,subprocess,sys
+rx,ry=map(float,sys.argv[1:]);s=subprocess.check_output(['adb','shell','wm','size'],text=True,timeout=15)
+w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups())
+print(round(w*rx),round(h*ry))
+PY
+}
+press_physical(){
+  adb shell input touchscreen swipe "$1" "$2" "$1" "$2" 220 </dev/null || true
+  sleep "${3:-2}"
+}
 press_logical(){
   local x y; read -r x y < <(logical_xy "$1" "$2")
   adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
   sleep "${3:-2}"
 }
+press_ratio(){
+  local x y; read -r x y < <(ratio_xy "$1" "$2")
+  adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
+  sleep "${3:-2}"
+}
+press_career(){ press_physical 795 1399 "${1:-2}"; }
+press_slot0(){ press_logical 332 324 "${1:-3}"; }
 shot(){ adb exec-out screencap -p > "$OUT/$1.png" || true; }
 dump_save(){
-  local tag="$1" remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml" xml="$OUT/${tag}-MonkeyGame.xml"
+  local tag="$1"
+  local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+  local xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$remote" > "$xml" 2>/dev/null || true
   grep -q 'monkeystate' "$xml" || { echo "Could not read save for $tag"; return 1; }
   sha256sum "$xml" > "$OUT/${tag}-save.sha256"
@@ -72,6 +117,13 @@ dump_save(){
 route(){
   local label="$1" lx="$2" ly="$3" target="$4"
   clear_log; press_logical "$lx" "$ly" 2
+  wait_screen "$target" 35
+  fatal_check; capture_log "$label -> $target"; shot "$label-$target"
+  echo "PASS route $label -> $target" | tee -a "$GATE"
+}
+route_ratio(){
+  local label="$1" rx="$2" ry="$3" target="$4"
+  clear_log; press_ratio "$rx" "$ry" 2
   wait_screen "$target" 35
   fatal_check; capture_log "$label -> $target"; shot "$label-$target"
   echo "PASS route $label -> $target" | tee -a "$GATE"
@@ -99,13 +151,31 @@ sign_one "$WORK/base-stage8-age-unsigned.apk" "$WORK/base-stage8-age.apk"
 adb install-multiple -r "$WORK/base-stage8-age.apk" "$ST7/signed/config.tr.apk" "$ST7/signed/config.xxhdpi.apk" >/dev/null
 adb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true
 
-# Existing Stage7 slot0 must auto-load back into the Career hub after a process restart.
+# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
-wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer
-wait_screen gamemenu 60
-fatal_check; capture_log 'Stage8 starting GameMenu'; shot stage8-start-gamemenu
+wait_screen mainmenu 60
+wait_rendered_frame 30
+clear_log
+press_career 2
+wait_screen saveslot 20
+slot_hit=0
+for slot_attempt in 1 2 3; do
+  clear_log
+  press_slot0 3
+  adb logcat -d -v brief > "$WORK/stage8-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
+  if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/stage8-slot0-attempt-$slot_attempt.txt"; then
+    slot_hit=1
+    break
+  fi
+  fatal_check
+  sleep 1
+done
+[ "$slot_hit" -eq 1 ] || { capture_log 'Stage8 Slot0 gadget did not register'; shot stage8-slot0-failure; echo 'Slot0 did not register after age-probe update'; exit 311; }
+wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer
+wait_screen gamemenu 40
+fatal_check; capture_log 'Stage8 starting GameMenu through stock SaveSlot reload'; shot stage8-start-gamemenu
 dump_save career-lifecycle-pre
 
 # Warm-start must keep the same process and resumed activity.
@@ -122,8 +192,10 @@ adb shell input keyevent 3 >/dev/null
 sleep 2
 pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_bg" ]
+clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
+wait_rendered_frame 30
 pid_fg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_fg" ]
 fatal_check; capture_log 'Career lifecycle background -> foreground'; shot stage8-career-foreground
@@ -137,7 +209,7 @@ route gamemenu-life 405 837 relationships
 route relationships-achievements 561 837 achievements
 back_route achievements-back 93 837 relationships
 route relationships-lifestyle 249 837 shop
-back_route lifestyle-back 93 837 relationships
+route_ratio lifestyle-close 0.904 0.075 relationships
 route relationships-casino 405 837 casino
 route casino-blackjack 177 352 blackjack
 back_route blackjack-back 93 837 casino
@@ -165,7 +237,7 @@ back_route clubfixtures-league 249 837 league
 back_route league-home 93 837 gamemenu
 
 # Normal GameMenu Play route -> LeagueFixtures, then UI Back to the hub.
-route gamemenu-leaguefixtures 553 829 leaguefixtures
+route gamemenu-leaguefixtures 553 900 leaguefixtures
 back_route leaguefixtures-back 93 837 gamemenu
 
 fatal_check

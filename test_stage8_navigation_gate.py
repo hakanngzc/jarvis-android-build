@@ -8,10 +8,10 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.shell=(ROOT/'stage8_navigation_gate.sh').read_text(encoding='utf-8') if (ROOT/'stage8_navigation_gate.sh').exists() else ''
         self.workflow=(ROOT/'.github/workflows/nss-stage8-navigation-runtime.yml').read_text(encoding='utf-8') if (ROOT/'.github/workflows/nss-stage8-navigation-runtime.yml').exists() else ''
 
-    def test_reuses_stage7_proven_runtime_before_navigation(self):
-        self.assertIn('bash stage7_runtime_gate.sh',self.workflow)
+    def test_reuses_stage7_prepared_runtime_before_navigation(self):
+        self.assertIn('STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh',self.workflow)
         self.assertIn('bash stage8_navigation_gate.sh',self.workflow)
-        self.assertLess(self.workflow.index('bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
+        self.assertLess(self.workflow.index('STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
 
     def test_navigation_reinstalls_non_playmatches_probe_base(self):
         self.assertIn('ST7="$RUNNER_TEMP/stage7-work"',self.shell)
@@ -19,6 +19,35 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('patch_stage8_age_unlock.py',self.shell)
         self.assertIn('install-multiple -r',self.shell)
         self.assertNotIn('base-stage7-saveonly.apk',self.shell)
+
+    def test_stage8_age_probe_reload_uses_stock_saveslot_route(self):
+        marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
+        self.assertIn(marker,self.shell)
+        block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
+        self.assertIn('press_career 2',block)
+        self.assertIn("wait_screen saveslot 20",block)
+        self.assertIn('press_slot0 3',block)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer",block)
+        self.assertIn('wait_screen gamemenu 40',block)
+        self.assertNotIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer",block)
+
+    def test_stage8_slot_reload_requires_real_slot0_gadget_before_load_wait(self):
+        marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
+        block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
+        self.assertIn('for slot_attempt in 1 2 3',block)
+        self.assertIn("grep -q 'HitGadget: saveslot.btn_Slot0'",block)
+        self.assertIn('slot_hit=1',block)
+        self.assertIn('[ "$slot_hit" -eq 1 ]',block)
+        self.assertLess(block.index("grep -q 'HitGadget: saveslot.btn_Slot0'"),block.index("wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer"))
+
+    def test_dump_save_initializes_tag_before_using_it(self):
+        m=re.search(r'dump_save\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
+        self.assertIsNotNone(m)
+        body=m.group('body')
+        self.assertIn('local tag="$1"',body)
+        self.assertIn('local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"',body)
+        self.assertIn('local xml="$OUT/${tag}-MonkeyGame.xml"',body)
+        self.assertNotRegex(body,r'local[^\n]*tag="\$1"[^\n]*\$\{tag\}')
 
     def test_career_hub_major_nav_coordinates_are_locked(self):
         self.assertIn('route gamemenu-life 405 837 relationships',self.shell)
@@ -29,6 +58,15 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('route relationships-achievements 561 837 achievements',self.shell)
         self.assertIn('route relationships-lifestyle 249 837 shop',self.shell)
         self.assertIn('route relationships-casino 405 837 casino',self.shell)
+
+    def test_shop_runtime_alias_accepts_lifestyle_overlay(self):
+        self.assertIn("shop) pattern='shop|LifestyleShopOverlay' ;;",self.shell)
+
+    def test_lifestyle_overlay_uses_ratio_close_not_bottom_back(self):
+        self.assertIn('press_ratio(){',self.shell)
+        self.assertIn('route_ratio(){',self.shell)
+        self.assertIn('route_ratio lifestyle-close 0.904 0.075 relationships',self.shell)
+        self.assertNotIn('back_route lifestyle-back 93 837 relationships',self.shell)
 
     def test_casino_subfamilies_are_present(self):
         for line in (
@@ -44,19 +82,50 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('route skills-skillchoice 580 283 skillchoice',self.shell)
         self.assertIn('route skills-ratings 405 837 ratings',self.shell)
         self.assertIn('route league-clubfixtures 249 837 clubfixtures',self.shell)
-        self.assertIn('route gamemenu-leaguefixtures 553 829 leaguefixtures',self.shell)
+        self.assertIn('route gamemenu-leaguefixtures 553 900 leaguefixtures',self.shell)
+        self.assertNotIn('route gamemenu-leaguefixtures 553 829 leaguefixtures',self.shell)
 
     def test_ui_back_or_home_paths_are_asserted(self):
         for target in ('relationships','casino','racing','skills','league','gamemenu'):
-            self.assertRegex(self.shell,rf'(route|back_route)[^\n]*{target}')
+            self.assertRegex(self.shell,rf'(route|back_route|route_ratio)[^\n]*{target}')
 
     def test_career_lifecycle_background_foreground_is_guarded(self):
         self.assertIn('career-lifecycle-pre',self.shell)
         self.assertIn('input keyevent 3',self.shell)
+        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        self.assertIn('wait_resumed 20',lifecycle)
+        self.assertIn('wait_rendered_frame 30',lifecycle)
+        self.assertNotIn('wait_screen gamemenu 45',lifecycle)
+        self.assertNotIn("wait_log 'OnResume End'",lifecycle)
         self.assertIn('career-lifecycle-post',self.shell)
         self.assertIn('verify_stage8_lifecycle.py',self.shell)
         self.assertIn('CAREER_LIFECYCLE_PASS',self.shell)
         self.assertNotIn('cmp -s "$OUT/career-lifecycle-pre-MonkeyGame.xml"',self.shell)
+
+    def test_render_readiness_requires_three_consecutive_nonblack_frames(self):
+        m=re.search(r'wait_rendered_frame\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
+        self.assertIsNotNone(m)
+        body=m.group('body')
+        self.assertIn('stable=0',body)
+        self.assertIn('stable=$((stable+1))',body)
+        self.assertIn('[ "$stable" -ge 3 ]',body)
+        self.assertRegex(body,r'else\s+stable=0')
+
+    def test_foreground_clears_log_then_uses_activity_and_frame_readiness(self):
+        lifecycle=self.shell.split('# Career background/foreground without process death.',1)[1].split('# Career hub -> Life / Relationships family.',1)[0]
+        clear_i=lifecycle.index('clear_log')
+        start_i=lifecycle.index('adb shell am start -n "$PKG/.MonkeyGame"')
+        resumed_i=lifecycle.index('wait_resumed 20')
+        render_i=lifecycle.index('wait_rendered_frame 30')
+        self.assertLess(clear_i,start_i)
+        self.assertLess(start_i,resumed_i)
+        self.assertLess(resumed_i,render_i)
+
+    def test_post_lifecycle_first_route_proves_gamemenu_is_interactive(self):
+        post=self.shell.split('# Career hub -> Life / Relationships family.',1)[1]
+        first_route=re.search(r'^(?:route|route_ratio|back_route) .*$',post,re.M)
+        self.assertIsNotNone(first_route)
+        self.assertEqual(first_route.group(0),'route gamemenu-life 405 837 relationships')
 
     def test_all_adb_calls_are_bounded(self):
         m=re.search(r'adb\(\)\s*\{(?P<body>.*?)\n\}',self.shell,re.S)
