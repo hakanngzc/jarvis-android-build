@@ -1,0 +1,68 @@
+name: NSS Stage9 Cross-Version Final Regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage9-cross-version-20261028]
+
+permissions:
+  contents: read
+
+jobs:
+  final-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 34]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate Stage9 cross-version tooling
+        run: |
+          python3 -m unittest test_stage7_runtime_probe.py test_stage7_runtime_gate.py test_stage8_age_unlock.py test_stage8_lifecycle_verifier.py test_stage8_navigation_gate.py test_stage8_match_lifecycle_gate.py test_stage9_cross_version_gate.py -v
+          python3 -m py_compile stage8_tools/patch_stage8_age_unlock.py stage8_tools/verify_stage8_lifecycle.py stage4_tools/classify_live_frame.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/validate_frame_png.py
+          bash -n stage7_runtime_gate.sh
+          bash -n stage8_navigation_gate.sh
+          bash -n stage8_match_lifecycle_gate.sh
+          bash -n stage9_postmatch_gate.sh
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android and run final critical path
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: |
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api-level }}"
+            bash stage7_runtime_gate.sh
+            bash stage8_navigation_gate.sh
+            bash stage8_match_lifecycle_gate.sh
+            bash stage9_postmatch_gate.sh
+
+      - name: Upload Stage9 version-scoped evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage9-final-api${{ matrix.api-level }}
+          path: |
+            ${{ runner.temp }}/stage7-persistence/
+            ${{ runner.temp }}/stage8-navigation/
+            ${{ runner.temp }}/stage8-match-lifecycle/
+            ${{ runner.temp }}/stage9-cross-version/
+          retention-days: 14
