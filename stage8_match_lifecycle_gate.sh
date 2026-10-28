@@ -57,6 +57,131 @@ wait_rendered_frame(){
   echo 'Timed out waiting for stable rendered match frame'
   return 1
 }
+transport_health_check(){
+  local state
+  state="$(adb get-state 2>/dev/null || true)"
+  [ "$state" = device ]
+}
+capture_valid_live_frame(){
+  local final="$1" tmp attempt
+  tmp="${final}.tmp"
+  rm -f "$tmp" "$final"
+  for attempt in 1 2 3; do
+    rm -f "$tmp"
+    adb exec-out screencap -p > "$tmp" 2>/dev/null || true
+    if python3 stage4_tools/validate_frame_png.py "$tmp" 2>>"$FLOW"; then
+      mv -f "$tmp" "$final"
+      return 0
+    fi
+    echo "live frame capture retry $attempt/3" >> "$FLOW"
+    sleep 1
+  done
+  rm -f "$tmp"
+  return 1
+}
+drive_live_chance(){
+  local cycle="$1" elapsed="${2:-0}" frame="$WORK/live-chance.png" class rc kind x y frame_w frame_h target_x target_y direction offset min_x max_x min_y max_y event_count now probe_due=0 new_event=0
+  : "${LIVE_EVENT_COUNT:=0}"
+  : "${LIVE_LAST_PROBE_EPOCH:=0}"
+
+  adb logcat -d -v brief > "$WORK/live-phase-gate.log" 2>/dev/null || true
+  event_count="$(grep -cE 'SETTING ACTIVE:[[:space:]]*(matchminigame|tapball)' "$WORK/live-phase-gate.log" 2>/dev/null || true)"
+  [[ "$event_count" =~ ^[0-9]+$ ]] || event_count=0
+  [ "$event_count" -le "$LIVE_EVENT_COUNT" ] || new_event=1
+
+  now="$(date +%s)"
+  if [ "$LIVE_LAST_PROBE_EPOCH" -eq 0 ] || [ $((now - LIVE_LAST_PROBE_EPOCH)) -ge 8 ]; then
+    probe_due=1
+  fi
+  if [ "$new_event" -eq 0 ] && [ "$probe_due" -eq 0 ]; then
+    sleep 0.25
+    return 0
+  fi
+  LIVE_LAST_PROBE_EPOCH="$now"
+
+  if ! capture_valid_live_frame "$frame"; then
+    if ! transport_health_check; then
+      {
+        echo 'STAGE8_EMULATOR_TRANSPORT_DEAD'
+        echo "cycle=$cycle elapsed_seconds=$elapsed"
+        echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        adb devices -l 2>&1 || true
+      } > "$OUT/runtime-transport-dead.txt"
+      echo "STAGE8_EMULATOR_TRANSPORT_DEAD cycle=$cycle elapsed=${elapsed}s" >> "$FLOW"
+      return 1
+    fi
+    echo "cycle $cycle valid live frame unavailable @${elapsed}s; transport healthy" >> "$FLOW"
+    sleep 1
+    return 0
+  fi
+
+  class="$(python3 stage4_tools/classify_live_frame.py "$frame" 2>>"$FLOW")" && rc=0 || rc=$?
+  if [ "$rc" -eq 1 ]; then
+    echo "cycle $cycle passive live phase @${elapsed}s" >> "$FLOW"
+    if [ "$new_event" -eq 1 ]; then sleep 1; else sleep 0.25; fi
+    LIVE_LAST_PROBE_EPOCH="$(date +%s)"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    echo "cycle $cycle live-frame classifier failed rc=$rc @${elapsed}s" >> "$FLOW"
+    return 1
+  fi
+
+  read -r kind x y frame_w frame_h <<<"$class"
+  [[ "$frame_w" =~ ^[0-9]+$ && "$frame_h" =~ ^[0-9]+$ ]] || return 1
+  case "$kind" in
+    tutorial)
+      echo "cycle $cycle stock tutorial overlay ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      ;;
+    resume)
+      echo "cycle $cycle match resume Play ${x},${y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen tap "$x" "$y" </dev/null || true
+      ;;
+    live)
+      : "${LIVE_INPUT_SEQ:=0}"
+      LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
+      direction=$((LIVE_INPUT_SEQ % 3))
+      case "$direction" in
+        1) target_x=$((frame_w / 2));;
+        2) target_x=$((frame_w / 6));;
+        *) target_x=$((frame_w * 5 / 6));;
+      esac
+      target_y=$((y - frame_h * 22 / 100))
+      min_y=$((frame_h * 8 / 100)); max_y=$((frame_h * 77 / 100))
+      [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
+      [ "$target_y" -le "$max_y" ] || target_y="$max_y"
+      echo "cycle $cycle live marker ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
+      ;;
+    kick)
+      : "${LIVE_INPUT_SEQ:=0}"
+      LIVE_INPUT_SEQ=$((LIVE_INPUT_SEQ + 1))
+      direction=$((LIVE_INPUT_SEQ % 3)); offset=$((frame_w * 7 / 100))
+      case "$direction" in
+        1) target_x=$((x + offset));;
+        2) target_x=$((x - offset));;
+        *) target_x="$x";;
+      esac
+      min_x=$((frame_w * 11 / 100)); max_x=$((frame_w * 89 / 100))
+      [ "$target_x" -ge "$min_x" ] || target_x="$min_x"
+      [ "$target_x" -le "$max_x" ] || target_x="$max_x"
+      target_y=$((y - frame_h * 29 / 100)); min_y=$((frame_h * 10 / 100))
+      [ "$target_y" -ge "$min_y" ] || target_y="$min_y"
+      echo "cycle $cycle kick ball ${x},${y} -> ${target_x},${target_y} frame=${frame_w}x${frame_h} @${elapsed}s" >> "$FLOW"
+      adb shell input touchscreen swipe "$x" "$y" "$target_x" "$target_y" 360 </dev/null || true
+      ;;
+    *)
+      echo "cycle $cycle unknown live-frame class '$kind' @${elapsed}s" >> "$FLOW"
+      return 1
+      ;;
+  esac
+
+  LIVE_EVENT_COUNT="$event_count"
+  LIVE_LAST_PROBE_EPOCH="$(date +%s)"
+  sleep 1
+  return 0
+}
 logical_xy(){
 python3 - "$1" "$2" "$WM_SIZE" <<'PY'
 import re,sys
@@ -84,27 +209,6 @@ start_live_match(){
   capture_log 'failed to hit stock match Play gadget'
   shot stage8-match-play-failure
   return 1
-}
-quick_tap_logical(){ local x y; read -r x y < <(logical_xy "$1" "$2"); adb shell input tap "$x" "$y" </dev/null >/dev/null 2>&1 || true; }
-quick_swipe_logical(){
-  local x1 y1 x2 y2
-  read -r x1 y1 < <(logical_xy "$1" "$2")
-  read -r x2 y2 < <(logical_xy "$3" "$4")
-  adb shell input touchscreen swipe "$x1" "$y1" "$x2" "$y2" "${5:-240}" </dev/null >/dev/null 2>&1 || true
-}
-natural_input_burst(){
-  quick_swipe_logical 320 620 320 300 260
-  sleep 0.18
-  for p in '180 430' '260 430' '340 430' '420 430' '180 520' '260 520' '340 520' '420 520' '220 610' '320 610' '420 610'; do
-    # shellcheck disable=SC2086
-    quick_tap_logical $p
-    sleep 0.05
-  done
-  quick_swipe_logical 230 610 450 330 220
-  quick_swipe_logical 410 610 190 330 220
-  quick_tap_logical 160 790
-  quick_tap_logical 320 790
-  quick_tap_logical 480 790
 }
 current_state(){
   adb logcat -d -v brief > "$WORK/state.log" 2>/dev/null || true
@@ -219,21 +323,29 @@ fatal_check; capture_log 'live match background -> foreground'; shot stage8-matc
 # the stock MatchStats screen. No score/time/match-state field is patched.
 MATCHSTATS_REACHED=0
 NATURAL_CYCLES=0
-for cycle in $(seq 1 360); do
+LIVE_START_EPOCH="$(date +%s)"
+LIVE_EVENT_COUNT=0
+LIVE_LAST_PROBE_EPOCH=0
+LIVE_INPUT_SEQ=0
+for cycle in $(seq 1 900); do
   NATURAL_CYCLES="$cycle"
   fatal_check || exit 305
   state="$(current_state)"
   if [ "$state" = matchstats ]; then MATCHSTATS_REACHED=1; break; fi
   case "$state" in
     message) press_message_accept 0.2;;
-    match|unknown) press_play 0.15; natural_input_burst;;
     leaguefixtures|league|gamemenu|matchreview) echo "Match left before MatchStats: $state"; exit 306;;
-    *) natural_input_burst;;
   esac
-  if [ $((cycle % 30)) -eq 0 ]; then capture_log "post-lifecycle natural cycle $cycle state=$state"; fi
-  sleep 0.65
+  elapsed=$(( $(date +%s) - LIVE_START_EPOCH ))
+  if [ "$elapsed" -ge 720 ]; then
+    echo "Natural match wall-clock limit reached after ${elapsed}s" >> "$FLOW"
+    break
+  fi
+  drive_live_chance "$cycle" "$elapsed" || exit 305
+  if [ $((cycle % 30)) -eq 0 ]; then capture_log "post-lifecycle natural cycle $cycle state=$state elapsed=${elapsed}s"; fi
+  sleep 0.25
 done
-[ "$MATCHSTATS_REACHED" -eq 1 ] || { echo "No MatchStats after $NATURAL_CYCLES cycles"; exit 307; }
+[ "$MATCHSTATS_REACHED" -eq 1 ] || { echo "No MatchStats after $NATURAL_CYCLES cycles"; capture_log 'match lifecycle ended without MatchStats'; shot stage8-matchstats-timeout; exit 307; }
 [ "$NATURAL_CYCLES" -ge 3 ]
 fatal_check; capture_log "post-lifecycle match reached MatchStats after $NATURAL_CYCLES cycles"; shot stage8-matchstats-after-lifecycle
 
