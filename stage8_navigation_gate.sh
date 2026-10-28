@@ -89,6 +89,10 @@ w,h=map(int,re.search(r'(\d+)x(\d+)',s).groups())
 print(round(w*rx),round(h*ry))
 PY
 }
+press_physical(){
+  adb shell input touchscreen swipe "$1" "$2" "$1" "$2" 220 </dev/null || true
+  sleep "${3:-2}"
+}
 press_logical(){
   local x y; read -r x y < <(logical_xy "$1" "$2")
   adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
@@ -99,6 +103,8 @@ press_ratio(){
   adb shell input touchscreen swipe "$x" "$y" "$x" "$y" 220 </dev/null || true
   sleep "${3:-2}"
 }
+press_career(){ press_physical 795 1399 "${1:-2}"; }
+press_slot0(){ press_logical 332 324 "${1:-3}"; }
 shot(){ adb exec-out screencap -p > "$OUT/$1.png" || true; }
 dump_save(){
   local tag="$1"
@@ -145,13 +151,20 @@ sign_one "$WORK/base-stage8-age-unsigned.apk" "$WORK/base-stage8-age.apk"
 adb install-multiple -r "$WORK/base-stage8-age.apk" "$ST7/signed/config.tr.apk" "$ST7/signed/config.xxhdpi.apk" >/dev/null
 adb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true
 
-# Existing Stage7 slot0 must auto-load back into the Career hub after a process restart.
+# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
-wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer
-wait_screen gamemenu 60
-fatal_check; capture_log 'Stage8 starting GameMenu'; shot stage8-start-gamemenu
+wait_screen mainmenu 60
+wait_rendered_frame 30
+clear_log
+press_career 2
+wait_screen saveslot 20
+clear_log
+press_slot0 3
+wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer
+wait_screen gamemenu 40
+fatal_check; capture_log 'Stage8 starting GameMenu through stock SaveSlot reload'; shot stage8-start-gamemenu
 dump_save career-lifecycle-pre
 
 # Warm-start must keep the same process and resumed activity.
