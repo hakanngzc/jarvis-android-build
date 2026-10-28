@@ -67,6 +67,14 @@ class Stage8MatchLifecycleGateTests(unittest.TestCase):
         self.assertIn('[ "$pid_before" = "$pid_fg" ]',self.shell)
         self.assertIn('wait_resumed 20',self.shell)
 
+    def test_background_foreground_waits_for_nonblack_render_before_inputs(self):
+        self.assertIn('wait_rendered_frame(){',self.shell)
+        lifecycle=self.shell.split('# Start the untouched live match',1)[1].split('# Prove the resumed live match',1)[0]
+        self.assertIn('wait_resumed 20',lifecycle)
+        self.assertIn('wait_rendered_frame 30',lifecycle)
+        self.assertLess(lifecycle.index('wait_resumed 20'),lifecycle.index('wait_rendered_frame 30'))
+        self.assertLess(lifecycle.index('wait_rendered_frame 30'),lifecycle.index('capture_log \'live match background -> foreground\''))
+
     def test_resumed_match_must_continue_naturally_to_matchstats(self):
         self.assertIn('natural_input_burst',self.shell)
         self.assertIn('MATCHSTATS_REACHED',self.shell)
