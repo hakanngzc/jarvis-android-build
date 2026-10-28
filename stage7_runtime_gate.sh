@@ -39,6 +39,19 @@ wait_log(){
   cp "$WORK/wait-logcat.txt" "$OUT/timeout-${label//[^A-Za-z0-9_-]/_}.txt" 2>/dev/null || true
   echo "Timed out waiting for $label"; return 1
 }
+latest_bootstrap_state(){
+  adb logcat -d -v brief > "$WORK/bootstrap-state.txt" 2>/dev/null || true
+  local line; line="$(grep -Ei 'SETTING ACTIVE:|SetActive:' "$WORK/bootstrap-state.txt" | tail -1 || true)"
+  case "${line,,}" in
+    *gamemenu*) echo gamemenu;;
+    *webpagenews*|*webpagestyle*|*"active: webpage"*|*"setactive: webpage"*) echo webpage;;
+    *startransition*) echo startransition;;
+    *message*) echo message;;
+    *contract*) echo contract;;
+    *choosenation*) echo choosenation;;
+    *) echo unknown;;
+  esac
+}
 logical_xy(){
 python3 - "$1" "$2" <<'PY'
 import re,subprocess,sys
@@ -163,8 +176,56 @@ for _ in 1 2 3 4; do
   adb logcat -d -v threadtime > "$WORK/save-progress.txt" 2>/dev/null || true
   grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/save-progress.txt" && break
 done
-wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 40 fresh-gamemenu || true
-capture_log 'fresh Career saved'; shot fresh-after-save; sleep 2
+
+bootstrap_saved=0
+bootstrap_gamemenu=0
+for bootstrap_step in $(seq 1 30); do
+  fatal_check || exit 1
+  adb logcat -d -v threadtime > "$WORK/bootstrap-save-proof.txt" 2>/dev/null || true
+  if grep -qE 'CAREER STARTED|SAVE CAREER|SaveCareer|SaveState' "$WORK/bootstrap-save-proof.txt"; then
+    bootstrap_saved=1
+  fi
+  bootstrap_state="$(latest_bootstrap_state)"
+  echo "fresh bootstrap step ${bootstrap_step}: state=${bootstrap_state} saved=${bootstrap_saved}" >> "$FLOW"
+  case "$bootstrap_state" in
+    gamemenu)
+      bootstrap_gamemenu=1
+      break
+      ;;
+    message|startransition)
+      press_message_accept 2
+      ;;
+    webpage)
+      # webpagenews.uis owns M_Footer:(ON,webpage.btn_Ok,,). Stage4 Run202
+      # proved the message-button coordinate does not emit a HitGadget here.
+      press_footer_ok 2
+      ;;
+    contract)
+      press_footer_ok 2
+      ;;
+    choosenation|unknown)
+      # SAVE CAREER can precede the next SetActive event. Let stock transition
+      # settle instead of sending an unrelated gameplay input.
+      sleep 2
+      ;;
+    *)
+      echo "unexpected fresh bootstrap state: $bootstrap_state" >> "$FLOW"
+      exit 218
+      ;;
+  esac
+done
+[ "$bootstrap_saved" -eq 1 ] || {
+  cp "$WORK/bootstrap-save-proof.txt" "$OUT/bootstrap-save-proof-missing.txt" 2>/dev/null || true
+  echo 'Fresh Career save evidence missing'
+  exit 1
+}
+[ "$bootstrap_gamemenu" -eq 1 ] || {
+  adb logcat -d -v threadtime > "$OUT/bootstrap-gamemenu-timeout.txt" 2>/dev/null || true
+  shot bootstrap-gamemenu-timeout
+  echo 'Fresh Career did not finish stock bootstrap to GameMenu'
+  exit 219
+}
+capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'; shot fresh-after-save; sleep 2
 dump_save pre
 
 if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then
