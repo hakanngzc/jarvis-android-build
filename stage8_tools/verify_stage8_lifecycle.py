@@ -2,6 +2,11 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
+
+ROOT=Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
+
 from stage3_tools.stage2_checkpoint import extract_checkpoint, extract_monkeystate_from_prefs_xml
 
 STABLE_FIELDS=(
