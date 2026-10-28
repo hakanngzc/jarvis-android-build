@@ -167,6 +167,11 @@ wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu
 capture_log 'fresh Career saved'; shot fresh-after-save; sleep 2
 dump_save pre
 
+if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then
+  echo 'STAGE7_RUNTIME_BASE_READY'
+  exit 0
+fi
+
 python3 stage7_tools/patch_stage7_persistence_probe.py "$WORK/base-career-unsigned.apk" "$WORK/base-stage7-mutate-unsigned.apk" mutate | tee "$OUT/stage7-mutate-probe.txt"
 python3 stage7_tools/patch_stage7_persistence_probe.py "$WORK/base-career-unsigned.apk" "$WORK/base-stage7-saveonly-unsigned.apk" save-only | tee "$OUT/stage7-saveonly-probe.txt"
 sign_one "$WORK/base-stage7-mutate-unsigned.apk" "$WORK/signed/base-stage7-mutate.apk"
