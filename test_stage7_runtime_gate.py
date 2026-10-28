@@ -38,6 +38,23 @@ class Stage7RuntimeGateTests(unittest.TestCase):
         self.assertIn('patch_stage7_persistence_probe.py "$WORK/base-career-unsigned.apk" "$WORK/base-stage7-saveonly-unsigned.apk" save-only',self.shell)
         self.assertLess(self.shell.index('base-stage7-mutate-unsigned.apk'),self.shell.index('base-stage7-saveonly-unsigned.apk'))
 
+    def test_fresh_bootstrap_resolves_webpagenews_before_dump_save(self):
+        marker='bootstrap_saved=0'
+        self.assertIn(marker,self.shell)
+        block=self.shell.split(marker,1)[1].split('dump_save pre',1)[0]
+        self.assertIn('for bootstrap_step in $(seq 1 30)',block)
+        self.assertIn('bootstrap_state="$(latest_bootstrap_state)"',block)
+        self.assertIn('webpage)',block)
+        webpage=block.split('webpage)',1)[1].split(';;',1)[0]
+        self.assertIn('press_footer_ok 2',webpage)
+        self.assertIn('message|startransition)',block)
+        self.assertIn('press_message_accept 2',block)
+        self.assertIn('gamemenu)',block)
+        self.assertIn('bootstrap_gamemenu=1',block)
+        self.assertIn('[ "$bootstrap_saved" -eq 1 ]',block)
+        self.assertIn('[ "$bootstrap_gamemenu" -eq 1 ]',block)
+        self.assertNotIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 40 fresh-gamemenu || true",self.shell)
+
     def test_setup_only_restarts_and_proves_slot0_load_before_ready(self):
         marker='if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then'
         self.assertIn(marker,self.shell)
