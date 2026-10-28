@@ -33,6 +33,13 @@ class Stage9CrossVersionGateTests(unittest.TestCase):
         self.assertIn('VERDICT=STAGE9_FRESH_RELOAD_PASS', self.fresh)
         self.assertIn('ANR in com\\.newstargames\\.newstarsoccer', self.fresh)
 
+    def test_save_helpers_initialize_tag_before_xml_path(self):
+        for script in (self.fresh, self.post):
+            self.assertIn('local tag="$1"', script)
+            self.assertIn('local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"', script)
+            self.assertIn('local xml="$OUT/${tag}-MonkeyGame.xml"', script)
+            self.assertNotIn('local tag="$1" remote=', script)
+
     def test_postmatch_gate_requires_real_matchreview_activation(self):
         self.assertIn("wait_state 'matchreview'", self.post)
         self.assertIn('STAGE9_MATCHREVIEW_REACHED', self.post)
