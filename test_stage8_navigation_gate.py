@@ -8,10 +8,10 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.shell=(ROOT/'stage8_navigation_gate.sh').read_text(encoding='utf-8') if (ROOT/'stage8_navigation_gate.sh').exists() else ''
         self.workflow=(ROOT/'.github/workflows/nss-stage8-navigation-runtime.yml').read_text(encoding='utf-8') if (ROOT/'.github/workflows/nss-stage8-navigation-runtime.yml').exists() else ''
 
-    def test_reuses_stage7_proven_runtime_before_navigation(self):
-        self.assertIn('bash stage7_runtime_gate.sh',self.workflow)
+    def test_reuses_stage7_prepared_runtime_before_navigation(self):
+        self.assertIn('STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh',self.workflow)
         self.assertIn('bash stage8_navigation_gate.sh',self.workflow)
-        self.assertLess(self.workflow.index('bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
+        self.assertLess(self.workflow.index('STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh'),self.workflow.index('bash stage8_navigation_gate.sh'))
 
     def test_navigation_reinstalls_non_playmatches_probe_base(self):
         self.assertIn('ST7="$RUNNER_TEMP/stage7-work"',self.shell)
