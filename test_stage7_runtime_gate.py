@@ -38,6 +38,18 @@ class Stage7RuntimeGateTests(unittest.TestCase):
         self.assertIn('patch_stage7_persistence_probe.py "$WORK/base-career-unsigned.apk" "$WORK/base-stage7-saveonly-unsigned.apk" save-only',self.shell)
         self.assertLess(self.shell.index('base-stage7-mutate-unsigned.apk'),self.shell.index('base-stage7-saveonly-unsigned.apk'))
 
+    def test_setup_only_restarts_and_proves_slot0_load_before_ready(self):
+        marker='if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then'
+        self.assertIn(marker,self.shell)
+        block=self.shell.split(marker,1)[1].split('\nfi',1)[0]
+        self.assertIn('adb shell am force-stop "$PKG"',block)
+        self.assertIn('adb shell am start -n "$PKG/.MonkeyGame"',block)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 setup-only-loadcareer",block)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 setup-only-gamemenu",block)
+        self.assertIn("echo 'STAGE7_RUNTIME_BASE_READY'",block)
+        self.assertLess(block.index('setup-only-loadcareer'),block.index("echo 'STAGE7_RUNTIME_BASE_READY'"))
+        self.assertLess(block.index('setup-only-gamemenu'),block.index("echo 'STAGE7_RUNTIME_BASE_READY'"))
+
     def test_update_is_verified_before_process_death_reload(self):
         marker='# Same-signature save-only update must not touch the durable save.'
         self.assertIn(marker,self.shell)
