@@ -56,7 +56,9 @@ press_career(){
 }
 press_slot0(){ press_logical 332 324 "${1:-3}"; }
 dump_save(){
-  local tag="$1" remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml" xml="$OUT/${tag}-MonkeyGame.xml"
+  local tag="$1"
+  local remote="/data/data/$PKG/shared_prefs/MonkeyGame.xml"
+  local xml="$OUT/${tag}-MonkeyGame.xml"
   adb shell cat "$remote" > "$xml" 2>/dev/null || true
   grep -q 'monkeystate' "$xml" || { echo "Could not read durable save for $tag"; return 1; }
   sha256sum "$xml" > "$OUT/${tag}-save.sha256"
