@@ -31,6 +31,15 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('wait_screen gamemenu 40',block)
         self.assertNotIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer",block)
 
+    def test_stage8_slot_reload_requires_real_slot0_gadget_before_load_wait(self):
+        marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
+        block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
+        self.assertIn('for slot_attempt in 1 2 3',block)
+        self.assertIn("grep -q 'HitGadget: saveslot.btn_Slot0'",block)
+        self.assertIn('slot_hit=1',block)
+        self.assertIn('[ "$slot_hit" -eq 1 ]',block)
+        self.assertLess(block.index("grep -q 'HitGadget: saveslot.btn_Slot0'"),block.index("wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer"))
+
     def test_dump_save_initializes_tag_before_using_it(self):
         m=re.search(r'dump_save\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
         self.assertIsNotNone(m)
