@@ -20,6 +20,17 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('install-multiple -r',self.shell)
         self.assertNotIn('base-stage7-saveonly.apk',self.shell)
 
+    def test_stage8_age_probe_reload_uses_stock_saveslot_route(self):
+        marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
+        self.assertIn(marker,self.shell)
+        block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
+        self.assertIn('press_career 2',block)
+        self.assertIn("wait_screen saveslot 20",block)
+        self.assertIn('press_slot0 3',block)
+        self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer",block)
+        self.assertIn('wait_screen gamemenu 40',block)
+        self.assertNotIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer",block)
+
     def test_dump_save_initializes_tag_before_using_it(self):
         m=re.search(r'dump_save\(\)\{(?P<body>.*?)\n\}',self.shell,re.S)
         self.assertIsNotNone(m)
