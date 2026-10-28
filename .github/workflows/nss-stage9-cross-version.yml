@@ -22,8 +22,9 @@ jobs:
       - name: Validate Stage9 cross-version tooling
         run: |
           python3 -m unittest test_stage7_runtime_probe.py test_stage7_runtime_gate.py test_stage8_age_unlock.py test_stage8_lifecycle_verifier.py test_stage8_navigation_gate.py test_stage8_match_lifecycle_gate.py test_stage9_cross_version_gate.py -v
-          python3 -m py_compile stage8_tools/patch_stage8_age_unlock.py stage8_tools/verify_stage8_lifecycle.py stage4_tools/classify_live_frame.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/validate_frame_png.py
+          python3 -m py_compile stage3_tools/stage2_checkpoint.py stage8_tools/patch_stage8_age_unlock.py stage8_tools/verify_stage8_lifecycle.py stage4_tools/classify_live_frame.py stage4_tools/find_live_ball.py stage4_tools/find_kick_ball.py stage4_tools/validate_frame_png.py
           bash -n stage7_runtime_gate.sh
+          bash -n stage9_fresh_reload_gate.sh
           bash -n stage8_navigation_gate.sh
           bash -n stage8_match_lifecycle_gate.sh
           bash -n stage9_postmatch_gate.sh
@@ -50,7 +51,8 @@ jobs:
           disable-spellchecker: true
           script: |
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api-level }}"
-            bash stage7_runtime_gate.sh
+            STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh
+            bash stage9_fresh_reload_gate.sh
             bash stage8_navigation_gate.sh
             bash stage8_match_lifecycle_gate.sh
             bash stage9_postmatch_gate.sh
