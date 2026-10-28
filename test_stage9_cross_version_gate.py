@@ -24,7 +24,8 @@ class Stage9CrossVersionGateTests(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
     def test_fresh_reload_gate_proves_restart_and_same_career(self):
-        self.assertIn('$RUNNER_TEMP/stage7-persistence/pre-MonkeyGame.xml', self.fresh)
+        self.assertIn('ST7OUT="$RUNNER_TEMP/stage7-persistence"', self.fresh)
+        self.assertIn('$ST7OUT/pre-MonkeyGame.xml', self.fresh)
         self.assertIn('am force-stop "$PKG"', self.fresh)
         self.assertIn("wait_log 'LoadCareer saveslot:[[:space:]]*0'", self.fresh)
         self.assertIn('fresh-after-restart-MonkeyGame.xml', self.fresh)
