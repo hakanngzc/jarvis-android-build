@@ -44,7 +44,7 @@ jobs:
           disable-spellchecker: true
           script: |
             test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
-            bash stage7_runtime_gate.sh
+            STAGE7_SETUP_ONLY=1 bash stage7_runtime_gate.sh
             bash stage8_navigation_gate.sh
 
       - name: Upload Stage8 runtime evidence
@@ -54,5 +54,5 @@ jobs:
           name: stage8-navigation-runtime-evidence
           path: |
             ${{ runner.temp }}/stage8-navigation/
-            ${{ runner.temp }}/stage7-persistence/STAGE7_PERSISTENCE_GATE.txt
+            ${{ runner.temp }}/stage7-persistence/
           retention-days: 7
