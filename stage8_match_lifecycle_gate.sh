@@ -36,6 +36,27 @@ wait_log(){
   cp "$WORK/wait-logcat.txt" "$OUT/timeout-${label//[^A-Za-z0-9_-]/_}.txt" 2>/dev/null || true
   return 1
 }
+wait_rendered_frame(){
+  local timeout_s="${1:-30}" i bytes stable=0
+  for i in $(seq 0 "$timeout_s"); do
+    fatal_check || return 1
+    adb exec-out screencap -p > "$WORK/render-ready.png" 2>/dev/null || true
+    bytes="$(wc -c < "$WORK/render-ready.png")"
+    if [ "$bytes" -ge 50000 ]; then
+      stable=$((stable+1))
+      if [ "$stable" -ge 3 ]; then
+        echo "Stable rendered match frame ready after ${i}s (${bytes} bytes)"
+        return 0
+      fi
+    else
+      stable=0
+    fi
+    sleep 1
+  done
+  cp "$WORK/render-ready.png" "$OUT/timeout-match-render-ready.png" 2>/dev/null || true
+  echo 'Timed out waiting for stable rendered match frame'
+  return 1
+}
 logical_xy(){
 python3 - "$1" "$2" "$WM_SIZE" <<'PY'
 import re,sys
@@ -189,6 +210,7 @@ pid_bg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_bg" ]
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_resumed 20
+wait_rendered_frame 30
 pid_fg="$(adb shell pidof "$PKG" | tr -d '\r')"
 [ "$pid_before" = "$pid_fg" ]
 fatal_check; capture_log 'live match background -> foreground'; shot stage8-match-after-background
