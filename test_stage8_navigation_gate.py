@@ -31,6 +31,15 @@ class Stage8NavigationGateTests(unittest.TestCase):
         self.assertIn('wait_screen gamemenu 40',block)
         self.assertNotIn("wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 stage8-loadcareer",block)
 
+    def test_stage8_age_probe_reload_accepts_valid_autoloaded_gamemenu(self):
+        marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
+        block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
+        self.assertIn('stage8_autoload=0',block)
+        self.assertIn("grep -qiE 'LoadCareer saveslot:[[:space:]]*0|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu'",block)
+        self.assertIn('stage8_autoload=1',block)
+        self.assertIn('if [ "$stage8_autoload" -eq 0 ]; then',block)
+        self.assertLess(block.index('stage8_autoload=0'),block.index('press_career 2'))
+
     def test_stage8_slot_reload_requires_real_slot0_gadget_before_load_wait(self):
         marker='# Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.'
         block=self.shell.split(marker,1)[1].split('# Warm-start must keep the same process',1)[0]
