@@ -229,13 +229,11 @@ capture_log 'fresh Career durable SAVE CAREER confirmed -> GameMenu'; shot fresh
 dump_save pre
 
 if [ "${STAGE7_SETUP_ONLY:-0}" = 1 ]; then
-  adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  clear_log
-  adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
-  wait_log 'LoadCareer saveslot:[[:space:]]*0' 60 setup-only-loadcareer
-  wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 60 setup-only-gamemenu
+  start_game setup-only
+  open_slot0 setup-only
+  load_existing setup-only
   fatal_check
-  capture_log 'setup-only verified restart/load'
+  capture_log 'setup-only verified stock UI restart/load'
   shot setup-only-gamemenu
   echo 'STAGE7_RUNTIME_BASE_READY'
   exit 0
