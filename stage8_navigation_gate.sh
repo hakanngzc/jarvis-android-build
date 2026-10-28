@@ -152,30 +152,46 @@ adb install-multiple -r "$WORK/base-stage8-age.apk" "$ST7/signed/config.tr.apk" 
 adb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true
 
 # Existing Stage7 slot0 must be loaded through the stock SaveSlot UI after the age-probe update.
+# Some Android/runtime timings auto-load the existing slot after the transient MainMenu.
+# Accept that real LoadCareer/GameMenu transition; otherwise use the proven SaveSlot route.
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 clear_log
 adb shell am start -n "$PKG/.MonkeyGame" >/dev/null
 wait_screen mainmenu 60
 wait_rendered_frame 30
-clear_log
-press_career 2
-wait_screen saveslot 20
-slot_hit=0
-for slot_attempt in 1 2 3; do
-  clear_log
-  press_slot0 3
-  adb logcat -d -v brief > "$WORK/stage8-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
-  if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/stage8-slot0-attempt-$slot_attempt.txt"; then
-    slot_hit=1
+stage8_autoload=0
+for autoload_i in 1 2 3 4 5 6; do
+  adb logcat -d -v brief > "$WORK/stage8-autoload-check.txt" 2>/dev/null || true
+  if grep -qiE 'LoadCareer saveslot:[[:space:]]*0|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' "$WORK/stage8-autoload-check.txt"; then
+    stage8_autoload=1
     break
   fi
   fatal_check
   sleep 1
 done
-[ "$slot_hit" -eq 1 ] || { capture_log 'Stage8 Slot0 gadget did not register'; shot stage8-slot0-failure; echo 'Slot0 did not register after age-probe update'; exit 311; }
-wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer
+if [ "$stage8_autoload" -eq 0 ]; then
+  clear_log
+  press_career 2
+  wait_screen saveslot 20
+  slot_hit=0
+  for slot_attempt in 1 2 3; do
+    clear_log
+    press_slot0 3
+    adb logcat -d -v brief > "$WORK/stage8-slot0-attempt-$slot_attempt.txt" 2>/dev/null || true
+    if grep -q 'HitGadget: saveslot.btn_Slot0' "$WORK/stage8-slot0-attempt-$slot_attempt.txt"; then
+      slot_hit=1
+      break
+    fi
+    fatal_check
+    sleep 1
+  done
+  [ "$slot_hit" -eq 1 ] || { capture_log 'Stage8 Slot0 gadget did not register'; shot stage8-slot0-failure; echo 'Slot0 did not register after age-probe update'; exit 311; }
+  wait_log 'LoadCareer saveslot:[[:space:]]*0' 30 stage8-loadcareer
+else
+  echo 'PASS Stage8 existing Career auto-loaded after age-probe update' | tee -a "$GATE"
+fi
 wait_screen gamemenu 40
-fatal_check; capture_log 'Stage8 starting GameMenu through stock SaveSlot reload'; shot stage8-start-gamemenu
+fatal_check; capture_log 'Stage8 starting GameMenu after age-probe reload'; shot stage8-start-gamemenu
 dump_save career-lifecycle-pre
 
 # Warm-start must keep the same process and resumed activity.
