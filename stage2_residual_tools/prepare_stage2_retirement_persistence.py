@@ -24,13 +24,21 @@ RESTART_BLOCK = '''  if [ "$scenario" = retire ]; then
     load_existing "$scenario-restart"
   fi'''
 RESTART_REPLACEMENT = '''  if [ "$scenario" = retire ]; then
-    sleep 3
-    capture_log 'retire post-restart SaveSlot metadata'
-    shot retire-post-restart-saveslot
+    # Stock restart order is SaveSlot metadata first (which emits >>>> RETIRED),
+    # then the slot click invokes LoadCareer and returns to GameMenu. open_slot0
+    # already captured the SaveSlot log into FLOW before clearing live logcat for
+    # the slot click, so validate that durable marker from FLOW rather than waiting
+    # for a second RETIRED line that stock does not emit after LoadCareer.
+    grep -q '>>>> RETIRED' "$FLOW" || {
+      echo 'Missing stock retired SaveSlot metadata marker after restart' >&2
+      exit 1
+    }
     wait_log 'LoadCareer saveslot: 0' 30 retire-loadcareer
-    wait_log '>>>> RETIRED' 30 retire-retired
+    wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 30 retire-reload-gamemenu
+    sleep 3
+    capture_log 'retire stock reload GameMenu state'
+    shot retire-post-restart-saveslot
     fatal_check
-    capture_log 'retire stock reload retired state'
   else
     load_existing "$scenario-restart"
   fi'''
