@@ -47,8 +47,10 @@ jobs:
           ! grep -q 'run_scenario reject' "$RUNNER_TEMP/stage2-retirement-policy.sh"
           ! grep -q 'run_scenario transfer' "$RUNNER_TEMP/stage2-retirement-policy.sh"
           ! grep -q 'retire second stock retirement writer no-op' "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          grep -q "grep -q '>>>> RETIRED' \"\$FLOW\"" "$RUNNER_TEMP/stage2-retirement-policy.sh"
           grep -q "wait_log 'LoadCareer saveslot: 0' 30 retire-loadcareer" "$RUNNER_TEMP/stage2-retirement-policy.sh"
-          grep -q "wait_log '>>>> RETIRED' 30 retire-retired" "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          grep -q "wait_log 'Create Screen:\[\[:space:\]\]\*gamemenu|SETTING ACTIVE:\[\[:space:\]\]\*gamemenu|SetActive:\[\[:space:\]\]\*gamemenu' 30 retire-reload-gamemenu" "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          ! grep -q "wait_log '>>>> RETIRED' 30 retire-retired" "$RUNNER_TEMP/stage2-retirement-policy.sh"
 
       - name: Enable KVM access
         run: |
