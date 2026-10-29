@@ -96,7 +96,9 @@ class RetirementPolicyTests(unittest.TestCase):
         self.assertNotIn('run_scenario accept', out)
         self.assertNotIn('retire second stock retirement writer no-op', out)
         self.assertIn("wait_log 'LoadCareer saveslot: 0'", out)
-        self.assertIn("wait_log '>>>> RETIRED'", out)
+        self.assertNotIn("wait_log '>>>> RETIRED'", out)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 30 retire-reload-gamemenu", out)
+        self.assertIn("grep -q '>>>> RETIRED' \"$FLOW\"", out)
         self.assertIn('verify_stage2_retirement_persistence.py', out)
         self.assertIn('STAGE2_RETIREMENT_PERSISTENCE_RUNTIME_PASS', out)
 
@@ -113,8 +115,10 @@ class RetirementPolicyTests(unittest.TestCase):
         self.assertEqual(out.count('run_scenario retire'), 1)
         self.assertNotIn('run_scenario accept', out)
         self.assertNotIn('retire second stock retirement writer no-op', out)
+        self.assertIn("grep -q '>>>> RETIRED' \"$FLOW\"", out)
         self.assertIn("wait_log 'LoadCareer saveslot: 0' 30 retire-loadcareer", out)
-        self.assertIn("wait_log '>>>> RETIRED' 30 retire-retired", out)
+        self.assertIn("wait_log 'Create Screen:[[:space:]]*gamemenu|SETTING ACTIVE:[[:space:]]*gamemenu|SetActive:[[:space:]]*gamemenu' 30 retire-reload-gamemenu", out)
+        self.assertNotIn("wait_log '>>>> RETIRED' 30 retire-retired", out)
 
     def test_workflow_uses_single_line_bash_wrapper(self):
         wrapper = ROOT / 'stage2_retirement_runtime_gate.sh'
