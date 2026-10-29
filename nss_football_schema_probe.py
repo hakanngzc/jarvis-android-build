@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Provenance: NSS 4.31 v2025 schema probe, 2026-10-29.
 import csv, hashlib, io, json, re, sys, zipfile
 from pathlib import Path
 
