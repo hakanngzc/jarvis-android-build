@@ -116,6 +116,13 @@ class RetirementPolicyTests(unittest.TestCase):
         self.assertIn("wait_log 'LoadCareer saveslot: 0' 30 retire-loadcareer", out)
         self.assertIn("wait_log '>>>> RETIRED' 30 retire-retired", out)
 
+    def test_workflow_uses_single_line_bash_wrapper(self):
+        wrapper = ROOT / 'stage2_retirement_runtime_gate.sh'
+        self.assertTrue(wrapper.exists(), 'runtime wrapper must exist')
+        workflow = (ROOT / '.github/workflows/nss-stage2-retirement-persistence.yml').read_text(encoding='utf-8')
+        self.assertIn('script: bash stage2_retirement_runtime_gate.sh', workflow)
+        self.assertNotIn("bash -eu -o pipefail <<'BASH'", workflow)
+
 
 if __name__ == '__main__':
     unittest.main()
