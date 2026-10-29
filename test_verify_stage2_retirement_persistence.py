@@ -28,7 +28,13 @@ BASE = {
 }
 POST = {**BASE, 'sdate': 11, 'playerrecordsha256': 'post'}
 RESTART = dict(POST)
-FLOW = 'Create Screen: retirement\nQUICK SAVE\nLoadCareer saveslot: 0\n>>>> RETIRED\n'
+FLOW = (
+    'Create Screen: retirement\n'
+    'QUICK SAVE\n'
+    '>>>> RETIRED : 11130\n'
+    'LoadCareer saveslot: 0\n'
+    'SETTING ACTIVE: gamemenu\n'
+)
 
 
 class RetirementVerifierTests(unittest.TestCase):
@@ -49,6 +55,22 @@ class RetirementVerifierTests(unittest.TestCase):
         result = mod.verify(BASE, POST, RESTART, b'abc', b'abd', FLOW)
         self.assertFalse(result['pass'])
         self.assertFalse(result['checks']['raw_save_byte_identical'])
+
+    def test_retired_marker_must_precede_restart_load(self):
+        mod = load_module(ROOT / 'stage2_residual_tools/verify_stage2_retirement_persistence.py', 'verify4')
+        wrong = (
+            'Create Screen: retirement\nQUICK SAVE\n'
+            'LoadCareer saveslot: 0\n>>>> RETIRED : 11130\nSETTING ACTIVE: gamemenu\n'
+        )
+        result = mod.verify(BASE, POST, RESTART, b'abc', b'abc', wrong)
+        self.assertFalse(result['pass'])
+        self.assertFalse(result['checks']['restart_marker_order'])
+
+    def test_gamemenu_must_follow_restart_load(self):
+        mod = load_module(ROOT / 'stage2_residual_tools/verify_stage2_retirement_persistence.py', 'verify5')
+        result = mod.verify(BASE, POST, RESTART, b'abc', b'abc', FLOW.replace('SETTING ACTIVE: gamemenu\n', ''))
+        self.assertFalse(result['pass'])
+        self.assertFalse(result['checks']['gamemenu_after_load'])
 
 
 if __name__ == '__main__':
