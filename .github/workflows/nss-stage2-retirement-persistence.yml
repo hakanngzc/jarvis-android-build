@@ -1,0 +1,117 @@
+name: NSS Stage2 Retirement Persistence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [stage2-retirement-persistence-20261029]
+    paths:
+      - 'stage2_residual_tools/prepare_stage2_retirement_persistence.py'
+      - 'stage2_residual_tools/verify_stage2_retirement_persistence.py'
+      - 'test_stage2_retirement_persistence_policy.py'
+      - 'test_verify_stage2_retirement_persistence.py'
+      - '.github/workflows/nss-stage2-retirement-persistence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nss-stage2-retirement-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retirement-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate retirement-only tooling
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            stage2_residual_tools/prepare_stage2_retirement_persistence.py \
+            stage2_residual_tools/verify_stage2_retirement_persistence.py \
+            stage2_residual_tools/prepare_stage2_gate.py \
+            stage2_residual_tools/prepare_runtime_start_retry.py \
+            stage2_residual_tools/prepare_chooseclub_visual.py \
+            stage2_residual_tools/prepare_stage2_gamemenu_stable.py
+          python3 -m unittest \
+            test_stage2_retirement_persistence_policy.py \
+            test_verify_stage2_retirement_persistence.py -v
+          python3 stage2_residual_tools/prepare_stage2_retirement_persistence.py \
+            stage2_residual_gate.sh "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          bash -n "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          ! grep -q 'run_scenario accept' "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          ! grep -q 'run_scenario reject' "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          ! grep -q 'run_scenario transfer' "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          ! grep -q 'retire second stock retirement writer no-op' "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          grep -q "wait_log 'LoadCareer saveslot: 0' 30 retire-loadcareer" "$RUNNER_TEMP/stage2-retirement-policy.sh"
+          grep -q "wait_log '>>>> RETIRED' 30 retire-retired" "$RUNNER_TEMP/stage2-retirement-policy.sh"
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+
+      - name: Boot Android 10 and prove retirement save restart reload
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          ram-size: 2048M
+          heap-size: 384M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          disable-animations: true
+          disable-spellchecker: true
+          script: |
+            set -euo pipefail
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "10"
+            python3 stage2_residual_tools/prepare_stage2_gate.py \
+              stage2_residual_gate.sh "$RUNNER_TEMP/stage2-retirement-gate.pre.sh"
+            python3 stage2_residual_tools/prepare_runtime_start_retry.py \
+              "$RUNNER_TEMP/stage2-retirement-gate.pre.sh" "$RUNNER_TEMP/stage2-retirement-gate.start.sh"
+            python3 stage2_residual_tools/prepare_chooseclub_visual.py \
+              "$RUNNER_TEMP/stage2-retirement-gate.start.sh" "$RUNNER_TEMP/stage2-retirement-gate.visual.sh"
+            python3 stage2_residual_tools/prepare_stage2_gamemenu_stable.py \
+              "$RUNNER_TEMP/stage2-retirement-gate.visual.sh" "$RUNNER_TEMP/stage2-retirement-gate.stable.sh"
+            python3 stage2_residual_tools/prepare_stage2_retirement_persistence.py \
+              "$RUNNER_TEMP/stage2-retirement-gate.stable.sh" "$RUNNER_TEMP/stage2-retirement-gate.sh"
+            bash -n "$RUNNER_TEMP/stage2-retirement-gate.sh"
+            bash "$RUNNER_TEMP/stage2-retirement-gate.sh"
+
+      - name: Require dedicated retirement verdict
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/stage2-residual"
+          grep -q '^STAGE2_RETIREMENT_PERSISTENCE_PASS$' "$OUT/retire-persistence-verdict.txt"
+          grep -q '^STAGE2_RETIREMENT_PERSISTENCE_RUNTIME_PASS$' "$OUT/STAGE2_RETIREMENT_PERSISTENCE_RUNTIME_RESULT.txt"
+          test -s "$OUT/baseline.json"
+          test -s "$OUT/retire-post.json"
+          test -s "$OUT/retire-post-restart.json"
+          test -s "$OUT/retire-post-MonkeyGame.xml"
+          test -s "$OUT/retire-post-restart-MonkeyGame.xml"
+          test -s "$OUT/STAGE2_RESIDUAL_RUNTIME_FLOW.log"
+          python3 - "$OUT/retire-persistence-verdict.json" <<'PY'
+          import json,sys
+          p=sys.argv[1]
+          x=json.load(open(p,encoding='utf-8'))
+          assert x['pass'] is True
+          assert all(x['checks'].values())
+          assert x['evidence']['post_xml_sha256'] == x['evidence']['restart_xml_sha256']
+          assert x['evidence']['post_xml_size'] == x['evidence']['restart_xml_size']
+          assert x['evidence']['sdate_post'] == x['evidence']['sdate_restart']
+          print('STAGE2_RETIREMENT_PERSISTENCE_WORKFLOW_GATE=PASS')
+          PY
+
+      - name: Upload retirement persistence evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage2-retirement-persistence-evidence
+          path: ${{ runner.temp }}/stage2-residual/**
+          retention-days: 14
