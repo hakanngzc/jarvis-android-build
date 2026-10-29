@@ -25,6 +25,13 @@ jobs:
           BASE="$RUNNER_TEMP/stage7-rel/xapk/com.newstargames.newstarsoccer.apk"
           echo '46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4  '"$BASE" | sha256sum -c -
           unzip -q "$BASE" 'classes*.dex' -d "$RUNNER_TEMP/stage7-rel/dex"
+          mkdir -p stage7_formula_artifacts/source_apk
+          unzip -q "$BASE" \
+            'assets/monkey/Tweaks/TweakValues.txt' \
+            'assets/monkey/NewGUI/Screens/*.uis' \
+            'assets/monkey/NewGUI/Screens/*.uih' \
+            -d stage7_formula_artifacts/source_apk
+          sha256sum stage7_formula_artifacts/source_apk/assets/monkey/Tweaks/TweakValues.txt > stage7_formula_artifacts/tweak-values-sha256.txt
           echo "BASE=$BASE" >> "$GITHUB_ENV"
       - name: Download pinned baksmali
         run: |
@@ -48,27 +55,24 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import json, hashlib, re
+          import json
           root=Path('stage7_formula_artifacts/smali')
           fields=[
-            'm_relationagent','m_relationboss','m_relationbossint','m_relationfans','m_relationfansint',
-            'm_relationgirlfriend','m_relationsponsor','m_relationteam','m_relationteamint','m_girlfriendcount'
+            'm_relationboss','m_relationbossint','m_relationfans','m_relationfansint','m_relationfriends',
+            'm_relationgirlfriend','m_relationsponsors','m_relationteam','m_relationteamint','m_girlfriendcount'
           ]
-          strings=['Lifestyle','Lifestyle_Before','Lifestyle_Displayed']
-          effective=['p_GetEffectiveRelationBoss','p_GetEffectiveRelationBossInt','p_GetEffectiveRelationFans','p_GetEffectiveRelationFansInt','p_GetEffectiveRelationTeam','p_GetEffectiveRelationTeamInt']
+          strings=['Lifestyle','Lifestyle_Before','Lifestyle_Displayed','m_lastspendtimefriends','m_lastspendtimegirlfriend']
+          effective=['p_GetEffectiveRelationBoss','p_GetEffectiveRelationBossInt','p_GetEffectiveRelationFans','p_GetEffectiveRelationFansInt','p_GetEffectiveRelationTeam','p_GetEffectiveRelationTeamInt','p_GetEffectiveRelationSponsors']
           hits=[]; files=set()
+          needles=fields+strings+effective
           for p in sorted(root.rglob('*.smali')):
             text=p.read_text(encoding='utf-8',errors='replace')
-            wanted=[]
-            for x in fields+strings+effective:
-              if x in text: wanted.append(x)
-            if not wanted: continue
-            files.add(str(p.relative_to(root)))
-            lines=text.splitlines()
-            for i,line in enumerate(lines,1):
-              if any(x in line for x in fields+strings+effective):
-                hits.append({'file':str(p.relative_to(root)),'line':i,'text':line.strip()})
-          out={'schema':1,'fields':fields,'lifestyle_variables':strings,'effective_readers':effective,'matching_files':sorted(files),'hit_count':len(hits),'hits':hits}
+            if not any(x in text for x in needles): continue
+            rel=str(p.relative_to(root)); files.add(rel)
+            for i,line in enumerate(text.splitlines(),1):
+              if any(x in line for x in needles):
+                hits.append({'file':rel,'line':i,'text':line.strip()})
+          out={'schema':2,'fields':fields,'lifestyle_variables':['Lifestyle','Lifestyle_Before','Lifestyle_Displayed'],'effective_readers':effective,'matching_files':sorted(files),'hit_count':len(hits),'hits':hits}
           Path('stage7_formula_artifacts/reference-index.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n',encoding='utf-8')
           print('matching_files',len(files),'hits',len(hits))
           if not files or len(hits)<20: raise SystemExit('reference scan unexpectedly small')
@@ -76,12 +80,13 @@ jobs:
       - name: Record artifact manifest
         run: |
           set -euo pipefail
-          (cd stage7_formula_artifacts && find . -type f -print0 | sort -z | xargs -0 sha256sum) > stage7_formula_artifacts/member-sha256.txt
+          (cd stage7_formula_artifacts && find . -type f ! -name member-sha256.txt -print0 | sort -z | xargs -0 sha256sum) > stage7_formula_artifacts/member-sha256.txt
           python3 - <<'PY'
           from pathlib import Path
-          import json
+          import json,hashlib
           idx=json.loads(Path('stage7_formula_artifacts/reference-index.json').read_text())
-          m={'verdict':'STAGE7_RELATIONSHIP_FORMULA_DISASM_PASS','matching_files':len(idx['matching_files']),'hit_count':idx['hit_count'],'source_xapk_sha256':'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e','source_base_apk_sha256':'46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4'}
+          tweak=Path('stage7_formula_artifacts/source_apk/assets/monkey/Tweaks/TweakValues.txt')
+          m={'verdict':'STAGE7_RELATIONSHIP_FORMULA_DISASM_PASS','matching_files':len(idx['matching_files']),'hit_count':idx['hit_count'],'source_xapk_sha256':'afa4c3319e275de558da7a1c253dec84964094b0a4c1cb2ad557f53dbaf5b57e','source_base_apk_sha256':'46b5577b464b35c7122c3cf9737c6a7887ae28bb0911c7687b8b433ea6880aa4','tweak_values_sha256':hashlib.sha256(tweak.read_bytes()).hexdigest()}
           Path('stage7_formula_artifacts/manifest.json').write_text(json.dumps(m,indent=2,sort_keys=True)+'\n')
           print(m['verdict'])
           PY
