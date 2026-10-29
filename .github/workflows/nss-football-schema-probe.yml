@@ -1,0 +1,33 @@
+name: NSS 4.31 Football Schema Probe
+on:
+  push:
+    branches:
+      - nss-football-schema-probe-20261029
+    paths:
+      - 'nss_football_schema_probe.py'
+      - 'uptodown_431_gate.py'
+      - '.github/workflows/nss-football-schema-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  schema:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Resolve verified publisher-stock NSS 4.31
+        run: |
+          set -o pipefail
+          python3 uptodown_431_gate.py /tmp/nss-4.31.xapk "$RUNNER_TEMP/NSS_431_SOURCE_GATE.txt" | tee "$RUNNER_TEMP/NSS_431_SOURCE_GATE.log"
+      - name: Extract complete v2025 schema
+        run: |
+          mkdir -p "$RUNNER_TEMP/schema"
+          python3 nss_football_schema_probe.py /tmp/nss-4.31.xapk "$RUNNER_TEMP/schema/NSS431_FOOTBALL_DATABASE_SCHEMA.json" "$RUNNER_TEMP/schema/FOOTBALL_DATABASE_SCHEMA.md" | tee "$RUNNER_TEMP/schema/probe.log"
+      - name: Upload schema evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nss431-football-database-schema
+          path: |
+            ${{ runner.temp }}/schema/
+            ${{ runner.temp }}/NSS_431_SOURCE_GATE.txt
+            ${{ runner.temp }}/NSS_431_SOURCE_GATE.log
