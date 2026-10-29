@@ -23,6 +23,21 @@ def _sha256(data: bytes) -> str:
 
 
 def verify(base: dict, post: dict, restart: dict, post_xml: bytes, restart_xml: bytes, flow: str) -> dict:
+    retirement_screen = re.search(r'Create Screen:\s*retirement', flow, flags=re.IGNORECASE)
+    retirement_pos = retirement_screen.start() if retirement_screen else -1
+    quick_save_pos = flow.find('QUICK SAVE', retirement_pos + 1) if retirement_pos >= 0 else -1
+    retired_pos = flow.rfind('>>>> RETIRED')
+    load_pos = flow.rfind('LoadCareer saveslot: 0')
+    gamemenu_match = (
+        re.search(
+            r'(?:Create Screen:\s*gamemenu|SETTING ACTIVE:\s*gamemenu|SetActive:\s*gamemenu)',
+            flow[load_pos + 1 :],
+            flags=re.IGNORECASE,
+        )
+        if load_pos >= 0
+        else None
+    )
+
     checks = {
         'date_decremented_once': post.get('sdate') == base.get('sdate', 0) - 1,
         'restart_equivalent': same_after_restart(post, restart),
@@ -30,10 +45,12 @@ def verify(base: dict, post: dict, restart: dict, post_xml: bytes, restart_xml: 
         'player_record_persisted': restart.get('playerrecordsha256') == post.get('playerrecordsha256'),
         'raw_save_nonempty': bool(post_xml) and bool(restart_xml),
         'raw_save_byte_identical': post_xml == restart_xml,
-        'retirement_screen_marker': re.search(r'Create Screen:\s*retirement', flow, flags=re.IGNORECASE) is not None,
-        'quick_save_marker': 'QUICK SAVE' in flow,
-        'loadcareer_marker': 'LoadCareer saveslot: 0' in flow,
-        'retired_marker': '>>>> RETIRED' in flow,
+        'retirement_screen_marker': retirement_pos >= 0,
+        'quick_save_marker': quick_save_pos >= 0,
+        'retired_marker': retired_pos >= 0,
+        'loadcareer_marker': load_pos >= 0,
+        'restart_marker_order': 0 <= retirement_pos < quick_save_pos < retired_pos < load_pos,
+        'gamemenu_after_load': gamemenu_match is not None,
     }
     passed = all(checks.values())
     return {
@@ -50,6 +67,10 @@ def verify(base: dict, post: dict, restart: dict, post_xml: bytes, restart_xml: 
             'playerrecordsha256_pre': base.get('playerrecordsha256'),
             'playerrecordsha256_post': post.get('playerrecordsha256'),
             'playerrecordsha256_restart': restart.get('playerrecordsha256'),
+            'retirement_screen_offset': retirement_pos,
+            'quick_save_offset': quick_save_pos,
+            'retired_offset': retired_pos,
+            'restart_loadcareer_offset': load_pos,
         },
         'pass': passed,
     }
