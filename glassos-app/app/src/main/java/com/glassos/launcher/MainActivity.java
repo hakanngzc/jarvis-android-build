@@ -319,28 +319,78 @@ public final class MainActivity extends Activity {
         g.setClipToPadding(false);
     }
     private View tile(App app,String where,boolean labelled){
-        LinearLayout box=vertical();box.setGravity(Gravity.TOP|Gravity.CENTER_HORIZONTAL);
-        box.setPadding(dp(1),dp(5),dp(1),dp(3));
-        LinearLayout backdrop=vertical();
-        backdrop.setGravity(Gravity.CENTER);
-        panel(backdrop,19);
+        LinearLayout box=vertical();
+        box.setGravity(Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(1),dp(3),dp(1),0);
+        FrameLayout plate=new FrameLayout(this);
+        int size=where.equals("dock")?59:58;
         ImageView pic=new ImageView(this);
         Drawable icon=app.icon;
         if(icon.getConstantState()!=null)icon=icon.getConstantState().newDrawable(getResources()).mutate();
         pic.setImageDrawable(icon);
         pic.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        backdrop.addView(pic,new LinearLayout.LayoutParams(dp(49),dp(49)));
-        box.addView(backdrop,new LinearLayout.LayoutParams(dp(61),dp(61)));
+        plate.addView(pic,new FrameLayout.LayoutParams(dp(size),dp(size),Gravity.CENTER));
+        box.addView(plate,params(size,size));
         if(labelled){
-            TextView t=text(app.name,10.5f,WHITE,true);
-            t.setSingleLine(true);t.setEllipsize(TextUtils.TruncateAt.END);
-            t.setGravity(Gravity.CENTER);
-            box.addView(t,new LinearLayout.LayoutParams(-1,dp(23)));
+            TextView title=text(app.name,10.5f,LiquidArt.WHITE,false);
+            title.setSingleLine(true);title.setEllipsize(TextUtils.TruncateAt.END);
+            title.setGravity(Gravity.CENTER);
+            title.setShadowLayer(dp(3),0,dp(1),0xd0000000);
+            LinearLayout.LayoutParams lp=params(-1,24);lp.topMargin=dp(3);
+            box.addView(title,lp);
         }
-        box.setContentDescription(app.name);
+        box.setContentDescription(app.name+", uygulamayı aç");
         box.setOnClickListener(v->launch(app));
-        box.setOnLongClickListener(v->{popup(v,app,where);return true;});
+        box.setOnLongClickListener(v->{
+            if(where.equals("drawer"))popup(v,app,where);
+            else {
+                ClipData data=ClipData.newPlainText("GlassOS icon",app.key());
+                if(!v.startDragAndDrop(data,new View.DragShadowBuilder(v),null,0))popup(v,app,where);
+            }
+            return true;
+        });
+        if(!where.equals("drawer")){
+            box.setOnDragListener((v,event)->{
+                int a=event.getAction();
+                if(a==DragEvent.ACTION_DRAG_STARTED)return true;
+                if(a==DragEvent.ACTION_DRAG_ENTERED){
+                    v.animate().scaleX(1.08f).scaleY(1.08f).setDuration(90).start();return true;
+                }
+                if(a==DragEvent.ACTION_DRAG_EXITED||a==DragEvent.ACTION_DRAG_ENDED){
+                    v.animate().scaleX(1f).scaleY(1f).setDuration(90).start();return true;
+                }
+                if(a==DragEvent.ACTION_DROP && event.getClipData()!=null){
+                    String key=String.valueOf(event.getClipData().getItemAt(0).coerceToText(this));
+                    if(!key.equals(app.key()))moveIcon(key,where,app.key());
+                    return true;
+                }
+                return true;
+            });
+        }
         return box;
+    }
+    private void moveIcon(String moving,String dest,String target){
+        ArrayList<String> home=keys(HOME_KEY),dock=keys(DOCK_KEY);
+        if(!home.contains(moving)&&!dock.contains(moving))return;
+        if(dest.equals("home")){
+            home.remove(moving);dock.remove(moving);
+            int pos=home.indexOf(target);
+            home.add(pos<0?home.size():pos,moving);
+        }else{
+            if(!dock.contains(moving)&&dock.size()>=4){
+                int pos=dock.indexOf(target);
+                if(pos>=0){
+                    String displaced=dock.remove(pos);
+                    home.remove(displaced);home.add(displaced);
+                }
+            }
+            home.remove(moving);dock.remove(moving);
+            int pos=dock.indexOf(target);
+            dock.add(pos<0?dock.size():pos,moving);
+        }
+        prefs.edit().putString(HOME_KEY,TextUtils.join("\n",home))
+            .putString(DOCK_KEY,TextUtils.join("\n",dock)).apply();
+        showHome();
     }
     private void launch(App app){
         try{
@@ -377,35 +427,46 @@ public final class MainActivity extends Activity {
     private void showDrawer(){
         drawer=true;settings=false;shell();
         LinearLayout top=horizontal();
-        TextView back=button("‹",false);back.setTextSize(29);
+        ImageView back=systemIcon(android.R.drawable.ic_media_previous);
+        back.setContentDescription("Ana ekrana dön");
         back.setOnClickListener(v->showHome());
-        top.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        TextView title=text("  Uygulama Kitaplığı",22,WHITE,true);
-        top.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));
+        top.addView(back,params(42,48));
+        TextView heading=text("  Uygulama Kitaplığı",23,WHITE,true);
+        top.addView(heading,new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(top);
+        LiquidArt.Glass field=glass(22,true);
+        field.setPadding(dp(12),0,dp(12),0);
         EditText search=new EditText(this);
         search.setSingleLine(true);search.setTextColor(WHITE);
-        search.setHintTextColor(MUTED);
-        search.setTextSize(16);search.setHint("⌕  Uygulama ara");
-        search.setPadding(dp(18),0,dp(18),0);panel(search,18);
-        LinearLayout.LayoutParams searchParams=new LinearLayout.LayoutParams(-1,dp(54));
-        searchParams.topMargin=dp(20);searchParams.bottomMargin=dp(17);
-        root.addView(search,searchParams);
+        search.setHintTextColor(0xffc5d4ea);
+        search.setTextSize(16);search.setHint("⌕   Uygulamalarda ara");
+        search.setBackgroundColor(Color.TRANSPARENT);
+        search.setPadding(dp(9),0,dp(8),0);
+        field.addView(search,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout.LayoutParams fp=margins(19);
+        fp.height=dp(56);fp.bottomMargin=dp(18);
+        root.addView(field,fp);
+        TextView all=smallCaps("TÜM UYGULAMALAR");
+        root.addView(all,params(-1,30));
         GridView grid=new GridView(this);configureGrid(grid);
+        grid.setVerticalSpacing(dp(8));
         visible.clear();visible.addAll(apps);
         AppAdapter adapter=new AppAdapter(visible,"drawer",true);
         grid.setAdapter(adapter);
         root.addView(grid,new LinearLayout.LayoutParams(-1,0,1));
-        TextView foot=button("Ana ekrana dön",false);
-        foot.setOnClickListener(v->showHome());
-        root.addView(foot,margins(12));
+        LiquidArt.Glass close=glass(22,false);
+        TextView done=text("Ana ekrana dön",14,WHITE,true);
+        done.setGravity(Gravity.CENTER);
+        close.addView(done,new FrameLayout.LayoutParams(-1,-1));
+        close.setOnClickListener(v->showHome());
+        root.addView(close,params(-1,49));
         search.addTextChangedListener(new TextWatcher(){
-            @Override public void beforeTextChanged(CharSequence s,int st,int c,int a){}
-            @Override public void onTextChanged(CharSequence s,int st,int before,int count){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
                 String q=s.toString().trim().toLowerCase(TR);
                 visible.clear();
-                for(App a:apps)if(q.length()==0||a.name.toLowerCase(TR).contains(q)
-                   ||a.component.getPackageName().toLowerCase(TR).contains(q))visible.add(a);
+                for(App app:apps)if(q.isEmpty()||app.name.toLowerCase(TR).contains(q)||
+                    app.component.getPackageName().toLowerCase(TR).contains(q))visible.add(app);
                 adapter.notifyDataSetChanged();
             }
             @Override public void afterTextChanged(Editable e){}
@@ -422,7 +483,7 @@ public final class MainActivity extends Activity {
         @Override public long getItemId(int i){return i;}
         @Override public View getView(int i,View recycled,ViewGroup parent){
             View v=tile(entries.get(i),where,labels);
-            v.setLayoutParams(new android.widget.AbsListView.LayoutParams(-1,dp(labels?97:69)));
+            v.setLayoutParams(new android.widget.AbsListView.LayoutParams(-1,dp(labels?95:69)));
             return v;
         }
     }
@@ -486,9 +547,9 @@ public final class MainActivity extends Activity {
             downY=e.getRawY();downX=e.getRawX();
         }else if(e.getActionMasked()==MotionEvent.ACTION_UP){
             float dy=e.getRawY()-downY,dx=e.getRawX()-downX;
-            if(!settings&&Math.abs(dy)>dp(100)&&Math.abs(dy)>Math.abs(dx)*1.5f){
+            if(!settings&&Math.abs(dy)>dp(115)&&Math.abs(dy)>Math.abs(dx)*1.5f){
                 if(dy<0&&!drawer){showDrawer();return true;}
-                if(dy>0&&drawer){showHome();return true;}
+                if(dy>0&&drawer&&downY<dp(270)){showHome();return true;}
             }
         }
         return super.dispatchTouchEvent(e);
