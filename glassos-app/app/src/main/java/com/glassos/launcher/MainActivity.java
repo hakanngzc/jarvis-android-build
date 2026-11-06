@@ -210,6 +210,12 @@ public final class MainActivity extends Activity {
     private TextView smallCaps(String v){
         TextView t=text(v,11,LiquidArt.MUTED,true);t.setLetterSpacing(.14f);return t;
     }
+    private TextView button(String value,boolean primary){
+        TextView t=text(value,14,primary?0xff0a2035:WHITE,true);
+        t.setGravity(Gravity.CENTER);t.setMinHeight(dp(50));
+        t.setBackground(LiquidArt.capsule(this,primary));
+        return t;
+    }
     private static final class BatteryCircle extends View{
         private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         private final int percent;
