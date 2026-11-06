@@ -19,6 +19,9 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: ''
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
       - name: Install build tools and compile
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
