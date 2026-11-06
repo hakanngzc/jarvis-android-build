@@ -48,6 +48,9 @@ jobs:
             adb shell wm size 720x1612
             adb shell wm density 320
             adb install -r glassos-app/app/build/outputs/apk/debug/app-debug.apk
+            adb shell cmd role add-role-holder android.app.role.HOME com.glassos.launcher
+            adb shell cmd role get-role-holders android.app.role.HOME > glassos-app/captures/home-role.txt
+            grep -q "com.glassos.launcher" glassos-app/captures/home-role.txt
             adb shell am start -n com.glassos.launcher/.MainActivity
             sleep 5
             adb exec-out screencap -p > glassos-app/captures/01-home.png
