@@ -490,34 +490,90 @@ public final class MainActivity extends Activity {
     private void showSettings(){
         settings=true;drawer=false;shell();
         LinearLayout top=horizontal();
-        TextView back=button("‹",false);back.setTextSize(28);back.setOnClickListener(v->showHome());
-        top.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        TextView title=text("  GlassOS Ayarları",22,WHITE,true);
-        top.addView(title);
+        ImageView back=systemIcon(android.R.drawable.ic_media_previous);
+        back.setContentDescription("Geri");back.setOnClickListener(v->showHome());
+        top.addView(back,params(42,48));
+        top.addView(text("  Görünüm",24,WHITE,true));
         root.addView(top);
         ScrollView scroll=new ScrollView(this);
-        LinearLayout content=vertical();content.setPadding(dp(2),dp(28),dp(2),dp(15));
-        scroll.addView(content);
-        TextView model=text("Koyu Cam · vivo Y22s · Android 14\nAlpha sürüm 0.1.1",14,MUTED,false);
-        content.addView(model);
-        TextView choose=button("Varsayılan başlatıcı olarak ayarla",true);
-        choose.setOnClickListener(v->chooseHome());
-        content.addView(choose,margins(28));
-        TextView android=button("Android ana ekran ayarları",false);
-        android.setOnClickListener(v->openHomeSettings());
-        content.addView(android,margins(12));
+        scroll.setVerticalScrollBarEnabled(false);
+        LinearLayout body=vertical();body.setPadding(0,dp(24),0,dp(15));
+        scroll.addView(body);
+        body.addView(smallCaps("GLASSOS   •   KOYU CAM"));
+        TextView intro=text("vivo Y22s için tasarlandı. Android 14.\nCam saydamlığını ve ana ekranı kendine göre ayarla.",14,LiquidArt.MUTED,false);
+        intro.setPadding(0,dp(10),0,0);
+        body.addView(intro);
+        LiquidArt.Glass transparency=glass(28,true);
+        transparency.setPadding(dp(18),dp(16),dp(18),dp(12));
+        LinearLayout row=vertical();
+        row.addView(text("Cam yoğunluğu",17,WHITE,true));
+        row.addView(text("Saydam  —  Buzlu",12,LiquidArt.MUTED,false));
+        SeekBar slider=new SeekBar(this);
+        slider.setMax(100);slider.setProgress(prefs.getInt("glass",52));
+        slider.setProgressTintList(android.content.res.ColorStateList.valueOf(0xff98d5ff));
+        slider.setThumbTintList(android.content.res.ColorStateList.valueOf(0xffcbeaff));
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar sb,int progress,boolean user){
+                if(user){prefs.edit().putInt("glass",progress).apply();transparency.invalidate();}
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb){}
+            @Override public void onStopTrackingTouch(SeekBar sb){}
+        });
+        row.addView(slider,params(-1,52));
+        transparency.addView(row,new FrameLayout.LayoutParams(-1,-2));
+        body.addView(transparency,margins(24));
+        LiquidArt.Glass wallpaperPanel=glass(28,true);
+        wallpaperPanel.setPadding(dp(16),dp(15),dp(16),dp(17));
+        LinearLayout wb=vertical();
+        wb.addView(text("Duvar kâğıdı",17,WHITE,true));
+        wb.addView(text("Koyu Cam paletleri",12,LiquidArt.MUTED,false));
+        LinearLayout options=horizontal();
+        String[] names={"Okyanus","Safir","Grafit"};
+        for(int i=0;i<3;i++){
+            final int which=i;
+            TextView choose=text(names[i],11,i==prefs.getInt("wallpaper",0)?0xffb7eaff:WHITE,true);
+            choose.setGravity(Gravity.CENTER);
+            choose.setBackground(LiquidArt.capsule(this,false));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(46),1);
+            if(i>0)lp.leftMargin=dp(6);
+            options.addView(choose,lp);
+            choose.setOnClickListener(v->{
+                prefs.edit().putInt("wallpaper",which).apply();
+                LiquidArt.invalidate();
+                showSettings();
+            });
+        }
+        wb.addView(options,margins(13));
+        wallpaperPanel.addView(wb,new FrameLayout.LayoutParams(-1,-2));
+        body.addView(wallpaperPanel,margins(13));
+        LiquidArt.Glass labels=glass(24,false);
+        labels.setPadding(dp(16),dp(6),dp(16),dp(6));
+        TextView l=text(prefs.getBoolean("hide_labels",false)?
+          "Simge adları: Gizli   ›":"Simge adları: Görünür   ›",15,WHITE,true);
+        labels.addView(l,new FrameLayout.LayoutParams(-1,dp(48)));
+        labels.setOnClickListener(v->{
+            prefs.edit().putBoolean("hide_labels",!prefs.getBoolean("hide_labels",false)).apply();
+            showSettings();
+        });
+        body.addView(labels,margins(13));
+        TextView homeButton=button("Varsayılan başlatıcı yap",true);
+        homeButton.setOnClickListener(v->chooseHome());
+        body.addView(homeButton,margins(26));
+        TextView sys=button("Android başlatıcı ayarları",false);
+        sys.setOnClickListener(v->openHomeSettings());
+        body.addView(sys,margins(10));
         TextView reset=button("Ana ekran düzenini sıfırla",false);
         reset.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle("Ana ekran sıfırlansın mı?")
+            .setMessage("Simge sıralaman ve Dock düzenin sıfırlanacak.")
             .setNegativeButton("Vazgeç",null)
             .setPositiveButton("Sıfırla",(d,w)->{
-                prefs.edit().clear().apply();refreshApps();showHome();
+                prefs.edit().remove("seeded").remove(HOME_KEY).remove(DOCK_KEY).apply();
+                refreshApps();showHome();
             }).show());
-        content.addView(reset,margins(25));
-        TextView note=text("Gizlilik: İnternet izni, reklam, takip ve erişilebilirlik servisi yoktur.\n\n" +
-            "Bu sürüm canlı bulanıklık veya iOS sistem kontrol merkezi sunmaz. " +
-            "Orijinal Funtouch OS yerinde kalır.",13,MUTED,false);
-        content.addView(note,margins(30));
+        body.addView(reset,margins(20));
+        TextView privacy=text("Reklam, internet izni ve takip yok.\nFuntouch OS ve kilit ekranı değişmez.\n\nGlassOS v0.2 Beta",12,LiquidArt.MUTED,false);
+        body.addView(privacy,margins(28));
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
     }
     private void chooseHome(){
