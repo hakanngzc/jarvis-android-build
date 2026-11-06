@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.role.RoleManager;
 import android.content.ComponentName;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -11,6 +12,9 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -24,12 +28,16 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.DragEvent;
+import android.view.WindowInsets;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
+import android.widget.FrameLayout;
+import android.widget.SeekBar;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
@@ -54,6 +62,9 @@ public final class MainActivity extends Activity {
     private final ArrayList<App> visible=new ArrayList<>();
     private SharedPreferences prefs;
     private LinearLayout root;
+    private FrameLayout canvasRoot;
+    private LiquidArt.Wallpaper wall;
+    private int statusInset,navigationInset;
     private boolean drawer=false, settings=false;
     private float downX,downY;
     private static final class App {
@@ -90,9 +101,12 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle s){
         super.onCreate(s);
         prefs=getSharedPreferences("glassos_prefs",MODE_PRIVATE);
-        getWindow().setStatusBarColor(NAVY);
-        getWindow().setNavigationBarColor(NAVY);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
         if(Build.VERSION.SDK_INT>=29)getWindow().setNavigationBarContrastEnforced(false);
+        getWindow().getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         refreshApps();
         showHome();
     }
@@ -132,7 +146,7 @@ public final class MainActivity extends Activity {
                 }
             }
             for(App app:apps)if(dock.size()<4&&!dock.contains(app.key()))dock.add(app.key());
-            for(App app:apps)if(home.size()<12&&!dock.contains(app.key()))home.add(app.key());
+            for(App app:apps)if(home.size()<16&&!dock.contains(app.key()))home.add(app.key());
             prefs.edit().putString(HOME_KEY,TextUtils.join("\n",home))
                 .putString(DOCK_KEY,TextUtils.join("\n",dock)).putBoolean("seeded",true).apply();
         }
@@ -158,86 +172,138 @@ public final class MainActivity extends Activity {
         if(drawer)showDrawer();else showHome();
     }
     private void shell(){
+        canvasRoot=new FrameLayout(this);
+        wall=new LiquidArt.Wallpaper(this);
+        canvasRoot.addView(wall,new FrameLayout.LayoutParams(-1,-1));
         root=vertical();
-        root.setPadding(dp(18),dp(12),dp(18),dp(12));
-        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff061020,0xff0a1930,0xff1b2d46,0xff091525});
-        root.setBackground(bg);
-        setContentView(root);
+        canvasRoot.addView(root,new FrameLayout.LayoutParams(-1,-1));
+        root.setPadding(dp(18),dp(39),dp(18),dp(26));
+        root.setOnApplyWindowInsetsListener((v,insets)->{
+            if(Build.VERSION.SDK_INT>=30){
+                statusInset=insets.getInsets(WindowInsets.Type.statusBars()|WindowInsets.Type.displayCutout()).top;
+                navigationInset=insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+            }else{
+                statusInset=insets.getSystemWindowInsetTop();
+                navigationInset=insets.getSystemWindowInsetBottom();
+            }
+            int t=Math.max(dp(24),statusInset)+dp(7);
+            int b=Math.max(dp(14),navigationInset)+dp(7);
+            if(root.getPaddingTop()!=t||root.getPaddingBottom()!=b)
+                root.setPadding(dp(18),t,dp(18),b);
+            return insets;
+        });
+        setContentView(canvasRoot);
+        canvasRoot.requestApplyInsets();
     }
-    private TextView button(String name,boolean bright){
-        TextView t=text(name,14,bright?NAVY:WHITE,true);
-        t.setGravity(Gravity.CENTER);
-        t.setMinHeight(dp(48));
-        t.setBackground(gradient(18,bright));
-        return t;
+    private LiquidArt.Glass glass(int radius,boolean strong){return new LiquidArt.Glass(this,radius,strong);}
+    private ImageView systemIcon(int drawable){
+        ImageView image=new ImageView(this);
+        image.setImageResource(drawable);
+        image.setColorFilter(LiquidArt.WHITE);
+        image.setPadding(dp(12),dp(12),dp(12),dp(12));
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        return image;
+    }
+    private LinearLayout.LayoutParams params(int w,int h){
+        return new LinearLayout.LayoutParams(w<0?w:dp(w),h<0?h:dp(h));
+    }
+    private TextView smallCaps(String v){
+        TextView t=text(v,11,LiquidArt.MUTED,true);t.setLetterSpacing(.14f);return t;
+    }
+    private static final class BatteryCircle extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int percent;
+        BatteryCircle(Context c,int pct){super(c);percent=pct;}
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight();
+            float size=Math.min(w,h)-getResources().getDisplayMetrics().density*8;
+            float cx=w/2,cy=h/2;
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(4,size*.095f));
+            p.setStrokeCap(Paint.Cap.ROUND);p.setColor(0x367cbcff);
+            RectF arc=new RectF(cx-size/2,cy-size/2,cx+size/2,cy+size/2);
+            c.drawArc(arc,0,360,false,p);
+            p.setColor(0xff9ed9ff);
+            c.drawArc(arc,-90,Math.max(0,Math.min(100,percent))*3.6f,false,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);
+            p.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
+            p.setTextSize(size*.27f);
+            String val=percent>=0?percent+"%":"—";
+            c.drawText(val,cx-p.measureText(val)/2,cy-(p.ascent()+p.descent())/2,p);
+        }
     }
     private void showHome(){
-        drawer=false; settings=false; shell();
+        drawer=false;settings=false;shell();
         LinearLayout header=horizontal();
-        LinearLayout names=vertical();
-        names.addView(text("GlassOS",25,WHITE,true));
-        TextView sub=text("VIVO Y22S  •  KOYU CAM",10,MUTED,true);
-        sub.setLetterSpacing(.12f);
-        names.addView(sub);
-        header.addView(names,new LinearLayout.LayoutParams(0,dp(58),1));
-        TextView gear=button("⚙",false);
-        gear.setTextSize(25);
+        String day=new SimpleDateFormat("EEEE, d MMMM",TR).format(new Date());
+        TextView date=smallCaps(day.toUpperCase(TR));
+        header.addView(date,new LinearLayout.LayoutParams(0,dp(38),1));
+        ImageView gear=systemIcon(android.R.drawable.ic_menu_manage);
+        gear.setContentDescription("GlassOS ayarları");
         gear.setOnClickListener(v->showSettings());
-        header.addView(gear,new LinearLayout.LayoutParams(dp(52),dp(52)));
+        header.addView(gear,params(42,42));
         root.addView(header);
-        LinearLayout clockCard=horizontal();
-        clockCard.setPadding(dp(18),dp(14),dp(16),dp(12)); panel(clockCard,27);
-        LinearLayout left=vertical();
-        String date=new SimpleDateFormat("EEEE, d MMMM",TR).format(new Date()).toUpperCase(TR);
-        left.addView(text(date,11,0xffcce3fc,true));
-        TextClock time=new TextClock(this);
-        time.setFormat24Hour("HH:mm");time.setFormat12Hour("HH:mm");
-        time.setTextColor(Color.WHITE);
-        time.setTextSize(TypedValue.COMPLEX_UNIT_SP,57);
-        time.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
-        left.addView(time,new LinearLayout.LayoutParams(-1,dp(76)));
-        left.addView(text("Sadece sana özel.",12,MUTED,false));
-        clockCard.addView(left,new LinearLayout.LayoutParams(0,-2,1));
-        LinearLayout right=vertical();
-        right.setGravity(Gravity.TOP|Gravity.RIGHT);
-        TextView bat=text("⚡ "+battery(),12,WHITE,true);
-        bat.setPadding(dp(9),dp(5),dp(9),dp(5));
-        panel(bat,14);right.addView(bat);
-        TextView os=text("Android 14",10,MUTED,false);
-        os.setPadding(0,dp(13),0,0);right.addView(os);
-        clockCard.addView(right);
-        root.addView(clockCard,margins(18));
-        LinearLayout title=horizontal();
-        TextView label=text("ANA EKRAN",12,MUTED,true);
-        label.setLetterSpacing(.13f);
-        title.addView(label,new LinearLayout.LayoutParams(0,dp(52),1));
-        TextView see=text("Tüm uygulamalar  ›",12,WHITE,true);
-        see.setOnClickListener(v->showDrawer());
-        title.addView(see);root.addView(title,margins(4));
+        LinearLayout widgets=horizontal();
+        LiquidArt.Glass left=glass(28,true);left.setPadding(dp(17),dp(13),dp(12),dp(11));
+        LinearLayout clockCol=vertical();
+        clockCol.addView(smallCaps("SAAT"));
+        TextClock clock=new TextClock(this);
+        clock.setFormat12Hour("HH:mm");clock.setFormat24Hour("HH:mm");
+        clock.setTextSize(TypedValue.COMPLEX_UNIT_SP,44);
+        clock.setTextColor(Color.WHITE);clock.setIncludeFontPadding(false);
+        clock.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
+        clockCol.addView(clock,params(-1,63));
+        clockCol.addView(text(new SimpleDateFormat("d MMMM",TR).format(new Date()),13,0xffe3eefe,true));
+        left.addView(clockCol,new FrameLayout.LayoutParams(-1,-1));
+        widgets.addView(left,new LinearLayout.LayoutParams(0,dp(140),1));
+        LiquidArt.Glass right=glass(28,true);right.setPadding(dp(12),dp(13),dp(12),dp(10));
+        LinearLayout batCol=vertical();batCol.addView(smallCaps("BATARYA"));
+        BatteryCircle circle=new BatteryCircle(this,readBatteryPercent());
+        LinearLayout.LayoutParams ring=new LinearLayout.LayoutParams(-1,0,1);
+        ring.topMargin=dp(1);batCol.addView(circle,ring);
+        TextView model=text("vivo Y22s",11,0xffe2eeff,true);
+        model.setGravity(Gravity.CENTER);batCol.addView(model);
+        right.addView(batCol,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(140),1);
+        rp.leftMargin=dp(12);widgets.addView(right,rp);
+        root.addView(widgets,margins(13));
         GridView homeGrid=new GridView(this);
         configureGrid(homeGrid);
-        homeGrid.setAdapter(new AppAdapter(new ArrayList<>(pinned(HOME_KEY)),"home",true));
-        root.addView(homeGrid,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout dock=horizontal();
-        dock.setPadding(dp(7),dp(5),dp(7),dp(4));panel(dock,24);
+        homeGrid.setVerticalSpacing(dp(2));
+        homeGrid.setAdapter(new AppAdapter(new ArrayList<>(pinned(HOME_KEY)),
+            "home",!prefs.getBoolean("hide_labels",false)));
+        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,0,1);
+        gp.topMargin=dp(16);gp.bottomMargin=dp(3);
+        root.addView(homeGrid,gp);
+        LiquidArt.Glass search=glass(20,false);
+        TextView st=text("⌕   Ara",12,LiquidArt.WHITE,true);
+        st.setGravity(Gravity.CENTER);
+        search.addView(st,new FrameLayout.LayoutParams(-1,-1));
+        search.setContentDescription("Uygulamalarda ara");
+        search.setOnClickListener(v->showDrawer());
+        LinearLayout.LayoutParams sp=params(102,31);
+        sp.gravity=Gravity.CENTER_HORIZONTAL;sp.bottomMargin=dp(10);
+        root.addView(search,sp);
+        LiquidArt.Glass dock=glass(29,true);dock.setPadding(dp(8),dp(8),dp(8),dp(8));
+        LinearLayout icons=horizontal();
         List<App> favorites=pinned(DOCK_KEY);
         for(int i=0;i<4;i++){
-            if(i<favorites.size()){
-                App a=favorites.get(i);
-                View tile=tile(a,"dock",false);
-                dock.addView(tile,new LinearLayout.LayoutParams(0,dp(65),1));
-            }else{
-                TextView add=text("+",25,MUTED,true);add.setGravity(Gravity.CENTER);
-                add.setOnClickListener(v->showDrawer());
-                dock.addView(add,new LinearLayout.LayoutParams(0,dp(65),1));
+            if(i<favorites.size())icons.addView(tile(favorites.get(i),"dock",false),
+                new LinearLayout.LayoutParams(0,dp(65),1));
+            else{
+                TextView add=text("+",29,WHITE,false);
+                add.setGravity(Gravity.CENTER);add.setOnClickListener(v->showDrawer());
+                icons.addView(add,new LinearLayout.LayoutParams(0,dp(65),1));
             }
         }
-        root.addView(dock,new LinearLayout.LayoutParams(-1,dp(76)));
-        TextView swipe=text("↑  Yukarı kaydır · Uygulamalar",11,MUTED,false);
-        swipe.setGravity(Gravity.CENTER);
-        swipe.setOnClickListener(v->showDrawer());
-        root.addView(swipe,new LinearLayout.LayoutParams(-1,dp(34)));
+        dock.addView(icons,new FrameLayout.LayoutParams(-1,-1));
+        root.addView(dock,params(-1,81));
+    }
+    private int readBatteryPercent(){
+        Intent in=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if(in==null)return -1;
+        int level=in.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);
+        int scale=in.getIntExtra(BatteryManager.EXTRA_SCALE,100);
+        return level<0||scale<=0?-1:level*100/scale;
     }
     private String battery(){
         Intent intent=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
