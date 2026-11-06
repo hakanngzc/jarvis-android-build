@@ -164,10 +164,12 @@ final class LiquidArt {
             pen.setColor(strong?0x88d6eaff:0x66cae6ff);
             c.drawRoundRect(dp(getContext(),.5f),dp(getContext(),.5f),
                 w-dp(getContext(),.5f),h-dp(getContext(),.5f),corner,corner,pen);
-            pen.setColor(0x44ffffff);
+            pen.setShader(new LinearGradient(0,0,w,0,
+                new int[]{0x00ffffff,0x37ffffff,0x00ffffff},null,Shader.TileMode.CLAMP));
             pen.setStrokeWidth(dp(getContext(),.8f));
-            c.drawArc(dp(getContext(),2),dp(getContext(),2),w-dp(getContext(),2),
-                Math.min(h*.74f,dp(getContext(),70)),197,130,false,pen);
+            c.drawLine(dp(getContext(),24),dp(getContext(),1.5f),
+                w-dp(getContext(),24),dp(getContext(),1.5f),pen);
+            pen.setShader(null);
             pen.setStyle(Paint.Style.FILL);
         }
     }

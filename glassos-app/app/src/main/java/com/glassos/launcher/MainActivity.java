@@ -243,7 +243,7 @@ public final class MainActivity extends Activity {
         String day=new SimpleDateFormat("EEEE, d MMMM",TR).format(new Date());
         TextView date=smallCaps(day.toUpperCase(TR));
         header.addView(date,new LinearLayout.LayoutParams(0,dp(38),1));
-        ImageView gear=systemIcon(android.R.drawable.ic_menu_manage);
+        ImageView gear=systemIcon(R.drawable.ic_glass_settings);
         gear.setContentDescription("GlassOS ayarları");
         gear.setOnClickListener(v->showSettings());
         header.addView(gear,params(42,42));
@@ -281,9 +281,15 @@ public final class MainActivity extends Activity {
         gp.topMargin=dp(16);gp.bottomMargin=dp(3);
         root.addView(homeGrid,gp);
         LiquidArt.Glass search=glass(20,false);
-        TextView st=text("⌕   Ara",12,LiquidArt.WHITE,true);
-        st.setGravity(Gravity.CENTER);
-        search.addView(st,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout searchContent=horizontal();
+        searchContent.setGravity(Gravity.CENTER);
+        ImageView lens=new ImageView(this);
+        lens.setImageResource(R.drawable.ic_glass_search);
+        lens.setColorFilter(LiquidArt.WHITE);
+        searchContent.addView(lens,params(15,15));
+        TextView st=text("  Ara",12,LiquidArt.WHITE,true);
+        searchContent.addView(st);
+        search.addView(searchContent,new FrameLayout.LayoutParams(-1,-1));
         search.setContentDescription("Uygulamalarda ara");
         search.setOnClickListener(v->showDrawer());
         LinearLayout.LayoutParams sp=params(102,31);
@@ -433,7 +439,7 @@ public final class MainActivity extends Activity {
     private void showDrawer(){
         drawer=true;settings=false;shell();
         LinearLayout top=horizontal();
-        ImageView back=systemIcon(android.R.drawable.ic_media_previous);
+        ImageView back=systemIcon(R.drawable.ic_glass_back);
         back.setContentDescription("Ana ekrana dön");
         back.setOnClickListener(v->showHome());
         top.addView(back,params(42,48));
@@ -445,7 +451,15 @@ public final class MainActivity extends Activity {
         EditText search=new EditText(this);
         search.setSingleLine(true);search.setTextColor(WHITE);
         search.setHintTextColor(0xffc5d4ea);
-        search.setTextSize(16);search.setHint("⌕   Uygulamalarda ara");
+        search.setTextSize(16);search.setHint("Uygulamalarda ara");
+        Drawable lensDrawable=getDrawable(R.drawable.ic_glass_search);
+        if(lensDrawable!=null){
+            lensDrawable=lensDrawable.mutate();
+            lensDrawable.setTint(0xffd4e7fc);
+            lensDrawable.setBounds(0,0,dp(19),dp(19));
+            search.setCompoundDrawables(lensDrawable,null,null,null);
+            search.setCompoundDrawablePadding(dp(12));
+        }
         search.setBackgroundColor(Color.TRANSPARENT);
         search.setPadding(dp(9),0,dp(8),0);
         field.addView(search,new FrameLayout.LayoutParams(-1,-1));
@@ -496,7 +510,7 @@ public final class MainActivity extends Activity {
     private void showSettings(){
         settings=true;drawer=false;shell();
         LinearLayout top=horizontal();
-        ImageView back=systemIcon(android.R.drawable.ic_media_previous);
+        ImageView back=systemIcon(R.drawable.ic_glass_back);
         back.setContentDescription("Geri");back.setOnClickListener(v->showHome());
         top.addView(back,params(42,48));
         top.addView(text("  Görünüm",24,WHITE,true));
