@@ -1,0 +1,10 @@
+name: GlassOS launcher APK smoke
+on:
+  push:
+    branches: [glassos-launcher-v0-1-build]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "GlassOS runner available"
