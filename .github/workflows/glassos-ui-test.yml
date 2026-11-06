@@ -1,0 +1,77 @@
+name: GlassOS Android14 UI Smoke
+on:
+  push:
+    branches: [glassos-launcher-v0-1-build]
+    paths: ['glassos-app/**', '.github/workflows/glassos-ui-test.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-14:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+      - name: Install build tools and compile
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          cd glassos-app
+          gradle --no-daemon :app:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch Android 14 device at Y22s resolution and inspect UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 2048M
+          cores: 2
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -gpu swiftshader_indirect
+          script: |
+            set -e
+            mkdir -p glassos-app/captures
+            adb shell wm size 720x1612
+            adb shell wm density 320
+            adb install -r glassos-app/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -n com.glassos.launcher/.MainActivity
+            sleep 5
+            adb exec-out screencap -p > glassos-app/captures/01-home.png
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null
+            adb pull /sdcard/window.xml glassos-app/captures/01-home.xml >/dev/null
+            adb shell input swipe 360 1310 360 460 290
+            sleep 2
+            adb exec-out screencap -p > glassos-app/captures/02-drawer.png
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null
+            adb pull /sdcard/window.xml glassos-app/captures/02-drawer.xml >/dev/null
+            adb shell input keyevent 4
+            sleep 1
+            adb shell input tap 655 114
+            sleep 2
+            adb exec-out screencap -p > glassos-app/captures/03-settings.png
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null
+            adb pull /sdcard/window.xml glassos-app/captures/03-settings.xml >/dev/null
+            adb logcat -d -t 7000 > glassos-app/captures/logcat.txt
+            if grep -A 10 "FATAL EXCEPTION" glassos-app/captures/logcat.txt | grep -q "com.glassos.launcher"; then
+              echo "GLASSOS_APP_CRASH"; exit 1;
+            fi
+            test -s glassos-app/captures/01-home.png
+            test -s glassos-app/captures/02-drawer.png
+            test -s glassos-app/captures/03-settings.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: GlassOS_v0.2_Android14_720x1612_Screenshots
+          path: glassos-app/captures/
+          if-no-files-found: warn
